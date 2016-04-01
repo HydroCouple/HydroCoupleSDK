@@ -166,6 +166,9 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public vir
           */
       void setComponentInfo(HydroCouple::IModelComponentInfo* const modelComponentInfo);
 
+
+
+
    protected:
       QList<HydroCouple::IModelComponent*> m_children;
       HydroCouple::ComponentStatus m_status;

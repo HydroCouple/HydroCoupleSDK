@@ -9,6 +9,8 @@ TARGET = HydroCoupleSDK
 
 QT += core
 
+DEFINES += HYDROCOUPLESDK_LIBRARY
+
 INCLUDEPATH += ./include \
                ../HydroCouple/include
 
@@ -20,7 +22,7 @@ HEADERS += ./include/hydrocouplesdk.h \
            ./include/componentinfo.h \
            ./include/modelcomponentinfo.h \
            ./include/abstractmodelcomponent.h \
-           ./include/componentstatuschangeeventargs.h \
+           ./include/componentstatuschangeeventargs.h
 
 
 SOURCES += ./src/stdafx.cpp \
@@ -29,6 +31,6 @@ SOURCES += ./src/stdafx.cpp \
            ./src/componentinfo.cpp \
            ./src/modelcomponentinfo.cpp \
            ./src/abstractmodelcomponent.cpp \
-           ./src/componentstatuschangeeventargs.cpp \
+           ./src/componentstatuschangeeventargs.cpp
 
 

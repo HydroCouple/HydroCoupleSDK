@@ -50,7 +50,11 @@ IModelComponent* AbstractModelComponent::parent() const
 
 IModelComponent* AbstractModelComponent::clone() const
 {
-   return nullptr;
+
+   AbstractModelComponent* parent = const_cast<AbstractModelComponent*>(this);
+   AbstractModelComponent* component = new AbstractModelComponent(parent);
+   component->setComponentInfo(m_modelComponentInfo);
+   return component;
 }
 
 QList<IModelComponent*> AbstractModelComponent::children() const
