@@ -26,12 +26,12 @@
       <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
     <Filter Include="Generated Files\Debug">
-      <UniqueIdentifier>{e646c28a-21d4-4396-af97-bb840a359d22}</UniqueIdentifier>
+      <UniqueIdentifier>{82dbd8c5-1a32-4479-922c-0e95ff878117}</UniqueIdentifier>
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
     <Filter Include="Generated Files\Release">
-      <UniqueIdentifier>{428e5060-e3d0-47f4-9d9d-4c3915427000}</UniqueIdentifier>
+      <UniqueIdentifier>{6ebff6a1-af08-43b4-b51b-84d08f1bbd73}</UniqueIdentifier>
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
@@ -58,40 +58,40 @@
     <ClCompile Include="src\stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Debug\moc_abstractmodelcomponent.cpp">
+    <ClCompile Include="build\Debug\.moc\moc_abstractmodelcomponent.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="Release\moc_abstractmodelcomponent.cpp">
+    <ClCompile Include="build\Release\.moc\moc_abstractmodelcomponent.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="Debug\moc_componentinfo.cpp">
+    <ClCompile Include="build\Debug\.moc\moc_componentinfo.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="Release\moc_componentinfo.cpp">
+    <ClCompile Include="build\Release\.moc\moc_componentinfo.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="Debug\moc_componentstatuschangeeventargs.cpp">
+    <ClCompile Include="build\Debug\.moc\moc_componentstatuschangeeventargs.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="Release\moc_componentstatuschangeeventargs.cpp">
+    <ClCompile Include="build\Release\.moc\moc_componentstatuschangeeventargs.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="Debug\moc_description.cpp">
+    <ClCompile Include="build\Debug\.moc\moc_description.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="Release\moc_description.cpp">
+    <ClCompile Include="build\Release\.moc\moc_description.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="Debug\moc_identity.cpp">
+    <ClCompile Include="build\Debug\.moc\moc_identity.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="Release\moc_identity.cpp">
+    <ClCompile Include="build\Release\.moc\moc_identity.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="Debug\moc_modelcomponentinfo.cpp">
+    <ClCompile Include="build\Debug\.moc\moc_modelcomponentinfo.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="Release\moc_modelcomponentinfo.cpp">
+    <ClCompile Include="build\Release\.moc\moc_modelcomponentinfo.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,38 +1,41 @@
 #include "stdafx.h"
 #include "description.h"
 
-
 Description::Description(QObject *parent)
    : QObject(parent)
 {
 
 }
 
-Description::Description(const QString & caption, const QString & description, QObject *parent)
-   : QObject(parent), m_caption(caption), m_description(description)
+Description::Description(const QString &caption,  QObject *parent)
+   : QObject(parent), m_caption(caption)
 {
 
 }
 
+Description::~Description()
+{
 
-QString Description::getCaption() const
+}
+
+QString Description::caption() const
 {
    return m_caption;
 }
 
-void Description::setCaption(const QString& caption)
+void Description::setCaption(const QString &caption)
 {
    m_caption = caption;
-   emit propertyChanged("Caption", m_caption);
+   emit propertyChanged("Caption");
 }
 
-QString Description::getDescription() const
+QString Description::description() const
 {
    return m_description;
 }
 
-void Description::setDescription(const QString& description)
+void Description::setDescription(const QString &description)
 {
    m_description = description;
-   emit propertyChanged("Description", m_description);
+   emit propertyChanged("Description");
 }

@@ -29,76 +29,74 @@
 #include "hydrocouplesdk.h"
 #include "hydrocouple.h"
 
-
-   /*!
+/*!
     * \brief The Description class.
     *
     * \details The Description class is an implementation of the HydroCouple::IDescription class
     * in the HydroCouple interface definitions.
     *
     */
-   class HYDROCOUPLESDK_EXPORT Description : public QObject, public virtual HydroCouple::IDescription
-   {
-         Q_OBJECT
-         Q_INTERFACES(HydroCouple::IDescription)
-         Q_PROPERTY(QString Caption READ getCaption WRITE setCaption NOTIFY propertyChanged)
-         Q_PROPERTY(QString Description READ getDescription WRITE setDescription NOTIFY propertyChanged)
+class HYDROCOUPLESDK_EXPORT Description : public QObject, public virtual HydroCouple::IDescription
+{
+      Q_OBJECT
+      Q_INTERFACES(HydroCouple::IDescription)
+      Q_PROPERTY(QString Caption READ caption WRITE setCaption NOTIFY propertyChanged)
+      Q_PROPERTY(QString Description READ description WRITE setDescription NOTIFY propertyChanged)
 
-      public:
-         /*!
-          * \brief Description
-          * \param parent
-          */
-         Description(QObject* parent = nullptr);
+   public:
 
-         /*!
+      /*!
        * \brief Description
        * \param caption
        * \param description
        * \param parent
        */
-         Description(const QString & caption, const QString & description, QObject *parent = nullptr);
+      Description(QObject *parent = nullptr);
 
-         /*!
+
+      Description(const QString &caption, QObject *parent = nullptr);
+
+      /*!
        * \brief ~Description
        */
-         virtual ~Description(){}
+      virtual ~Description();
 
-         /*!
+      /*!
        * \brief Gets caption for the entity.
        * \returns string representing caption for entity.
        */
-         QString getCaption() const override;
+      QString caption() const override;
 
-         /*!
+      /*!
        * \brief Sets caption for the entity.
        * \param caption is a string representing the caption for the entity.
        */
-         virtual void setCaption(const QString & caption) override;
+      virtual void setCaption(const QString &caption) override;
 
-         /*!
+      /*!
        * \brief Gets additional descriptive information for the entity.
        * \returns description of entity
        */
-         QString getDescription() const override;
+      QString description() const override;
 
-         /*!
+      /*!
        * \brief Gets additional descriptive information for the entity.
        * \param description is a string for describing an entity
        */
-         virtual void setDescription(const QString& decription) override;
+      virtual void setDescription(const QString &decription) override;
 
-      signals:
-         /*!
+   signals:
+
+      /*!
        * \brief propertyChanged
        * \param propertyName
        * \param value
        */
-         void propertyChanged(const QString& propertyName, const QVariant& value) override;
+      void propertyChanged(const QString& propertyName) override;
 
-      protected:
-         QString m_caption, m_description;
-   };
+   protected:
+      QString m_caption, m_description;
+};
 
 Q_DECLARE_METATYPE(Description*)
 

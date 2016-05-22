@@ -22,13 +22,11 @@
 #ifndef IDENTITY_H
 #define IDENTITY_H
 
-#include "hydrocouplesdk.h"
 #include "description.h"
 
-
 /*!
-    * \brief The Identity class is an implementation of the HydroCouple::IIdentity of the HydroCouple interface definitions.
-    */
+ * \brief The Identity class is an implementation of the HydroCouple::IIdentity of the HydroCouple interface definitions.
+ */
 class HYDROCOUPLESDK_EXPORT Identity : public Description, public virtual HydroCouple::IIdentity
 {
 
@@ -37,85 +35,58 @@ class HYDROCOUPLESDK_EXPORT Identity : public Description, public virtual HydroC
       Q_PROPERTY(QString Id READ id NOTIFY propertyChanged)
 
    public:
-      /*!
-          * \brief Identity
-          * \param parent
-          */
-      Identity(QObject* parent = nullptr);
 
       /*!
-          * \brief Identity
-          * \param id
-          * \param caption
-          * \param description
-          * \param parent
-          */
-      Identity(const QString & id, const QString & caption, const QString & description, QObject *parent);
-
+       * \brief Identity
+       * \param id
+       * \param caption
+       * \param description
+       * \param parent
+       */
+      Identity(const QString &id, QObject *parent = nullptr);
 
       /*!
-          * \brief ~Identity
-          */
+       * \brief Identity
+       * \param id
+       * \param caption
+       * \param parent
+       */
+      Identity(const QString &id, const QString &caption, QObject *parent = nullptr);
+
+      /*!
+       * \brief ~Identity
+       */
       virtual ~Identity(){}
 
-
       /*!
-          * \brief MPI_Comm is the communicator in a distributed memory MPI HPC Environment.
-          * \return
-          */
-      void* MPI_Comm() const override;
-
-
-      /*!
-          * \brief setMPI_Comm
-          * \param mpi_comm
-          */
-      void setMPI_Comm(void* mpi_comm) override;
-
-
-      /*!
-          * \brief MPIRank is the rank of the processor in the communicator.
-          * \return
-          */
-      int MPI_Rank() const override;
-
-
-      /*!
-          * \brief setMPI_Rank
-          * \param rank
-          */
-      void setMPI_Rank(int rank) override;
-
-
-      /*!
-          * \brief Gets a unique identifier for the entity.
-          * \return the Id as a String. The Id must be unique within its context but
-          * does not need to be globally unique. E.g. the id of an input exchange
-          * item must be unique in the list of inputs of a IModelComponent, but a
-          * similar Id might be used by an exchange item of another IModelComponent.
-          */
+       * \brief Gets a unique identifier for the entity.
+       * \return the Id as a String. The Id must be unique within its context but
+       * does not need to be globally unique. E.g. the id of an input exchange
+       * item must be unique in the list of inputs of a IModelComponent, but a
+       * similar Id might be used by an exchange item of another IModelComponent.
+       */
       QString id() const override;
 
    signals:
 
       /*!
-          * \brief propertyChanged
-          * \param propertyName
-          * \param value
-          */
-      void propertyChanged(const QString& propertyName, const QVariant& value) override;
+       * \brief propertyChanged
+       * \param propertyName
+       * \param value
+       */
+      void propertyChanged(const QString& propertyName) override;
 
    protected:
+
       /*!
-          * \brief setId
-          * \param id
-          */
+       * \brief setId
+       * \param id
+       */
       void setId(const QString& id);
 
    private:
       QString m_id;
-      void* m_mpi_comm;
-      int m_mpi_rank;
+
 };
 
 

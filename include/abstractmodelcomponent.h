@@ -23,11 +23,18 @@
 #define ABSTRACTMODELCOMPONENT_H
 
 #include "identity.h"
+#include <QMutex>
 
+
+class ModelComponentInfo;
+class AbstractOutput;
+class AbstractInput;
+class AbstractArgument;
+class ComponentStatusChangeEventArgs;
 
 /*!
-    * \brief  AbstractModelComponent class.
-    */
+ * \brief  AbstractModelComponent class.
+ */
 class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public virtual HydroCouple::IModelComponent
 {
 
@@ -35,154 +42,161 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public vir
 
       Q_OBJECT
       Q_INTERFACES(HydroCouple::IModelComponent)
-      Q_PROPERTY(HydroCouple::IModelComponentInfo* ComponentInfo READ componentInfo)
-      Q_PROPERTY(HydroCouple::IModelComponent* Parent READ parent)
-      Q_PROPERTY(QList<HydroCouple::IModelComponent*> Children READ children)
-      Q_PROPERTY(QList<HydroCouple::IArgument*> Arguments READ arguments)
-      Q_PROPERTY(QList<HydroCouple::IInput*> Inputs READ inputs)
-      Q_PROPERTY(QList<HydroCouple::IOutput*> Outputs READ outputs)
-      Q_PROPERTY(QList<HydroCouple::IAdaptedOutputFactory*> AdaptedOutputFactories READ adaptedOutputFactories)
+      Q_PROPERTY(HydroCouple::IModelComponentInfo* ComponentInfo READ componentInfo NOTIFY propertyChanged)
+      Q_PROPERTY(HydroCouple::IModelComponent* Parent READ parent NOTIFY propertyChanged)
+      Q_PROPERTY(QList<HydroCouple::IModelComponent*> Clones READ clones NOTIFY propertyChanged)
+      Q_PROPERTY(QList<HydroCouple::IArgument*> Arguments READ arguments NOTIFY propertyChanged)
+      Q_PROPERTY(QList<HydroCouple::IInput*> Inputs READ inputs NOTIFY propertyChanged)
+      Q_PROPERTY(QList<HydroCouple::IOutput*> Outputs READ outputs NOTIFY propertyChanged)
+      Q_PROPERTY(QList<HydroCouple::IAdaptedOutputFactory*> AdaptedOutputFactories READ adaptedOutputFactories NOTIFY propertyChanged)
 
    public:
-      /*!
-          * \brief AbstractModelComponent
-          * \param parent
-          */
-      AbstractModelComponent(AbstractModelComponent* parent = nullptr);
 
       /*!
-          * \brief AbstractModelComponent
-          * \param id
-          * \param caption
-          * \param description
-          * \param parent
-          */
-      AbstractModelComponent(const QString& id, const QString& caption, const QString& description, AbstractModelComponent* parent = nullptr);
+       * \brief AbstractModelComponent
+       * \param id
+       * \param description
+       * \param parent
+       */
+      AbstractModelComponent(const QString &id, AbstractModelComponent *parent = nullptr);
 
       /*!
-          * \brief ~AbstractModelComponent
-          */
+       * \brief AbstractModelComponent
+       * \param id
+       * \param caption
+       * \param description
+       * \param parent
+       */
+      AbstractModelComponent(const QString &id, const QString &caption, AbstractModelComponent *parent = nullptr);
+
+      /*!
+       * \brief ~AbstractModelComponent
+       */
       virtual ~AbstractModelComponent();
 
       /*!
-          * \brief componentInfo
-          * \return
-          */
+       * \brief componentInfo
+       * \return
+       */
       HydroCouple::IModelComponentInfo* componentInfo() const override;
 
       /*!
-          * \brief parent
-          * \return
-          */
+       * \brief parent
+       * \return
+       */
       HydroCouple::IModelComponent* parent() const override;
 
       /*!
-          * \brief clone
-          * \return
-          */
-      virtual HydroCouple::IModelComponent* clone() const override ;
+       * \brief children
+       * \return
+       */
+      QList<HydroCouple::IModelComponent*> clones() const override;
 
       /*!
-          * \brief children
-          * \return
-          */
-      QList<HydroCouple::IModelComponent*> children() const override;
-
-      /*!
-          * \brief arguments
-          * \return
-          */
+       * \brief arguments
+       * \return
+       */
       QList<HydroCouple::IArgument*> arguments() const override;
 
       /*!
-          * \brief status
-          * \return
-          */
+       * \brief status
+       * \return
+       */
       HydroCouple::ComponentStatus status() const override;
 
       /*!
-          * \brief inputs
-          * \return
-          */
+       * \brief inputs
+       * \return
+       */
       QList<HydroCouple::IInput*> inputs() const override;
 
       /*!
-          * \brief outputs
-          * \return
-          */
+       * \brief outputs
+       * \return
+       */
       QList<HydroCouple::IOutput*> outputs() const override;
 
       /*!
-          * \brief adaptedOutputFactories
-          * \return
-          */
+       * \brief adaptedOutputFactories
+       * \return
+       */
       QList<HydroCouple::IAdaptedOutputFactory*> adaptedOutputFactories() const override;
 
-      /*!
-          * \brief initialize
-          */
-      virtual void initialize() override;
-
-      /*!
-          * \brief validate
-          * \return
-          */
-      virtual QList<QString> validate() override;
-
-      /*!
-          * \brief prepare
-          */
-      virtual void prepare() override;
-
-      /*!
-          * \brief update
-          * \param requiredOutputs
-          */
-      virtual void update(const QList<HydroCouple::IOutput*> & requiredOutputs = QList<HydroCouple::IOutput*>()) override;
-
-      /*!
-          * \brief finish
-          */
-      virtual void finish() override;
-
    signals:
-      /*!
-          * \brief componentStatusChanged
-          * \param statusChangedEvent
-          */
-      void componentStatusChanged(const HydroCouple::IComponentStatusChangeEventArgs& statusChangedEvent) override ;
 
       /*!
-          * \brief propertyChanged
-          * \param propertyName
-          * \param value
-          */
-      void propertyChanged(const QString& propertyName, const QVariant& value) override;
+       * \brief componentStatusChaSnged
+       * \param statusChangedEvent
+       */
+      void componentStatusChanged(const std::shared_ptr<HydroCouple::IComponentStatusChangeEventArgs> &statusChangedEvent) override ;
 
-   private:
       /*!
-          * \brief setComponentInfo
-          * \param modelComponentInfo
-          */
-      void setComponentInfo(HydroCouple::IModelComponentInfo* const modelComponentInfo);
-
-
-
+       * \brief propertyChanged
+       * \param propertyName
+       * \param value
+       */
+      void propertyChanged(const QString &propertyName) override;
 
    protected:
-      QList<HydroCouple::IModelComponent*> m_children;
-      HydroCouple::ComponentStatus m_status;
-      QList<HydroCouple::IInput*> m_inputs;
-      QList<HydroCouple::IOutput*> m_outputs;
-      QList<HydroCouple::IAdaptedOutputFactory*> m_adaptedOutputFactories;
-      QList<HydroCouple::IArgument*> m_arguments;
+
+      void setComponentInfo(ModelComponentInfo *modelComponentInfo);
+
+      void addChildComponent(AbstractModelComponent *modelComponent);
+
+      bool removeChildComponent(AbstractModelComponent *modelComponent);
+
+      void clearChildComponents();
+
+      QHash<QString,AbstractModelComponent*> clonesMap() const;
+
+      void addInputExchangeItem(AbstractInput *input);
+
+      bool removeInputExchangeItem(AbstractInput *input);
+
+      void clearInputExchangeItems();
+
+      QHash<QString,AbstractInput*> inputsMap() const;
+
+      void addOutputExchangeItem(AbstractOutput *output);
+
+      bool removeOutputExchangeItem(AbstractOutput *output);
+
+      void clearOutputExchangeItems();
+
+      QHash<QString,AbstractOutput*> outputsMap() const;
+
+      void addAdaptedOutputFactory(HydroCouple::IAdaptedOutputFactory* adaptedOutputFactory);
+
+      bool removeAdaptedOutputFactory(HydroCouple::IAdaptedOutputFactory* adaptedOutputFactory);
+
+      void clearAdaptedOutputFactory();
+
+      void addArgument(AbstractArgument *argument);
+
+      bool removeArgument(AbstractArgument *argument);
+
+      void clearArguments();
+
+      QHash<QString,AbstractArgument*> argumentsMap() const;
+
+      void setStatus(HydroCouple::ComponentStatus status);
+
+      virtual void setStatus(HydroCouple::ComponentStatus status, const QString &message);
+
+      virtual void setStatus(HydroCouple::ComponentStatus status, const QString &message, int progress);
 
    private:
-      HydroCouple::IModelComponentInfo* m_modelComponentInfo;
-      HydroCouple::IModelComponent* m_parentModelComponent;
+      QHash<QString,AbstractModelComponent*> m_children;
+      HydroCouple::ComponentStatus m_status;
+      QHash<QString,AbstractInput*> m_inputs;
+      QHash<QString,AbstractOutput*> m_outputs;
+      QHash<QString,HydroCouple::IAdaptedOutputFactory*> m_adaptedOutputFactories;
+      QHash<QString,AbstractArgument*> m_arguments;
+      ModelComponentInfo *m_modelComponentInfo;
+      AbstractModelComponent *m_parentModelComponent;
+     // ComponentStatusChangeEventArgs *m_componentStatusChangedEventArg;
 
 };
-
 
 Q_DECLARE_METATYPE(AbstractModelComponent*)
 

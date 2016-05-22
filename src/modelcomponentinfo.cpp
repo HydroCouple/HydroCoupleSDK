@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "modelcomponentinfo.h"
 #include "abstractmodelcomponent.h"
+#include <QUuid>
 
 
 ModelComponentInfo::ModelComponentInfo(QObject *parent)
@@ -9,16 +10,9 @@ ModelComponentInfo::ModelComponentInfo(QObject *parent)
 
 }
 
-HydroCouple::IModelComponent* ModelComponentInfo::createComponentInstance()
-{
-   AbstractModelComponent* component = new AbstractModelComponent();
-   component->setComponentInfo(this);
-   return component;
-}
-
 bool ModelComponentInfo::validateLicense(QString& message) const
 {
-   message = m_name + " | " + m_version + "'s license has been validated";
+   message = name() + " | " + version() + "'s license has been validated";
    return true;
 }
 

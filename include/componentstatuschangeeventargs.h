@@ -25,22 +25,24 @@
 #include <QObject>
 #include "hydrocouple.h"
 #include "hydrocouplesdk.h"
-#include "abstractmodelcomponent.h"
 
+class AbstractModelComponent;
 
 /*!
-    * \brief The ComponentStatusChangeEventArgs class.
-    */
-class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject, public virtual HydroCouple::IComponentStatusChangeEventArgs
+ * \brief The ComponentStatusChangeEventArgs class.
+ */
+class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs :
+      public QObject, public virtual HydroCouple::IComponentStatusChangeEventArgs
 {
       Q_OBJECT
       Q_INTERFACES(HydroCouple::IComponentStatusChangeEventArgs)
       Q_PROPERTY(HydroCouple::IModelComponent* Component READ component)
-      Q_PROPERTY(HydroCouple::ComponentStatus OldStatus READ oldStatus )
-      Q_PROPERTY(HydroCouple::ComponentStatus NewStatus READ newStatus )
+      Q_PROPERTY(HydroCouple::ComponentStatus Status READ status)
+      Q_PROPERTY(HydroCouple::ComponentStatus PreviousStatus READ previousStatus )
       Q_PROPERTY(QString Message READ message)
 
    public:
+
       /*!
           * \brief ComponentStatusChangeEventArgs
           * \param parent
@@ -49,7 +51,9 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject, pub
           * \param message
           * \param percentProgress
           */
-      ComponentStatusChangeEventArgs(AbstractModelComponent *parent, HydroCouple::ComponentStatus newStatus, HydroCouple::ComponentStatus oldStatus, const QString& message, float percentProgress = 0);
+      ComponentStatusChangeEventArgs(HydroCouple::ComponentStatus newStatus,
+                                     HydroCouple::ComponentStatus oldStatus, const QString& message,
+                                     float percentProgress, AbstractModelComponent *parent);
 
       /*!
           * \brief ComponentStatusChangeEventArgs
@@ -58,41 +62,70 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject, pub
           * \param oldStatus
           * \param message
           */
-      ComponentStatusChangeEventArgs(AbstractModelComponent *parent, HydroCouple::ComponentStatus newStatus, HydroCouple::ComponentStatus oldStatus, const QString& message);
+      ComponentStatusChangeEventArgs(HydroCouple::ComponentStatus newStatus,
+                                     HydroCouple::ComponentStatus oldStatus, const QString& message,
+                                     AbstractModelComponent *parent);
 
-      virtual ~ComponentStatusChangeEventArgs();
+      ~ComponentStatusChangeEventArgs();
 
-      //!Gets the IModelComponent that fired the event
+      /*!
+       * \brief Gets the IModelComponent that fired the event.
+       */
       HydroCouple::IModelComponent* component() const override;
 
-      //!Gets the IModelComponent's status before the status change.
-      virtual HydroCouple::ComponentStatus oldStatus() const override;
-
-      //!Gets the IModelComponent's status after the status change.
-      virtual HydroCouple::ComponentStatus newStatus() const override;
-
-      //!Gets additional information about the status change.
-      virtual QString message() const override;
+      /*!
+       * \brief Gets the IModelComponent's status before the status change.
+       */
+      HydroCouple::ComponentStatus previousStatus() const override;
 
       /*!
-          * Return true if status has a percent progress included in its definition/ otherwise progress bar shows busy
-          */
-      virtual bool hasProgressMonitor() const override;
+       * \brief setPreviousStatus
+       * \param previousStatus
+       */
+      void setPreviousStatus(HydroCouple::ComponentStatus previousStatus);
 
-      //!Number between 0 and 100 indicating the progress made by a component in its simulation.
       /*!
-          */
-      virtual float percentProgress() const override;
+       * \brief Gets the IModelComponent's status after the status change.
+       */
+      HydroCouple::ComponentStatus status() const override;
+
+      /*!
+       * \brief setStatus
+       * \param status
+       */
+      void setStatus(HydroCouple::ComponentStatus status);
+
+      /*!
+       * \brief Gets additional information about the status change.
+       */
+      QString message() const override;
+
+      void setMessage(const QString &message);
+
+      /*!
+       * Return true if status has a percent progress included in its definition/ otherwise progress bar shows busy
+       */
+      bool hasProgressMonitor() const override;
+
+      void setHasProgressMonitor(bool hasProgress);
+
+      /*!
+       * \brief Number between 0 and 100 indicating the progress made by a component in its simulation.
+       */
+      float percentProgress() const override;
+
+      void setPercentProgress(float value);
 
    private:
       bool m_hasProgress;
       QString m_message;
       float m_percentProgress;
-      AbstractModelComponent* m_component;
+      HydroCouple::IModelComponent* m_component;
       HydroCouple::ComponentStatus m_oldStatus, m_newStatus;
 };
 
 
+//Q_DECLARE_METATYPE(ComponentStatusChangeEventArgs)
 Q_DECLARE_METATYPE(ComponentStatusChangeEventArgs*)
 
 #endif // COMPONENTSTATUSCHANGEEVENTARGS_H

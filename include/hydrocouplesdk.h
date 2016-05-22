@@ -30,4 +30,7 @@
 # define HYDROCOUPLESDK_EXPORT Q_DECL_IMPORT
 #endif
 
+
+
+
 #endif // HYDROCOUPLESDK_H

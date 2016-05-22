@@ -23,48 +23,46 @@
 #ifndef MODELCOMPONENTINFO_H
 #define MODELCOMPONENTINFO_H
 
+#include "hydrocouplesdk.h"
 #include "componentinfo.h"
-
 
 /*!
  * \brief The ModelComponentInfo class.
  */
-class ModelComponentInfo : public ComponentInfo, public virtual HydroCouple::IModelComponentInfo
+class HYDROCOUPLESDK_EXPORT ModelComponentInfo : public ComponentInfo, public virtual HydroCouple::IModelComponentInfo
 {
       Q_OBJECT
-      Q_PLUGIN_METADATA(IID "HydroCoupleSDK::ModelComponentInfo" /*FILE "sample.json"*/) //comment out and implement in inhereted class or replace
+     // Q_PLUGIN_METADATA(IID "HydroCoupleSDK::ModelComponentInfo" /*FILE "sample.json"*/) //comment out and implement in inhereted class or replace
       Q_INTERFACES(HydroCouple::IModelComponentInfo)
 
    public:
+
       /*!
-          * \brief ModelComponentInfo
-          * \param parent
-          */
+       * \brief ModelComponentInfo
+       * \param parent
+       */
       ModelComponentInfo(QObject *parent = nullptr);
 
       /*!
-          * \brief ~ModelComponentInfo
-          */
+       * \brief ~ModelComponentInfo
+       */
       virtual ~ModelComponentInfo(){}
 
       /*!
-         * \brief Creates new IModelComponent instance.
-         */
-      virtual HydroCouple::IModelComponent* createComponentInstance()  override;
-
-
+       * \brief Checks if license is valid.
+       *
+       * \details Developer is responsible for implementing this validation based on a license.
+       *
+       * \param validationMessage associated with the license validation process.
+       *
+       * \returns true if license is valid otherwise false.
+       */
+      virtual bool validateLicense(QString &validationMessage) const override;
 
       /*!
-          * \brief Checks if license is valid.
-          *
-          * \details Developer is responsible for implementing this validation based on a license.
-          *
-          * \param validationMessage associated with the license validation process.
-          *
-          * \returns true if license is valid otherwise false.
-          */
-      virtual bool validateLicense(QString& validationMessage) const override;
-
+       * \brief hasValidLicense
+       * \return
+       */
       virtual bool hasValidLicense() const override;
 
 };
