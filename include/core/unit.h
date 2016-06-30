@@ -57,6 +57,7 @@ class HYDROCOUPLESDK_EXPORT Unit : public Description , public virtual HydroCoup
       void propertyChanged(const QString &propertyName) override;
 
    private:
+
       UnitDimensions* m_dimensions;
       double m_conversionFactorToSI, m_offsetToSI;
 

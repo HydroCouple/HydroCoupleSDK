@@ -6,13 +6,28 @@
 #include <QFileInfo>
 
 class HYDROCOUPLESDK_EXPORT Argument1DInt : public AbstractArgument,
-    public virtual ComponentDataItem1D<int>
+    public ComponentDataItem1D<int>
 {
+
   public:
-    Argument1DInt(const QString &id, Dimension *dimension,
-                  ValueDefinition *valueDefinition, AbstractModelComponent *modelComponent);
+    Argument1DInt(const QString& id,
+                  Dimension* dimension,
+                  ValueDefinition *valueDefinition,
+                  AbstractModelComponent *modelComponent);
 
     virtual ~Argument1DInt(){}
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
@@ -25,17 +40,32 @@ class HYDROCOUPLESDK_EXPORT Argument1DInt : public AbstractArgument,
     bool readValues(const HydroCouple::IComponentDataItem* componentDataItem) override;
 
   private:
+
     QFileInfo m_inputFile;
 };
 
 class HYDROCOUPLESDK_EXPORT Argument1DDouble : public AbstractArgument,
-    public virtual ComponentDataItem1D<double>
+    public ComponentDataItem1D<double>
 {
   public:
-    Argument1DDouble(const QString &id, Dimension *dimension,
-                  ValueDefinition *valueDefinition, AbstractModelComponent *modelComponent);
+    Argument1DDouble(const QString& id,
+                     Dimension* dimension,
+                     ValueDefinition *valueDefinition,
+                     AbstractModelComponent *modelComponent);
 
     virtual ~Argument1DDouble(){}
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
@@ -53,13 +83,27 @@ class HYDROCOUPLESDK_EXPORT Argument1DDouble : public AbstractArgument,
 };
 
 class HYDROCOUPLESDK_EXPORT Argument1DString : public AbstractArgument,
-    public virtual ComponentDataItem1D<QString>
+    public ComponentDataItem1D<QString>
 {
   public:
-    Argument1DString(const QString &id, Dimension *dimension,
-                  ValueDefinition *valueDefinition, AbstractModelComponent *modelComponent);
+    Argument1DString(const QString& id,
+                     Dimension* dimension,
+                     ValueDefinition* valueDefinition,
+                     AbstractModelComponent* modelComponent);
 
     virtual ~Argument1DString(){}
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 

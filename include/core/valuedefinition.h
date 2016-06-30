@@ -20,6 +20,7 @@ class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description , public virtua
       Q_PROPERTY(QVariant DefaultValue READ defaultValue WRITE setDefaultValue NOTIFY propertyChanged)
 
    public:
+
       ValueDefinition(QVariant::Type type, QObject *parent);
 
       ValueDefinition(const QString &caption, QVariant::Type type, QObject *parent);
@@ -45,6 +46,7 @@ class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description , public virtua
       static QVariant deserializeData(const QString &value);
 
    protected:
+
       bool validateData(const QVariant& value);
 
    signals:
@@ -67,6 +69,7 @@ class HYDROCOUPLESDK_EXPORT Quality : public ValueDefinition , public virtual Hy
       Q_PROPERTY(bool Ordered READ isOrdered WRITE setIsOrdered NOTIFY propertyChanged)
 
    public:
+
       Quality(QVariant::Type type, const QList<QVariant>& categories, QObject* parent);
 
       Quality(const QString& caption, QVariant::Type type, const QList<QVariant>& categories, QObject* parent);
@@ -92,6 +95,7 @@ class HYDROCOUPLESDK_EXPORT Quality : public ValueDefinition , public virtual Hy
       void propertyChanged(const QString &propertyName) override;
 
    private:
+
       QList<QVariant> m_categories;
       bool m_isOrdered;
 };

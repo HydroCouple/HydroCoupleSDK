@@ -8,19 +8,23 @@
 #include <QObject>
 #include <QDateTime>
 
-namespace Temporal
+namespace  SDKTemporal
 {
   class HYDROCOUPLESDK_EXPORT Time : public QObject,
       public virtual HydroCouple::Temporal::ITime
   {
       Q_OBJECT
-      Q_INTERFACES(HydroCouple::IPropertyChanged HydroCouple::Temporal::ITime)
+      Q_INTERFACES(HydroCouple::IPropertyChanged)
+      Q_INTERFACES(HydroCouple::Temporal::ITime)
       Q_PROPERTY(QDateTime DateTime READ qDateTime WRITE setDateTime NOTIFY propertyChanged)
 
     public:
+
       Time(QObject *parent = nullptr);
 
-      Time(const QDateTime &dateTime, QObject *parent = nullptr);
+      explicit Time(const QDateTime &dateTime, QObject *parent = nullptr);
+
+      explicit Time(double dateTime, QObject *parent = nullptr);
 
       virtual ~Time();
 
@@ -51,11 +55,14 @@ namespace Temporal
       Q_PROPERTY(QDateTime EndTime READ endTime NOTIFY propertyChanged)
 
     public:
+
       TimeSpan(QObject* parent = nullptr);
 
-      TimeSpan(const QDateTime &dateTime, double duration = 0, QObject *parent = nullptr);
+      explicit TimeSpan(const QDateTime &dateTime, double duration = 0, QObject *parent = nullptr);
 
-      ~TimeSpan();
+      explicit TimeSpan(double dateTime, double duration = 0, QObject *parent = nullptr);
+
+      virtual ~TimeSpan();
 
       double duration() const override;
 
@@ -72,8 +79,8 @@ namespace Temporal
   };
 }
 
-Q_DECLARE_METATYPE(Temporal::Time*)
-Q_DECLARE_METATYPE(Temporal::TimeSpan*)
+Q_DECLARE_METATYPE(SDKTemporal::Time*)
+Q_DECLARE_METATYPE(SDKTemporal::TimeSpan*)
 
 #endif // TIMEDATA_H
 

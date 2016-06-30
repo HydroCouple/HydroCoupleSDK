@@ -8,23 +8,53 @@
 class AbstractArgument;
 
 class HYDROCOUPLESDK_EXPORT IdBasedArgumentInt : public AbstractArgument,
-    public virtual HydroCouple::IIdBasedArgument,
-    public virtual IdBasedComponentDataItem<int>
+    public IdBasedComponentDataItem<int>,
+    public virtual HydroCouple::IIdBasedArgument
 {
     Q_OBJECT
 
     Q_INTERFACES(HydroCouple::IIdBasedComponentDataItem HydroCouple::IIdBasedArgument)
-    Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-    Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
     Q_PROPERTY(QStringList Identifiers READ identifiers)
+    Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
 
 
   public:
-    IdBasedArgumentInt(const QString &id,const QStringList &identifiers, Dimension *dimension,
-                       ValueDefinition* valueDefinition, AbstractModelComponent* parentModelComponent);
+    IdBasedArgumentInt(const QString& id,
+                       const QStringList& identifiers,
+                       Dimension* dimension,
+                       ValueDefinition* valueDefinition,
+                       AbstractModelComponent* parentModelComponent);
 
     virtual ~IdBasedArgumentInt();
 
+    QStringList identifiers() const override;
+
+    HydroCouple::IDimension* identifierDimension() const override;
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
+    void getValue(int idIndex, QVariant& data) const override;
+
+    void getValues(int idIndex, int stride, QVariant data[]) const override;
+
+    void getValues(int idIndex, int stride, void *data) const override;
+
+    void setValue(int idIndex, const QVariant &data) override;
+
+    void setValues(int idIndex, int stride, const QVariant data[]) override;
+
+    void setValues(int idIndex, int stride, const void *data) override;
+
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
@@ -44,23 +74,55 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentInt : public AbstractArgument,
     bool m_matchIdentifiersDuringRead;
 };
 
+//==============================================================================================================================
 
 class HYDROCOUPLESDK_EXPORT IdBasedArgumentDouble : public AbstractArgument,
-    public virtual HydroCouple::IIdBasedArgument,
-    public virtual IdBasedComponentDataItem<double>
+    public IdBasedComponentDataItem<double>,
+    public virtual HydroCouple::IIdBasedArgument
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IIdBasedComponentDataItem HydroCouple::IIdBasedArgument)
-    Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-    Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
     Q_PROPERTY(QStringList Identifiers READ identifiers)
+    Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
 
   public:
-    IdBasedArgumentDouble(const QString &id,const QStringList &identifiers, Dimension *dimension,
-                          ValueDefinition* valueDefinition, AbstractModelComponent* parentModelComponent);
+    IdBasedArgumentDouble(const QString& id,
+                          const QStringList& identifiers,
+                          Dimension* dimension,
+                          ValueDefinition* valueDefinition,
+                          AbstractModelComponent* parentModelComponent);
 
     virtual ~IdBasedArgumentDouble();
 
+
+    QStringList identifiers() const override;
+
+    HydroCouple::IDimension* identifierDimension() const override;
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
+    void getValue(int idIndex, QVariant& data) const override;
+
+    void getValues(int idIndex, int stride, QVariant data[]) const override;
+
+    void getValues(int idIndex, int stride, void *data) const override;
+
+    void setValue(int idIndex, const QVariant &data) override;
+
+    void setValues(int idIndex, int stride, const QVariant data[]) override;
+
+    void setValues(int idIndex, int stride, const void *data) override;
+
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
@@ -80,21 +142,53 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentDouble : public AbstractArgument,
     bool m_matchIdentifiersDuringRead;
 };
 
+//==============================================================================================================================
+
 class HYDROCOUPLESDK_EXPORT IdBasedArgumentQString : public AbstractArgument,
-    public virtual HydroCouple::IIdBasedArgument,
-    public virtual IdBasedComponentDataItem<QString>
+    public IdBasedComponentDataItem<QString>,
+    public virtual HydroCouple::IIdBasedArgument
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IIdBasedComponentDataItem HydroCouple::IIdBasedArgument)
-    Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-    Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
     Q_PROPERTY(QStringList Identifiers READ identifiers)
+    Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
 
   public:
-    IdBasedArgumentQString(const QString &id,const QStringList &identifiers, Dimension *dimension,
-                           ValueDefinition* valueDefinition, AbstractModelComponent* parentModelComponent);
+    IdBasedArgumentQString(const QString& id,
+                           const QStringList& identifiers,
+                           Dimension* dimension,
+                           ValueDefinition* valueDefinition,
+                           AbstractModelComponent* parentModelComponent);
 
     virtual ~IdBasedArgumentQString();
+
+    QStringList identifiers() const override;
+
+    HydroCouple::IDimension* identifierDimension() const override;
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
+    void getValue(int idIndex, QVariant& data) const override;
+
+    void getValues(int idIndex, int stride, QVariant data[]) const override;
+
+    void getValues(int idIndex, int stride, void *data) const override;
+
+    void setValue(int idIndex, const QVariant &data) override;
+
+    void setValues(int idIndex, int stride, const QVariant data[]) override;
+
+    void setValues(int idIndex, int stride, const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 

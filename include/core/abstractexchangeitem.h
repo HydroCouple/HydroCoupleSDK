@@ -14,16 +14,25 @@ class HYDROCOUPLESDK_EXPORT AbstractExchangeItem : public AbstractComponentDataI
     Q_INTERFACES(HydroCouple::IExchangeItem)
 
   public:
-    AbstractExchangeItem(const QString &id, AbstractModelComponent *parentModelComponent);
+    AbstractExchangeItem(const QString& id,
+                         const QList<Dimension*>& dimensions,
+                         ValueDefinition* valueDefinition,
+                         AbstractModelComponent* modelComponent);
 
-    AbstractExchangeItem(const QString &id, const QString &caption, AbstractModelComponent *parentModelComponent);
+    AbstractExchangeItem(const QString& id,
+                         const QString& caption,
+                         const QList<Dimension*>& dimensions,
+                         ValueDefinition* valueDefinition,
+                         AbstractModelComponent *modelComponent);
 
     virtual ~AbstractExchangeItem();
 
   protected:
+
     void emitMessage(const QString &message);
 
   signals:
+
     void itemChanged(const QSharedPointer<HydroCouple::IExchangeItemChangeEventArgs> &statusChangedEvent) override;
 
 };

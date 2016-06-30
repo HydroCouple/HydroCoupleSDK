@@ -1,105 +1,125 @@
 #ifndef TIMESERIESCOMPONENTDATAITEM_H
 #define TIMESERIESCOMPONENTDATAITEM_H
 
-namespace Temporal
+#include "hydrocoupletemporal.h"
+#include "core/componentdataitem1d.h"
+#include "core/abstractcomponentdataitem.h"
+
+namespace SDKTemporal
 {
   class Time;
   class TimeSpan;
 }
 
-
-#include "hydrocoupletemporal.h"
-#include "core/componentdataitem1d.h"
-#include "core/abstractcomponentdataitem.h"
-
-namespace Temporal
+template<class T>
+class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem : public ComponentDataItem1D<T>
 {
 
-  template<class T>
-  class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem : public ComponentDataItem1D<T>
-      , public virtual HydroCouple::Temporal::ITimeSeriesComponentDataItem
-  {
-    public:
+  public:
 
-      using ComponentDataItem1D<T>::getValue;
-      using ComponentDataItem1D<T>::getValues;
-      using ComponentDataItem1D<T>::setValue;
-      using ComponentDataItem1D<T>::setValues;
+    TimeSeriesComponentDataItem(const QList<SDKTemporal::Time*>& times,
+                                Dimension* timeDimension,
+                                const T& defaultValue);
 
-      TimeSeriesComponentDataItem(const QList<Time*> &times, Dimension *timeDimension, ValueDefinition *valueDefinition);
+    virtual ~TimeSeriesComponentDataItem();
 
-      virtual ~TimeSeriesComponentDataItem();
+    bool addTime(SDKTemporal::Time* time , bool resetDataArray = true);
 
-      QList<HydroCouple::Temporal::ITime*> times() const override;
+    void addTimes(const QList<SDKTemporal::Time*>& times, bool resetDataArray = true);
 
-      bool addTime(Time *time , bool resetDataArray = true);
+    bool removeTime(SDKTemporal::Time *time, bool resetDataArray = true);
 
-      void addTimes(const QList<Time*> &times, bool resetDataArray = true);
+    void setTimes(const QList<SDKTemporal::Time*>& times);
 
-      void setTimes(const QList<Time*> &times);
+    void getValueT(int timeIndex, QVariant& data) const;
 
-      bool removeTime(Time *time, bool resetDataArray = true);
+    void getValuesT(int timeIndex, int stride, QVariant data[]) const;
 
-      HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
+    void getValuesT(int timeIndex, int stride, void *data) const;
 
-      HydroCouple::IDimension* timeDimension() const override;
+    void setValueT(int timeIndex, const QVariant& data);
 
-      void getValue(int timeIndex, QVariant &data) const override;
+    void setValuesT(int timeIndex, int stride, const QVariant data[]);
 
-      void getValues(int timeIndex, int stride, QVariant data[]) const override;
+    void setValuesT(int timeIndex, int stride, const void *data);
 
-      void getValues(int timeIndex, int stride, void *data) const override;
+  protected:
 
-      void setValue(int timeIndex, const QVariant &data) override;
+    QList<SDKTemporal::Time*> timesInternal() const;
 
-      void setValues(int timeIndex, int stride, const QVariant data[]) override;
+    Dimension* timeDimensionInternal() const;
 
-      void setValues(int timeIndex, int stride, const void *data) override;
+    void clearTimes();
 
-    protected:
+    SDKTemporal::TimeSpan* timeSpanInternal() const;
 
-      void clearTimes();
+  private:
 
-      QList<Time*> hTimes() const;
+    QList<SDKTemporal::Time*> m_times;
+    SDKTemporal::TimeSpan *m_timeSpan;
+    Dimension *m_timeDimension;
+};
 
-      TimeSpan* hTimeSpan() const;
+//==============================================================================================================================
 
-      Dimension* hTimeDimension() const;
+class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItemDouble : public AbstractComponentDataItem,
+    public TimeSeriesComponentDataItem<double>,
+    public virtual HydroCouple::Temporal::ITimeSeriesComponentDataItem
+{
+    Q_OBJECT
 
-    private:
-      QList<Time*> m_times;
-      Temporal::TimeSpan *m_timeSpan;
-      Dimension *m_timeDimension;
-  };
+    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesComponentDataItem)
 
+    Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
+    Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
+    Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
 
-  class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItemDouble : public AbstractComponentDataItem
-      , public virtual TimeSeriesComponentDataItem<double>
-  {
-      Q_OBJECT
-      Q_INTERFACES(HydroCouple::Temporal::ITimeComponentDataItem
-                   HydroCouple::Temporal::ITimeSeriesComponentDataItem)
+  public:
 
-      Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-      Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
-      Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
-      Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
-      Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
+    TimeSeriesComponentDataItemDouble(const QString& id,
+                                      const QList<SDKTemporal::Time*>& times,
+                                      Dimension* timeDimension,
+                                      ValueDefinition* valueDefinition,
+                                      AbstractModelComponent* modelComponent);
 
-    public:
-      TimeSeriesComponentDataItemDouble(const QString &id, const QList<Time*> &times,
-                                        Dimension *timeDimension, ValueDefinition *valueDefinition,
-                                        AbstractModelComponent* parentModelComponent);
+    virtual ~TimeSeriesComponentDataItemDouble();
 
-      virtual ~TimeSeriesComponentDataItemDouble();
+    QList<HydroCouple::Temporal::ITime*> times() const override;
 
-      void readData(QXmlStreamReader &reader) override;
+    HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
 
-      void writeData(QXmlStreamWriter &xmlWriter) override;
-  };
-}
+    HydroCouple::IDimension* timeDimension() const override;
 
-Q_DECLARE_METATYPE(Temporal::TimeSeriesComponentDataItemDouble*)
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
+    void getValue(int timeIndex, QVariant &data) const override;
+
+    void getValues(int timeIndex, int stride, QVariant data[]) const override;
+
+    void getValues(int timeIndex, int stride, void *data) const override;
+
+    void setValue(int timeIndex, const QVariant &data) override;
+
+    void setValues(int timeIndex, int stride, const QVariant data[]) override;
+
+    void setValues(int timeIndex, int stride, const void *data) override;
+
+    void readData(QXmlStreamReader &reader) override;
+
+    void writeData(QXmlStreamWriter &xmlWriter) override;
+};
+
+Q_DECLARE_METATYPE(TimeSeriesComponentDataItemDouble*)
 
 #endif // TIMESERIESCOMPONENTDATAITEM_H
 

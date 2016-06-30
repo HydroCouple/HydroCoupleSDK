@@ -3,25 +3,68 @@
 
 #include "abstractcomponentdataitem.h"
 
-class Dimension;
-class ValueDefinition;
-
 /*!
-   * \brief The ComponentDataItem1D class
-   */
+ * \brief The ComponentDataItem1D class
+ */
 template<class T>
-class HYDROCOUPLESDK_EXPORT ComponentDataItem1D :  public virtual HydroCouple::IComponentDataItem
+class HYDROCOUPLESDK_EXPORT ComponentDataItem1D
 {
 
   public:
 
-    ComponentDataItem1D(Dimension *dimension, ValueDefinition *valueDefinition);
+    ComponentDataItem1D(Dimension *dimension, const T& defaultValue);
 
     virtual ~ComponentDataItem1D();
 
-    QList<HydroCouple::IDimension*> dimensions() const override;
+    void getValueT(int dimensionIndexes[], QVariant &data) const ;
 
-    HydroCouple::IValueDefinition* valueDefinition() const override;
+    void getValuesT(int dimensionIndexes[], int stride[],  QVariant data[]) const ;
+
+    void getValuesT(int dimensionIndexes[], int stride[],  void *data) const ;
+
+    void setValueT(int dimensionIndexes[], const QVariant &data) ;
+
+    void setValuesT(int dimensionIndexes[], int stride[], const QVariant data[]) ;
+
+    void setValuesT(int dimensionIndexes[], int stride[], const void *data) ;
+
+    virtual void resetDataArray();
+
+    T defaultValue() const;
+
+  protected:
+
+    void setDefaultValue(const T& defaultValue);
+
+    Dimension* dimensionInternal() const;
+
+  private:
+
+    void createData();
+
+    void deleteData();
+
+  private:
+    Dimension* m_dimension;
+    T m_defaultValue;
+    T* m_data;
+};
+
+//==============================================================================================================================
+
+class HYDROCOUPLESDK_EXPORT ComponentDataItem1DInt: public AbstractComponentDataItem,
+    public ComponentDataItem1D<int>
+{
+    Q_OBJECT
+
+  public:
+
+    ComponentDataItem1DInt(const QString& id,
+                           Dimension* dimension,
+                           ValueDefinition *valueDefinition,
+                           AbstractModelComponent* modelComponent);
+
+    virtual ~ComponentDataItem1DInt();
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -35,78 +78,85 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1D :  public virtual HydroCouple::I
 
     void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
-    virtual void resetDataArray();
+    void readData(QXmlStreamReader &xmlReader) override;
 
-  protected:
-
-    Dimension* hDimension() const;
-
-    ValueDefinition* hValueDefinition() const;
-
-  private:
-    void createData();
-
-    void deleteData();
+    void writeData(QXmlStreamWriter &xmlWriter) override;
 
   private:
     Dimension* m_dimension;
-    ValueDefinition* m_valueDefinition;
-
-  private:
-    T* m_data;
 };
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem1DInt: public AbstractComponentDataItem, public virtual ComponentDataItem1D<int>
+//==============================================================================================================================
+
+
+class HYDROCOUPLESDK_EXPORT ComponentDataItem1DDouble: public AbstractComponentDataItem,
+    public ComponentDataItem1D<double>
 {
     Q_OBJECT
-    Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-    Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
 
   public:
 
-    ComponentDataItem1DInt(const QString &id, Dimension *dimension, ValueDefinition *valueDefinition, AbstractModelComponent *parentModelComponent);
-
-    virtual ~ComponentDataItem1DInt();
-
-    void readData(QXmlStreamReader &xmlReader) override;
-
-    void writeData(QXmlStreamWriter &xmlWriter) override;
-
-};
-
-class HYDROCOUPLESDK_EXPORT ComponentDataItem1DDouble: public AbstractComponentDataItem,  public virtual ComponentDataItem1D<double>
-{
-    Q_OBJECT
-    Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-    Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
-
-  public:
-
-    ComponentDataItem1DDouble(const QString &id, Dimension *dimension, ValueDefinition *valueDefinition, AbstractModelComponent *parentModelComponent);
+    ComponentDataItem1DDouble(const QString& id,
+                              Dimension* dimension,
+                              ValueDefinition* valueDefinition,
+                              AbstractModelComponent *modelComponent);
 
     virtual ~ComponentDataItem1DDouble();
 
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
     void readData(QXmlStreamReader &xmlReader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
 
+  private:
+    Dimension* m_dimension;
 };
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem1DString: public AbstractComponentDataItem,  public virtual ComponentDataItem1D<QString>
+//==============================================================================================================================
+
+class HYDROCOUPLESDK_EXPORT ComponentDataItem1DString: public AbstractComponentDataItem,
+    public ComponentDataItem1D<QString>
 {
     Q_OBJECT
-    Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-    Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
 
   public:
 
-    ComponentDataItem1DString(const QString &id, Dimension *dimension, ValueDefinition *valueDefinition, AbstractModelComponent *parentModelComponent);
+    ComponentDataItem1DString(const QString &id,
+                              Dimension* dimension,
+                              ValueDefinition* valueDefinition,
+                              AbstractModelComponent* modelComponent);
 
     virtual ~ComponentDataItem1DString();
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
     void readData(QXmlStreamReader &xmlReader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+  private:
+    Dimension* m_dimension;
 };
 
 Q_DECLARE_METATYPE(ComponentDataItem1DInt*)

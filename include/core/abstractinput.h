@@ -3,7 +3,8 @@
 
 #include "abstractexchangeitem.h"
 
-class HYDROCOUPLE_EXPORT AbstractInput : public AbstractExchangeItem , public virtual HydroCouple::IInput
+class HYDROCOUPLE_EXPORT AbstractInput : public AbstractExchangeItem,
+    public virtual HydroCouple::IInput
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IInput)
@@ -11,28 +12,35 @@ class HYDROCOUPLE_EXPORT AbstractInput : public AbstractExchangeItem , public vi
 
   public:
 
-    AbstractInput(const QString &id, AbstractModelComponent *modelComponent);
+    AbstractInput(const QString& id,
+                  const QList<Dimension*>& dimensions,
+                  ValueDefinition* valueDefinition,
+                  AbstractModelComponent* modelComponent);
 
-    AbstractInput(const QString &id, const QString &caption , AbstractModelComponent *modelComponent);
+    AbstractInput(const QString& id,
+                  const QString& caption,
+                  const QList<Dimension*>& dimensions,
+                  ValueDefinition* valueDefinition,
+                  AbstractModelComponent *modelComponent);
 
     virtual ~AbstractInput();
 
     HydroCouple::IOutput* provider() const override;
 
-    void setProvider(HydroCouple::IOutput *provider) override;
-
-    bool canConsume(HydroCouple::IOutput *provider, QString &message) const override;
+    void setProvider(HydroCouple::IOutput* provider) override;
 
   signals:
 
-    void propertyChanged(const QString &propertyName) override;
+    void propertyChanged(const QString& propertyName) override;
 
   private:
+
     HydroCouple::IOutput* m_provider;
 
 };
 
-class HYDROCOUPLE_EXPORT AbstractMultiInput : public AbstractInput , public virtual HydroCouple::IMultiInput
+class HYDROCOUPLE_EXPORT AbstractMultiInput : public AbstractInput,
+    public virtual HydroCouple::IMultiInput
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IMultiInput)
@@ -40,9 +48,16 @@ class HYDROCOUPLE_EXPORT AbstractMultiInput : public AbstractInput , public virt
 
   public:
 
-    AbstractMultiInput(const QString &id, AbstractModelComponent *modelComponent);
+    AbstractMultiInput(const QString& id,
+                       const QList<Dimension*>& dimensions,
+                       ValueDefinition* valueDefinition,
+                       AbstractModelComponent *modelComponent);
 
-    AbstractMultiInput(const QString &id, const QString &caption, AbstractModelComponent *modelComponent);
+    AbstractMultiInput(const QString& id,
+                       const QString& caption,
+                       const QList<Dimension*>& dimensions,
+                       ValueDefinition* valueDefinition,
+                       AbstractModelComponent* modelComponent);
 
     virtual ~AbstractMultiInput();
 

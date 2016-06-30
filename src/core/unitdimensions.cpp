@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "core/unitdimensions.h"
 
 using namespace HydroCouple;

@@ -6,7 +6,8 @@
 /*!
    * \brief The AbstractOutput class
    */
-class HYDROCOUPLE_EXPORT AbstractOutput : public AbstractExchangeItem , public virtual HydroCouple::IOutput
+class HYDROCOUPLE_EXPORT AbstractOutput : public AbstractExchangeItem,
+    public virtual HydroCouple::IOutput
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IOutput)
@@ -14,9 +15,16 @@ class HYDROCOUPLE_EXPORT AbstractOutput : public AbstractExchangeItem , public v
     Q_PROPERTY(QList<HydroCouple::IAdaptedOutput*> AdaptedOutputs READ adaptedOutputs NOTIFY propertyChanged)
 
   public:
-    AbstractOutput(const QString& id, AbstractModelComponent* modelComponent);
+    AbstractOutput(const QString& id,
+                   const QList<Dimension*>& dimensions,
+                   ValueDefinition* valueDefinition,
+                   AbstractModelComponent* modelComponent);
 
-    AbstractOutput(const QString& id, const QString& caption, AbstractModelComponent* modelComponent);
+    AbstractOutput(const QString& id,
+                   const QString& caption,
+                   const QList<Dimension*>& dimensions,
+                   ValueDefinition* valueDefinition,
+                   AbstractModelComponent* modelComponent);
 
     virtual ~AbstractOutput();
 
@@ -33,11 +41,13 @@ class HYDROCOUPLE_EXPORT AbstractOutput : public AbstractExchangeItem , public v
     bool removeAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOutput) override;
 
   signals:
+
     void propertyChanged(const QString &propertyName) override;
 
   private:
-    QList<HydroCouple::IInput*> m_consumers;
-    QList<HydroCouple::IAdaptedOutput*> m_adaptedOutputs;
+
+    QHash<QString,HydroCouple::IInput*> m_consumers;
+    QHash<QString,HydroCouple::IAdaptedOutput*> m_adaptedOutputs;
 
 };
 

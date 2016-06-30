@@ -1,15 +1,21 @@
 #include "stdafx.h"
 #include "temporal/timedata.h"
 
-using namespace Temporal;
+using namespace SDKTemporal;
 
 Time::Time(QObject *parent)
    :QObject(parent)
 {
-   setDateTime(QDateTime::currentDateTime());
+   setDateTime(0);
 }
 
-Time::Time(const QDateTime &dateTime, QObject *parent)
+Time::Time(const QDateTime& dateTime, QObject *parent)
+   :QObject(parent)
+{
+   setDateTime(dateTime);
+}
+
+Time::Time(double dateTime, QObject *parent)
    :QObject(parent)
 {
    setDateTime(dateTime);
@@ -59,12 +65,21 @@ bool Time::compare(Time *time1, Time *time2)
 //======================================================================================================================================================================
 
 TimeSpan::TimeSpan(QObject *parent)
-   :Time(parent), m_duration(0)
+   :Time(parent),
+     m_duration(0)
 {
+  setDateTime(0);
 }
 
 TimeSpan::TimeSpan(const QDateTime &dateTime, double duration, QObject *parent)
-   :Time(dateTime,parent), m_duration(duration)
+   :Time(dateTime,parent),
+     m_duration(duration)
+{
+}
+
+TimeSpan::TimeSpan(double dateTime, double duration, QObject *parent)
+   :Time(dateTime,parent),
+     m_duration(duration)
 {
 }
 

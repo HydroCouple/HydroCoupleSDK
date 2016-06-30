@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "core/unit.h"
 #include "core/unitdimensions.h"
 

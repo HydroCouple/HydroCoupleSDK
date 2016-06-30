@@ -5,6 +5,7 @@
 #include "core/abstractargument.h"
 #include "core/abstractinput.h"
 #include "core/abstractoutput.h"
+#include "core/abstractadaptedoutputfactory.h"
 #include <QSharedPointer>
 
 using namespace HydroCouple;
@@ -41,12 +42,6 @@ AbstractModelComponent::~AbstractModelComponent()
 
    qDeleteAll(m_arguments.values());
    m_arguments.clear();
-
-//   if(m_componentStatusChangedEventArg)
-//   {
-//      delete m_componentStatusChangedEventArg;
-//      m_componentStatusChangedEventArg = nullptr;
-//   }
 }
 
 IModelComponentInfo* AbstractModelComponent::componentInfo() const
@@ -114,7 +109,15 @@ QList<IOutput*> AbstractModelComponent::outputs() const
 
 QList<IAdaptedOutputFactory*> AbstractModelComponent::adaptedOutputFactories() const
 {
-   return m_adaptedOutputFactories.values();
+
+  QList<IAdaptedOutputFactory*> factories;
+
+  for(IAdaptedOutputFactory* factory : m_adaptedOutputFactories.values())
+  {
+     factories.append(factory);
+  }
+
+  return factories;
 }
 
 void AbstractModelComponent::setComponentInfo(ModelComponentInfo* modelComponentInfo)
@@ -151,7 +154,7 @@ void AbstractModelComponent::clearChildComponents()
    emit propertyChanged("Clones");
 }
 
-QHash<QString,AbstractModelComponent*> AbstractModelComponent::clonesMap() const
+QHash<QString,AbstractModelComponent*> AbstractModelComponent::clonesInternal() const
 {
    return m_children;
 }
@@ -184,7 +187,7 @@ void AbstractModelComponent::clearInputExchangeItems()
    emit propertyChanged("Inputs");
 }
 
-QHash<QString,AbstractInput*> AbstractModelComponent::inputsMap() const
+QHash<QString,AbstractInput*> AbstractModelComponent::inputsInternal() const
 {
    return m_inputs;
 }
@@ -218,12 +221,12 @@ void AbstractModelComponent::clearOutputExchangeItems()
    emit propertyChanged("Outputs");
 }
 
-QHash<QString,AbstractOutput*> AbstractModelComponent::outputsMap() const
+QHash<QString,AbstractAdaptedOutputFactory*> AbstractModelComponent::adaptedOutputFactoriesInternal() const
 {
-   return m_outputs;
+   return m_adaptedOutputFactories;
 }
 
-void AbstractModelComponent::addAdaptedOutputFactory(IAdaptedOutputFactory *adaptedOutputFactory)
+void AbstractModelComponent::addAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory)
 {
    if(!m_adaptedOutputFactories.contains(adaptedOutputFactory->id()))
    {
@@ -232,7 +235,7 @@ void AbstractModelComponent::addAdaptedOutputFactory(IAdaptedOutputFactory *adap
    }
 }
 
-bool AbstractModelComponent::removeAdaptedOutputFactory(IAdaptedOutputFactory *adaptedOutputFactory)
+bool AbstractModelComponent::removeAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory)
 {
    if(m_adaptedOutputFactories.contains(adaptedOutputFactory->id()))
    {
@@ -250,6 +253,11 @@ void AbstractModelComponent::clearAdaptedOutputFactory()
    m_adaptedOutputFactories.clear();
 
    emit propertyChanged("AdaptedOutputFactories");
+}
+
+QHash<QString,AbstractOutput*> AbstractModelComponent::outputsInternal() const
+{
+   return m_outputs;
 }
 
 void AbstractModelComponent::addArgument(AbstractArgument *argument)
@@ -281,7 +289,7 @@ void AbstractModelComponent::clearArguments()
    emit propertyChanged("Arguments");
 }
 
-QHash<QString,AbstractArgument*> AbstractModelComponent::argumentsMap() const
+QHash<QString,AbstractArgument*> AbstractModelComponent::argumentsInternal() const
 {
    return m_arguments;
 }

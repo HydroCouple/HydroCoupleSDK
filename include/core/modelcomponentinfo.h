@@ -36,33 +36,13 @@ class HYDROCOUPLESDK_EXPORT ModelComponentInfo : public ComponentInfo, public vi
 
   public:
 
-    /*!
-     * \brief ModelComponentInfo
-     * \param parent
-     */
-    ModelComponentInfo(QObject *parent = nullptr);
+    ModelComponentInfo(QObject* parent = nullptr);
 
-    /*!
-     * \brief ~ModelComponentInfo
-     */
     virtual ~ModelComponentInfo(){}
 
-    /*!
-     * \brief Checks if license is valid.
-     *
-     * \details Developer is responsible for implementing this validation based on a license.
-     *
-     * \param validationMessage associated with the license validation process.
-     *
-     * \returns true if license is valid otherwise false.
-     */
-    virtual bool validateLicense(QString &validationMessage) const override;
+    bool validateLicense(QString &validationMessage) const override;
 
-    /*!
-     * \brief hasValidLicense
-     * \return
-     */
-    virtual bool hasValidLicense() const override;
+    bool hasValidLicense() const override;
 
 };
 

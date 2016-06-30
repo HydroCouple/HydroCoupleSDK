@@ -15,7 +15,7 @@ CXX           = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefau
 DEFINES       = -DHYDROCOUPLESDK_LIBRARY -DQT_GUI_LIB -DQT_CORE_LIB
 CFLAGS        = -pipe -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk -mmacosx-version-min=10.7 -Wall -W -fPIC $(DEFINES)
 CXXFLAGS      = -pipe -stdlib=libc++ -g -std=gnu++11 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk -mmacosx-version-min=10.7 -Wall -W -fPIC $(DEFINES)
-INCPATH       = -I. -Iinclude -I../HydroCouple/include -I../../../../Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -Ibuild/debug/.moc -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/AGL.framework/Headers -I../../../../Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib
+INCPATH       = -I. -Iinclude -I../HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I../../../../Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -Ibuild/debug/.moc -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/AGL.framework/Headers -I../../../../Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib
 QMAKE         = /Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/qmake
 DEL_FILE      = rm -f
 CHK_DIR_EXISTS= test -d
@@ -36,7 +36,7 @@ DISTNAME      = HydroCoupleSDK1.0.0.0
 DISTDIR = /Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/build/debug/.obj/HydroCoupleSDK1.0.0.0
 LINK          = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
 LFLAGS        = -headerpad_max_install_names -stdlib=libc++ -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk -mmacosx-version-min=10.7 -Wl,-rpath,/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib -single_module -dynamiclib -compatibility_version	1.0 -current_version	1.0.0 -install_name	libHydroCoupleSDK.1.dylib
-LIBS          = $(SUBLIBS) -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib -framework QtGui -framework QtCore -framework OpenGL -framework AGL 
+LIBS          = $(SUBLIBS) -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib -L/usr/local/lib/ -lgdal -lgeos -framework QtGui -framework QtCore -framework OpenGL -framework AGL 
 AR            = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar cq
 RANLIB        = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib -s
 SED           = sed
@@ -72,10 +72,16 @@ SOURCES       = src/stdafx.cpp \
 		src/core/idbasedargument.cpp \
 		src/temporal/timedata.cpp \
 		src/temporal/timeseriescomponentdataitem.cpp \
-		src/temporal/timeidbasedcomponentdataitem.cpp \
-		src/temporal/timeidbasedexchangeitem.cpp \
+		src/temporal/timeseriesidbasedcomponentdataitem.cpp \
+		src/temporal/timeseriesidbasedexchangeitem.cpp \
 		src/temporal/timeseriesexchangeitem.cpp \
-		src/core/argument1d.cpp build/debug/.moc/moc_identity.cpp \
+		src/core/argument1d.cpp \
+		src/spatial/spatialreferencesystem.cpp \
+		src/core/abstractadaptedoutputfactory.cpp \
+		src/core/abstractadaptedoutput.cpp \
+		src/temporal/timeseriesinterpolationadaptedoutput.cpp \
+		src/temporal/temporalinterpolationfactory.cpp \
+		src/core/abstractadaptedoutputfactorycomponentinfo.cpp build/debug/.moc/moc_identity.cpp \
 		build/debug/.moc/moc_description.cpp \
 		build/debug/.moc/moc_componentinfo.cpp \
 		build/debug/.moc/moc_modelcomponentinfo.cpp \
@@ -98,9 +104,15 @@ SOURCES       = src/stdafx.cpp \
 		build/debug/.moc/moc_idbasedargument.cpp \
 		build/debug/.moc/moc_timedata.cpp \
 		build/debug/.moc/moc_timeseriescomponentdataitem.cpp \
-		build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp \
-		build/debug/.moc/moc_timeidbasedexchangeitem.cpp \
-		build/debug/.moc/moc_timeseriesexchangeitem.cpp
+		build/debug/.moc/moc_timeseriesidbasedcomponentdataitem.cpp \
+		build/debug/.moc/moc_timeseriesidbasedexchangeitem.cpp \
+		build/debug/.moc/moc_timeseriesexchangeitem.cpp \
+		build/debug/.moc/moc_spatialreferencesystem.cpp \
+		build/debug/.moc/moc_abstractadaptedoutput.cpp \
+		build/debug/.moc/moc_abstractadaptedoutputfactory.cpp \
+		build/debug/.moc/moc_temporalinterpolationfactory.cpp \
+		build/debug/.moc/moc_timeseriesinterpolationadaptedoutput.cpp \
+		build/debug/.moc/moc_abstractadaptedoutputfactorycomponentinfo.cpp
 OBJECTS       = build/debug/.obj/stdafx.o \
 		build/debug/.obj/description.o \
 		build/debug/.obj/identity.o \
@@ -125,10 +137,16 @@ OBJECTS       = build/debug/.obj/stdafx.o \
 		build/debug/.obj/idbasedargument.o \
 		build/debug/.obj/timedata.o \
 		build/debug/.obj/timeseriescomponentdataitem.o \
-		build/debug/.obj/timeidbasedcomponentdataitem.o \
-		build/debug/.obj/timeidbasedexchangeitem.o \
+		build/debug/.obj/timeseriesidbasedcomponentdataitem.o \
+		build/debug/.obj/timeseriesidbasedexchangeitem.o \
 		build/debug/.obj/timeseriesexchangeitem.o \
 		build/debug/.obj/argument1d.o \
+		build/debug/.obj/spatialreferencesystem.o \
+		build/debug/.obj/abstractadaptedoutputfactory.o \
+		build/debug/.obj/abstractadaptedoutput.o \
+		build/debug/.obj/timeseriesinterpolationadaptedoutput.o \
+		build/debug/.obj/temporalinterpolationfactory.o \
+		build/debug/.obj/abstractadaptedoutputfactorycomponentinfo.o \
 		build/debug/.obj/moc_identity.o \
 		build/debug/.obj/moc_description.o \
 		build/debug/.obj/moc_componentinfo.o \
@@ -152,9 +170,15 @@ OBJECTS       = build/debug/.obj/stdafx.o \
 		build/debug/.obj/moc_idbasedargument.o \
 		build/debug/.obj/moc_timedata.o \
 		build/debug/.obj/moc_timeseriescomponentdataitem.o \
-		build/debug/.obj/moc_timeidbasedcomponentdataitem.o \
-		build/debug/.obj/moc_timeidbasedexchangeitem.o \
-		build/debug/.obj/moc_timeseriesexchangeitem.o
+		build/debug/.obj/moc_timeseriesidbasedcomponentdataitem.o \
+		build/debug/.obj/moc_timeseriesidbasedexchangeitem.o \
+		build/debug/.obj/moc_timeseriesexchangeitem.o \
+		build/debug/.obj/moc_spatialreferencesystem.o \
+		build/debug/.obj/moc_abstractadaptedoutput.o \
+		build/debug/.obj/moc_abstractadaptedoutputfactory.o \
+		build/debug/.obj/moc_temporalinterpolationfactory.o \
+		build/debug/.obj/moc_timeseriesinterpolationadaptedoutput.o \
+		build/debug/.obj/moc_abstractadaptedoutputfactorycomponentinfo.o
 DIST          = ../../../../Qt5.6.0/5.6/clang_64/mkspecs/features/spec_pre.prf \
 		../../../../Qt5.6.0/5.6/clang_64/mkspecs/qdevice.pri \
 		../../../../Qt5.6.0/5.6/clang_64/mkspecs/features/device_config.prf \
@@ -319,11 +343,17 @@ DIST          = ../../../../Qt5.6.0/5.6/clang_64/mkspecs/features/spec_pre.prf \
 		include/core/idbasedargument.h \
 		include/temporal/timedata.h \
 		include/temporal/timeseriescomponentdataitem.h \
-		include/temporal/timeidbasedcomponentdataitem.h \
-		include/temporal/timeidbasedexchangeitem.h \
+		include/temporal/timeseriesidbasedcomponentdataitem.h \
+		include/temporal/timeseriesidbasedexchangeitem.h \
 		include/temporal/timeseriesexchangeitem.h \
 		include/spatial/geometry.h \
-		include/core/argument1d.h src/stdafx.cpp \
+		include/core/argument1d.h \
+		include/spatial/spatialreferencesystem.h \
+		include/core/abstractadaptedoutput.h \
+		include/core/abstractadaptedoutputfactory.h \
+		include/temporal/temporalinterpolationfactory.h \
+		include/temporal/timeseriesinterpolationadaptedoutput.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h src/stdafx.cpp \
 		src/core/description.cpp \
 		src/core/identity.cpp \
 		src/core/componentinfo.cpp \
@@ -347,10 +377,16 @@ DIST          = ../../../../Qt5.6.0/5.6/clang_64/mkspecs/features/spec_pre.prf \
 		src/core/idbasedargument.cpp \
 		src/temporal/timedata.cpp \
 		src/temporal/timeseriescomponentdataitem.cpp \
-		src/temporal/timeidbasedcomponentdataitem.cpp \
-		src/temporal/timeidbasedexchangeitem.cpp \
+		src/temporal/timeseriesidbasedcomponentdataitem.cpp \
+		src/temporal/timeseriesidbasedexchangeitem.cpp \
 		src/temporal/timeseriesexchangeitem.cpp \
-		src/core/argument1d.cpp
+		src/core/argument1d.cpp \
+		src/spatial/spatialreferencesystem.cpp \
+		src/core/abstractadaptedoutputfactory.cpp \
+		src/core/abstractadaptedoutput.cpp \
+		src/temporal/timeseriesinterpolationadaptedoutput.cpp \
+		src/temporal/temporalinterpolationfactory.cpp \
+		src/core/abstractadaptedoutputfactorycomponentinfo.cpp
 QMAKE_TARGET  = HydroCoupleSDK
 DESTDIR       = build/debug/
 TARGET        = libHydroCoupleSDK.1.0.0.dylib
@@ -688,8 +724,8 @@ dist: distdir FORCE
 distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
-	$(COPY_FILE) --parents include/stdafx.h include/hydrocouplesdk.h include/core/identity.h include/core/description.h include/core/componentinfo.h include/core/modelcomponentinfo.h include/core/abstractmodelcomponent.h include/core/componentstatuschangeeventargs.h include/core/dimension.h include/core/abstractcomponentdataitem.h include/core/valuedefinition.h include/core/unit.h include/core/unitdimensions.h include/core/abstractoutput.h include/core/abstractinput.h include/core/abstractargument.h include/core/componentdataitem1d.h include/core/componentdataitem2d.h include/core/componentdataitem3d.h include/core/idbasedcomponentdataitem.h include/core/exchangeitemchangeeventargs.h include/core/abstractexchangeitem.h include/core/idbasedargument.h include/temporal/timedata.h include/temporal/timeseriescomponentdataitem.h include/temporal/timeidbasedcomponentdataitem.h include/temporal/timeidbasedexchangeitem.h include/temporal/timeseriesexchangeitem.h include/spatial/geometry.h include/core/argument1d.h $(DISTDIR)/
-	$(COPY_FILE) --parents src/stdafx.cpp src/core/description.cpp src/core/identity.cpp src/core/componentinfo.cpp src/core/modelcomponentinfo.cpp src/core/abstractmodelcomponent.cpp src/core/componentstatuschangeeventargs.cpp src/core/dimension.cpp src/core/abstractcomponentdataitem.cpp src/core/valuedefinition.cpp src/core/unit.cpp src/core/unitdimensions.cpp src/core/abstractinput.cpp src/core/abstractoutput.cpp src/core/componentdataitem1d.cpp src/core/componentdataitem2d.cpp src/core/componentdataitem3d.cpp src/core/idbasedcomponentdataitem.cpp src/core/abstractargument.cpp src/core/abstractexchangeitem.cpp src/core/exchangeitemchangeeventargs.cpp src/core/idbasedargument.cpp src/temporal/timedata.cpp src/temporal/timeseriescomponentdataitem.cpp src/temporal/timeidbasedcomponentdataitem.cpp src/temporal/timeidbasedexchangeitem.cpp src/temporal/timeseriesexchangeitem.cpp src/core/argument1d.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents include/stdafx.h include/hydrocouplesdk.h include/core/identity.h include/core/description.h include/core/componentinfo.h include/core/modelcomponentinfo.h include/core/abstractmodelcomponent.h include/core/componentstatuschangeeventargs.h include/core/dimension.h include/core/abstractcomponentdataitem.h include/core/valuedefinition.h include/core/unit.h include/core/unitdimensions.h include/core/abstractoutput.h include/core/abstractinput.h include/core/abstractargument.h include/core/componentdataitem1d.h include/core/componentdataitem2d.h include/core/componentdataitem3d.h include/core/idbasedcomponentdataitem.h include/core/exchangeitemchangeeventargs.h include/core/abstractexchangeitem.h include/core/idbasedargument.h include/temporal/timedata.h include/temporal/timeseriescomponentdataitem.h include/temporal/timeseriesidbasedcomponentdataitem.h include/temporal/timeseriesidbasedexchangeitem.h include/temporal/timeseriesexchangeitem.h include/spatial/geometry.h include/core/argument1d.h include/spatial/spatialreferencesystem.h include/core/abstractadaptedoutput.h include/core/abstractadaptedoutputfactory.h include/temporal/temporalinterpolationfactory.h include/temporal/timeseriesinterpolationadaptedoutput.h include/core/abstractadaptedoutputfactorycomponentinfo.h $(DISTDIR)/
+	$(COPY_FILE) --parents src/stdafx.cpp src/core/description.cpp src/core/identity.cpp src/core/componentinfo.cpp src/core/modelcomponentinfo.cpp src/core/abstractmodelcomponent.cpp src/core/componentstatuschangeeventargs.cpp src/core/dimension.cpp src/core/abstractcomponentdataitem.cpp src/core/valuedefinition.cpp src/core/unit.cpp src/core/unitdimensions.cpp src/core/abstractinput.cpp src/core/abstractoutput.cpp src/core/componentdataitem1d.cpp src/core/componentdataitem2d.cpp src/core/componentdataitem3d.cpp src/core/idbasedcomponentdataitem.cpp src/core/abstractargument.cpp src/core/abstractexchangeitem.cpp src/core/exchangeitemchangeeventargs.cpp src/core/idbasedargument.cpp src/temporal/timedata.cpp src/temporal/timeseriescomponentdataitem.cpp src/temporal/timeseriesidbasedcomponentdataitem.cpp src/temporal/timeseriesidbasedexchangeitem.cpp src/temporal/timeseriesexchangeitem.cpp src/core/argument1d.cpp src/spatial/spatialreferencesystem.cpp src/core/abstractadaptedoutputfactory.cpp src/core/abstractadaptedoutput.cpp src/temporal/timeseriesinterpolationadaptedoutput.cpp src/temporal/temporalinterpolationfactory.cpp src/core/abstractadaptedoutputfactorycomponentinfo.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -714,9 +750,9 @@ check: first
 
 compiler_rcc_make_all:
 compiler_rcc_clean:
-compiler_moc_header_make_all: build/debug/.moc/moc_identity.cpp build/debug/.moc/moc_description.cpp build/debug/.moc/moc_componentinfo.cpp build/debug/.moc/moc_modelcomponentinfo.cpp build/debug/.moc/moc_abstractmodelcomponent.cpp build/debug/.moc/moc_componentstatuschangeeventargs.cpp build/debug/.moc/moc_dimension.cpp build/debug/.moc/moc_abstractcomponentdataitem.cpp build/debug/.moc/moc_valuedefinition.cpp build/debug/.moc/moc_unit.cpp build/debug/.moc/moc_unitdimensions.cpp build/debug/.moc/moc_abstractoutput.cpp build/debug/.moc/moc_abstractinput.cpp build/debug/.moc/moc_abstractargument.cpp build/debug/.moc/moc_componentdataitem1d.cpp build/debug/.moc/moc_componentdataitem2d.cpp build/debug/.moc/moc_componentdataitem3d.cpp build/debug/.moc/moc_idbasedcomponentdataitem.cpp build/debug/.moc/moc_exchangeitemchangeeventargs.cpp build/debug/.moc/moc_abstractexchangeitem.cpp build/debug/.moc/moc_idbasedargument.cpp build/debug/.moc/moc_timedata.cpp build/debug/.moc/moc_timeseriescomponentdataitem.cpp build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp build/debug/.moc/moc_timeidbasedexchangeitem.cpp build/debug/.moc/moc_timeseriesexchangeitem.cpp
+compiler_moc_header_make_all: build/debug/.moc/moc_identity.cpp build/debug/.moc/moc_description.cpp build/debug/.moc/moc_componentinfo.cpp build/debug/.moc/moc_modelcomponentinfo.cpp build/debug/.moc/moc_abstractmodelcomponent.cpp build/debug/.moc/moc_componentstatuschangeeventargs.cpp build/debug/.moc/moc_dimension.cpp build/debug/.moc/moc_abstractcomponentdataitem.cpp build/debug/.moc/moc_valuedefinition.cpp build/debug/.moc/moc_unit.cpp build/debug/.moc/moc_unitdimensions.cpp build/debug/.moc/moc_abstractoutput.cpp build/debug/.moc/moc_abstractinput.cpp build/debug/.moc/moc_abstractargument.cpp build/debug/.moc/moc_componentdataitem1d.cpp build/debug/.moc/moc_componentdataitem2d.cpp build/debug/.moc/moc_componentdataitem3d.cpp build/debug/.moc/moc_idbasedcomponentdataitem.cpp build/debug/.moc/moc_exchangeitemchangeeventargs.cpp build/debug/.moc/moc_abstractexchangeitem.cpp build/debug/.moc/moc_idbasedargument.cpp build/debug/.moc/moc_timedata.cpp build/debug/.moc/moc_timeseriescomponentdataitem.cpp build/debug/.moc/moc_timeseriesidbasedcomponentdataitem.cpp build/debug/.moc/moc_timeseriesidbasedexchangeitem.cpp build/debug/.moc/moc_timeseriesexchangeitem.cpp build/debug/.moc/moc_spatialreferencesystem.cpp build/debug/.moc/moc_abstractadaptedoutput.cpp build/debug/.moc/moc_abstractadaptedoutputfactory.cpp build/debug/.moc/moc_temporalinterpolationfactory.cpp build/debug/.moc/moc_timeseriesinterpolationadaptedoutput.cpp build/debug/.moc/moc_abstractadaptedoutputfactorycomponentinfo.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) build/debug/.moc/moc_identity.cpp build/debug/.moc/moc_description.cpp build/debug/.moc/moc_componentinfo.cpp build/debug/.moc/moc_modelcomponentinfo.cpp build/debug/.moc/moc_abstractmodelcomponent.cpp build/debug/.moc/moc_componentstatuschangeeventargs.cpp build/debug/.moc/moc_dimension.cpp build/debug/.moc/moc_abstractcomponentdataitem.cpp build/debug/.moc/moc_valuedefinition.cpp build/debug/.moc/moc_unit.cpp build/debug/.moc/moc_unitdimensions.cpp build/debug/.moc/moc_abstractoutput.cpp build/debug/.moc/moc_abstractinput.cpp build/debug/.moc/moc_abstractargument.cpp build/debug/.moc/moc_componentdataitem1d.cpp build/debug/.moc/moc_componentdataitem2d.cpp build/debug/.moc/moc_componentdataitem3d.cpp build/debug/.moc/moc_idbasedcomponentdataitem.cpp build/debug/.moc/moc_exchangeitemchangeeventargs.cpp build/debug/.moc/moc_abstractexchangeitem.cpp build/debug/.moc/moc_idbasedargument.cpp build/debug/.moc/moc_timedata.cpp build/debug/.moc/moc_timeseriescomponentdataitem.cpp build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp build/debug/.moc/moc_timeidbasedexchangeitem.cpp build/debug/.moc/moc_timeseriesexchangeitem.cpp
+	-$(DEL_FILE) build/debug/.moc/moc_identity.cpp build/debug/.moc/moc_description.cpp build/debug/.moc/moc_componentinfo.cpp build/debug/.moc/moc_modelcomponentinfo.cpp build/debug/.moc/moc_abstractmodelcomponent.cpp build/debug/.moc/moc_componentstatuschangeeventargs.cpp build/debug/.moc/moc_dimension.cpp build/debug/.moc/moc_abstractcomponentdataitem.cpp build/debug/.moc/moc_valuedefinition.cpp build/debug/.moc/moc_unit.cpp build/debug/.moc/moc_unitdimensions.cpp build/debug/.moc/moc_abstractoutput.cpp build/debug/.moc/moc_abstractinput.cpp build/debug/.moc/moc_abstractargument.cpp build/debug/.moc/moc_componentdataitem1d.cpp build/debug/.moc/moc_componentdataitem2d.cpp build/debug/.moc/moc_componentdataitem3d.cpp build/debug/.moc/moc_idbasedcomponentdataitem.cpp build/debug/.moc/moc_exchangeitemchangeeventargs.cpp build/debug/.moc/moc_abstractexchangeitem.cpp build/debug/.moc/moc_idbasedargument.cpp build/debug/.moc/moc_timedata.cpp build/debug/.moc/moc_timeseriescomponentdataitem.cpp build/debug/.moc/moc_timeseriesidbasedcomponentdataitem.cpp build/debug/.moc/moc_timeseriesidbasedexchangeitem.cpp build/debug/.moc/moc_timeseriesexchangeitem.cpp build/debug/.moc/moc_spatialreferencesystem.cpp build/debug/.moc/moc_abstractadaptedoutput.cpp build/debug/.moc/moc_abstractadaptedoutputfactory.cpp build/debug/.moc/moc_temporalinterpolationfactory.cpp build/debug/.moc/moc_timeseriesinterpolationadaptedoutput.cpp build/debug/.moc/moc_abstractadaptedoutputfactorycomponentinfo.cpp
 build/debug/.moc/moc_identity.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
@@ -727,7 +763,7 @@ build/debug/.moc/moc_identity.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/core/identity.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/identity.h -o build/debug/.moc/moc_identity.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/identity.h -o build/debug/.moc/moc_identity.cpp
 
 build/debug/.moc/moc_description.cpp: ../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
@@ -738,7 +774,7 @@ build/debug/.moc/moc_description.cpp: ../../../../Qt5.6.0/5.6/clang_64/lib/QtCor
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/core/description.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/description.h -o build/debug/.moc/moc_description.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/description.h -o build/debug/.moc/moc_description.cpp
 
 build/debug/.moc/moc_componentinfo.cpp: include/core/identity.h \
 		include/core/description.h \
@@ -751,7 +787,7 @@ build/debug/.moc/moc_componentinfo.cpp: include/core/identity.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/core/componentinfo.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentinfo.h -o build/debug/.moc/moc_componentinfo.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentinfo.h -o build/debug/.moc/moc_componentinfo.cpp
 
 build/debug/.moc/moc_modelcomponentinfo.cpp: include/hydrocouplesdk.h \
 		include/core/componentinfo.h \
@@ -765,7 +801,7 @@ build/debug/.moc/moc_modelcomponentinfo.cpp: include/hydrocouplesdk.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/core/modelcomponentinfo.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/modelcomponentinfo.h -o build/debug/.moc/moc_modelcomponentinfo.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/modelcomponentinfo.h -o build/debug/.moc/moc_modelcomponentinfo.cpp
 
 build/debug/.moc/moc_abstractmodelcomponent.cpp: include/core/identity.h \
 		include/core/description.h \
@@ -780,7 +816,7 @@ build/debug/.moc/moc_abstractmodelcomponent.cpp: include/core/identity.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QMutex \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qmutex.h \
 		include/core/abstractmodelcomponent.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractmodelcomponent.h -o build/debug/.moc/moc_abstractmodelcomponent.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractmodelcomponent.h -o build/debug/.moc/moc_abstractmodelcomponent.cpp
 
 build/debug/.moc/moc_componentstatuschangeeventargs.cpp: ../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
@@ -791,7 +827,7 @@ build/debug/.moc/moc_componentstatuschangeeventargs.cpp: ../../../../Qt5.6.0/5.6
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/hydrocouplesdk.h \
 		include/core/componentstatuschangeeventargs.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentstatuschangeeventargs.h -o build/debug/.moc/moc_componentstatuschangeeventargs.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentstatuschangeeventargs.h -o build/debug/.moc/moc_componentstatuschangeeventargs.cpp
 
 build/debug/.moc/moc_dimension.cpp: include/core/identity.h \
 		include/core/description.h \
@@ -804,7 +840,7 @@ build/debug/.moc/moc_dimension.cpp: include/core/identity.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/core/dimension.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/dimension.h -o build/debug/.moc/moc_dimension.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/dimension.h -o build/debug/.moc/moc_dimension.cpp
 
 build/debug/.moc/moc_abstractcomponentdataitem.cpp: include/core/identity.h \
 		include/core/description.h \
@@ -819,7 +855,7 @@ build/debug/.moc/moc_abstractcomponentdataitem.cpp: include/core/identity.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractcomponentdataitem.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractcomponentdataitem.h -o build/debug/.moc/moc_abstractcomponentdataitem.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractcomponentdataitem.h -o build/debug/.moc/moc_abstractcomponentdataitem.cpp
 
 build/debug/.moc/moc_valuedefinition.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
@@ -833,7 +869,7 @@ build/debug/.moc/moc_valuedefinition.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/valuedefinition.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/valuedefinition.h -o build/debug/.moc/moc_valuedefinition.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/valuedefinition.h -o build/debug/.moc/moc_valuedefinition.cpp
 
 build/debug/.moc/moc_unit.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
@@ -845,7 +881,7 @@ build/debug/.moc/moc_unit.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/core/unit.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/unit.h -o build/debug/.moc/moc_unit.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/unit.h -o build/debug/.moc/moc_unit.cpp
 
 build/debug/.moc/moc_unitdimensions.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
@@ -857,7 +893,7 @@ build/debug/.moc/moc_unitdimensions.cpp: include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/core/unitdimensions.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/unitdimensions.h -o build/debug/.moc/moc_unitdimensions.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/unitdimensions.h -o build/debug/.moc/moc_unitdimensions.cpp
 
 build/debug/.moc/moc_abstractoutput.cpp: include/core/abstractexchangeitem.h \
 		../HydroCouple/include/hydrocouple.h \
@@ -874,7 +910,7 @@ build/debug/.moc/moc_abstractoutput.cpp: include/core/abstractexchangeitem.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractoutput.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractoutput.h -o build/debug/.moc/moc_abstractoutput.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractoutput.h -o build/debug/.moc/moc_abstractoutput.cpp
 
 build/debug/.moc/moc_abstractinput.cpp: include/core/abstractexchangeitem.h \
 		../HydroCouple/include/hydrocouple.h \
@@ -891,7 +927,7 @@ build/debug/.moc/moc_abstractinput.cpp: include/core/abstractexchangeitem.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractinput.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractinput.h -o build/debug/.moc/moc_abstractinput.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractinput.h -o build/debug/.moc/moc_abstractinput.cpp
 
 build/debug/.moc/moc_abstractargument.cpp: include/core/abstractcomponentdataitem.h \
 		include/core/identity.h \
@@ -907,7 +943,7 @@ build/debug/.moc/moc_abstractargument.cpp: include/core/abstractcomponentdataite
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractargument.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractargument.h -o build/debug/.moc/moc_abstractargument.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractargument.h -o build/debug/.moc/moc_abstractargument.cpp
 
 build/debug/.moc/moc_componentdataitem1d.cpp: include/core/abstractcomponentdataitem.h \
 		include/core/identity.h \
@@ -923,7 +959,7 @@ build/debug/.moc/moc_componentdataitem1d.cpp: include/core/abstractcomponentdata
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/componentdataitem1d.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentdataitem1d.h -o build/debug/.moc/moc_componentdataitem1d.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentdataitem1d.h -o build/debug/.moc/moc_componentdataitem1d.cpp
 
 build/debug/.moc/moc_componentdataitem2d.cpp: include/core/abstractcomponentdataitem.h \
 		include/core/identity.h \
@@ -939,7 +975,7 @@ build/debug/.moc/moc_componentdataitem2d.cpp: include/core/abstractcomponentdata
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/componentdataitem2d.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentdataitem2d.h -o build/debug/.moc/moc_componentdataitem2d.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentdataitem2d.h -o build/debug/.moc/moc_componentdataitem2d.cpp
 
 build/debug/.moc/moc_componentdataitem3d.cpp: include/core/abstractcomponentdataitem.h \
 		include/core/identity.h \
@@ -955,7 +991,7 @@ build/debug/.moc/moc_componentdataitem3d.cpp: include/core/abstractcomponentdata
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/componentdataitem3d.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentdataitem3d.h -o build/debug/.moc/moc_componentdataitem3d.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/componentdataitem3d.h -o build/debug/.moc/moc_componentdataitem3d.cpp
 
 build/debug/.moc/moc_idbasedcomponentdataitem.cpp: include/core/abstractcomponentdataitem.h \
 		include/core/identity.h \
@@ -972,7 +1008,7 @@ build/debug/.moc/moc_idbasedcomponentdataitem.cpp: include/core/abstractcomponen
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/componentdataitem1d.h \
 		include/core/idbasedcomponentdataitem.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/idbasedcomponentdataitem.h -o build/debug/.moc/moc_idbasedcomponentdataitem.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/idbasedcomponentdataitem.h -o build/debug/.moc/moc_idbasedcomponentdataitem.cpp
 
 build/debug/.moc/moc_exchangeitemchangeeventargs.cpp: ../HydroCouple/include/hydrocouple.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
@@ -981,7 +1017,7 @@ build/debug/.moc/moc_exchangeitemchangeeventargs.cpp: ../HydroCouple/include/hyd
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
 		include/hydrocouplesdk.h \
 		include/core/exchangeitemchangeeventargs.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/exchangeitemchangeeventargs.h -o build/debug/.moc/moc_exchangeitemchangeeventargs.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/exchangeitemchangeeventargs.h -o build/debug/.moc/moc_exchangeitemchangeeventargs.cpp
 
 build/debug/.moc/moc_abstractexchangeitem.cpp: ../HydroCouple/include/hydrocouple.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
@@ -997,7 +1033,7 @@ build/debug/.moc/moc_abstractexchangeitem.cpp: ../HydroCouple/include/hydrocoupl
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractexchangeitem.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractexchangeitem.h -o build/debug/.moc/moc_abstractexchangeitem.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractexchangeitem.h -o build/debug/.moc/moc_abstractexchangeitem.cpp
 
 build/debug/.moc/moc_idbasedargument.cpp: include/core/abstractargument.h \
 		include/core/abstractcomponentdataitem.h \
@@ -1018,7 +1054,7 @@ build/debug/.moc/moc_idbasedargument.cpp: include/core/abstractargument.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QFileInfo \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qfileinfo.h \
 		include/core/idbasedargument.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/idbasedargument.h -o build/debug/.moc/moc_idbasedargument.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/idbasedargument.h -o build/debug/.moc/moc_idbasedargument.cpp
 
 build/debug/.moc/moc_timedata.cpp: ../HydroCouple/include/hydrocouple.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
@@ -1032,7 +1068,7 @@ build/debug/.moc/moc_timedata.cpp: ../HydroCouple/include/hydrocouple.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QDateTime \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qdatetime.h \
 		include/temporal/timedata.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timedata.h -o build/debug/.moc/moc_timedata.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timedata.h -o build/debug/.moc/moc_timedata.cpp
 
 build/debug/.moc/moc_timeseriescomponentdataitem.cpp: ../HydroCouple/include/hydrocoupletemporal.h \
 		../HydroCouple/include/hydrocouple.h \
@@ -1050,9 +1086,9 @@ build/debug/.moc/moc_timeseriescomponentdataitem.cpp: ../HydroCouple/include/hyd
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/temporal/timeseriescomponentdataitem.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeseriescomponentdataitem.h -o build/debug/.moc/moc_timeseriescomponentdataitem.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeseriescomponentdataitem.h -o build/debug/.moc/moc_timeseriescomponentdataitem.cpp
 
-build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp: ../HydroCouple/include/hydrocoupletemporal.h \
+build/debug/.moc/moc_timeseriesidbasedcomponentdataitem.cpp: ../HydroCouple/include/hydrocoupletemporal.h \
 		../HydroCouple/include/hydrocouple.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
@@ -1067,10 +1103,10 @@ build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp: ../HydroCouple/include/hy
 		include/hydrocouplesdk.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
-		include/temporal/timeidbasedcomponentdataitem.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeidbasedcomponentdataitem.h -o build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp
+		include/temporal/timeseriesidbasedcomponentdataitem.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeseriesidbasedcomponentdataitem.h -o build/debug/.moc/moc_timeseriesidbasedcomponentdataitem.cpp
 
-build/debug/.moc/moc_timeidbasedexchangeitem.cpp: include/core/abstractinput.h \
+build/debug/.moc/moc_timeseriesidbasedexchangeitem.cpp: include/core/abstractinput.h \
 		include/core/abstractexchangeitem.h \
 		../HydroCouple/include/hydrocouple.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
@@ -1086,11 +1122,11 @@ build/debug/.moc/moc_timeidbasedexchangeitem.cpp: include/core/abstractinput.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractoutput.h \
-		include/temporal/timeidbasedcomponentdataitem.h \
+		include/temporal/timeseriesidbasedcomponentdataitem.h \
 		../HydroCouple/include/hydrocoupletemporal.h \
 		include/core/componentdataitem2d.h \
-		include/temporal/timeidbasedexchangeitem.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeidbasedexchangeitem.h -o build/debug/.moc/moc_timeidbasedexchangeitem.cpp
+		include/temporal/timeseriesidbasedexchangeitem.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeseriesidbasedexchangeitem.h -o build/debug/.moc/moc_timeseriesidbasedexchangeitem.cpp
 
 build/debug/.moc/moc_timeseriesexchangeitem.cpp: include/temporal/timeseriescomponentdataitem.h \
 		../HydroCouple/include/hydrocoupletemporal.h \
@@ -1112,7 +1148,105 @@ build/debug/.moc/moc_timeseriesexchangeitem.cpp: include/temporal/timeseriescomp
 		include/core/abstractexchangeitem.h \
 		include/core/abstractoutput.h \
 		include/temporal/timeseriesexchangeitem.h
-	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeseriesexchangeitem.h -o build/debug/.moc/moc_timeseriesexchangeitem.cpp
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeseriesexchangeitem.h -o build/debug/.moc/moc_timeseriesexchangeitem.cpp
+
+build/debug/.moc/moc_spatialreferencesystem.cpp: include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		../HydroCouple/include/hydrocouplespatial.h \
+		include/spatial/spatialreferencesystem.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/spatial/spatialreferencesystem.h -o build/debug/.moc/moc_spatialreferencesystem.cpp
+
+build/debug/.moc/moc_abstractadaptedoutput.cpp: include/core/abstractoutput.h \
+		include/core/abstractexchangeitem.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/hydrocouplesdk.h \
+		include/core/abstractcomponentdataitem.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
+		include/core/abstractadaptedoutput.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractadaptedoutput.h -o build/debug/.moc/moc_abstractadaptedoutput.cpp
+
+build/debug/.moc/moc_abstractadaptedoutputfactory.cpp: include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h \
+		include/core/componentinfo.h \
+		include/core/abstractadaptedoutputfactory.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractadaptedoutputfactory.h -o build/debug/.moc/moc_abstractadaptedoutputfactory.cpp
+
+build/debug/.moc/moc_temporalinterpolationfactory.cpp: include/core/abstractadaptedoutputfactory.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h \
+		include/core/componentinfo.h \
+		include/temporal/temporalinterpolationfactory.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/temporalinterpolationfactory.h -o build/debug/.moc/moc_temporalinterpolationfactory.cpp
+
+build/debug/.moc/moc_timeseriesinterpolationadaptedoutput.cpp: ../HydroCouple/include/hydrocoupletemporal.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/abstractadaptedoutput.h \
+		include/core/abstractoutput.h \
+		include/core/abstractexchangeitem.h \
+		include/hydrocouplesdk.h \
+		include/core/abstractcomponentdataitem.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
+		include/temporal/timeseriescomponentdataitem.h \
+		include/core/componentdataitem1d.h \
+		include/temporal/timeseriesinterpolationadaptedoutput.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/temporal/timeseriesinterpolationadaptedoutput.h -o build/debug/.moc/moc_timeseriesinterpolationadaptedoutput.cpp
+
+build/debug/.moc/moc_abstractadaptedoutputfactorycomponentinfo.cpp: include/core/componentinfo.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h
+	/Users/calebbuahin/Qt5.6.0/5.6/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/mkspecs/macx-clang -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCoupleSDK/include -I/Users/calebbuahin/Documents/Projects/HydroCouple/HydroCouple/include -I/usr/local/include -I/usr/local/include/geos -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtGui.framework/Headers -I/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers -F/Users/calebbuahin/Qt5.6.0/5.6/clang_64/lib include/core/abstractadaptedoutputfactorycomponentinfo.h -o build/debug/.moc/moc_abstractadaptedoutputfactorycomponentinfo.cpp
 
 compiler_moc_source_make_all:
 compiler_moc_source_clean:
@@ -1213,7 +1347,9 @@ build/debug/.obj/abstractmodelcomponent.o: src/core/abstractmodelcomponent.cpp i
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractinput.h \
 		include/core/abstractexchangeitem.h \
-		include/core/abstractoutput.h
+		include/core/abstractoutput.h \
+		include/core/abstractadaptedoutputfactory.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/abstractmodelcomponent.o src/core/abstractmodelcomponent.cpp
 
 build/debug/.obj/componentstatuschangeeventargs.o: src/core/componentstatuschangeeventargs.cpp include/stdafx.h \
@@ -1265,7 +1401,9 @@ build/debug/.obj/abstractcomponentdataitem.o: src/core/abstractcomponentdataitem
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractmodelcomponent.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QMutex \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qmutex.h
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qmutex.h \
+		include/core/valuedefinition.h \
+		include/core/dimension.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/abstractcomponentdataitem.o src/core/abstractcomponentdataitem.cpp
 
 build/debug/.obj/valuedefinition.o: src/core/valuedefinition.cpp include/stdafx.h \
@@ -1286,7 +1424,8 @@ build/debug/.obj/valuedefinition.o: src/core/valuedefinition.cpp include/stdafx.
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qdatastream.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/valuedefinition.o src/core/valuedefinition.cpp
 
-build/debug/.obj/unit.o: src/core/unit.cpp include/core/unit.h \
+build/debug/.obj/unit.o: src/core/unit.cpp include/stdafx.h \
+		include/core/unit.h \
 		include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
@@ -1299,7 +1438,8 @@ build/debug/.obj/unit.o: src/core/unit.cpp include/core/unit.h \
 		include/core/unitdimensions.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/unit.o src/core/unit.cpp
 
-build/debug/.obj/unitdimensions.o: src/core/unitdimensions.cpp include/core/unitdimensions.h \
+build/debug/.obj/unitdimensions.o: src/core/unitdimensions.cpp include/stdafx.h \
+		include/core/unitdimensions.h \
 		include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
@@ -1533,7 +1673,8 @@ build/debug/.obj/timedata.o: src/temporal/timedata.cpp include/stdafx.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qdatetime.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/timedata.o src/temporal/timedata.cpp
 
-build/debug/.obj/timeseriescomponentdataitem.o: src/temporal/timeseriescomponentdataitem.cpp include/core/dimension.h \
+build/debug/.obj/timeseriescomponentdataitem.o: src/temporal/timeseriescomponentdataitem.cpp include/stdafx.h \
+		include/core/dimension.h \
 		include/core/identity.h \
 		include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
@@ -1559,7 +1700,7 @@ build/debug/.obj/timeseriescomponentdataitem.o: src/temporal/timeseriescomponent
 		include/core/abstractcomponentdataitem.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/timeseriescomponentdataitem.o src/temporal/timeseriescomponentdataitem.cpp
 
-build/debug/.obj/timeidbasedcomponentdataitem.o: src/temporal/timeidbasedcomponentdataitem.cpp include/stdafx.h \
+build/debug/.obj/timeseriesidbasedcomponentdataitem.o: src/temporal/timeseriesidbasedcomponentdataitem.cpp include/stdafx.h \
 		include/core/dimension.h \
 		include/core/identity.h \
 		include/core/description.h \
@@ -1577,56 +1718,66 @@ build/debug/.obj/timeidbasedcomponentdataitem.o: src/temporal/timeidbasedcompone
 		include/core/abstractmodelcomponent.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QMutex \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qmutex.h \
-		include/temporal/timeidbasedcomponentdataitem.h \
+		include/temporal/timeseriesidbasedcomponentdataitem.h \
 		../HydroCouple/include/hydrocoupletemporal.h \
 		include/core/componentdataitem2d.h \
 		include/core/abstractcomponentdataitem.h \
 		include/temporal/timedata.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QDateTime \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qdatetime.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/timeidbasedcomponentdataitem.o src/temporal/timeidbasedcomponentdataitem.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/timeseriesidbasedcomponentdataitem.o src/temporal/timeseriesidbasedcomponentdataitem.cpp
 
-build/debug/.obj/timeidbasedexchangeitem.o: src/temporal/timeidbasedexchangeitem.cpp include/stdafx.h \
-		include/temporal/timeidbasedexchangeitem.h \
+build/debug/.obj/timeseriesidbasedexchangeitem.o: src/temporal/timeseriesidbasedexchangeitem.cpp include/stdafx.h \
+		include/core/dimension.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/valuedefinition.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
+		include/temporal/timeseriesidbasedexchangeitem.h \
 		include/core/abstractinput.h \
 		include/core/abstractexchangeitem.h \
-		../HydroCouple/include/hydrocouple.h \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
-		include/hydrocouplesdk.h \
 		include/core/abstractcomponentdataitem.h \
-		include/core/identity.h \
-		include/core/description.h \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
 		include/core/abstractoutput.h \
-		include/temporal/timeidbasedcomponentdataitem.h \
+		include/temporal/timeseriesidbasedcomponentdataitem.h \
 		../HydroCouple/include/hydrocoupletemporal.h \
-		include/core/componentdataitem2d.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/timeidbasedexchangeitem.o src/temporal/timeidbasedexchangeitem.cpp
+		include/core/componentdataitem2d.h \
+		include/temporal/timedata.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QDateTime \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qdatetime.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/timeseriesidbasedexchangeitem.o src/temporal/timeseriesidbasedexchangeitem.cpp
 
 build/debug/.obj/timeseriesexchangeitem.o: src/temporal/timeseriesexchangeitem.cpp include/stdafx.h \
-		include/temporal/timeseriesexchangeitem.h \
-		include/temporal/timeseriescomponentdataitem.h \
-		../HydroCouple/include/hydrocoupletemporal.h \
-		../HydroCouple/include/hydrocouple.h \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
-		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
-		include/core/componentdataitem1d.h \
-		include/core/abstractcomponentdataitem.h \
+		include/core/dimension.h \
 		include/core/identity.h \
 		include/core/description.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
 		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/valuedefinition.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
+		include/temporal/timedata.h \
+		../HydroCouple/include/hydrocoupletemporal.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QDateTime \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qdatetime.h \
+		include/temporal/timeseriesexchangeitem.h \
+		include/temporal/timeseriescomponentdataitem.h \
+		include/core/componentdataitem1d.h \
+		include/core/abstractcomponentdataitem.h \
 		include/core/abstractinput.h \
 		include/core/abstractexchangeitem.h \
 		include/core/abstractoutput.h
@@ -1656,6 +1807,149 @@ build/debug/.obj/argument1d.o: src/core/argument1d.cpp include/stdafx.h \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QFile \
 		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qfile.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/argument1d.o src/core/argument1d.cpp
+
+build/debug/.obj/spatialreferencesystem.o: src/spatial/spatialreferencesystem.cpp include/stdafx.h \
+		include/spatial/spatialreferencesystem.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		../HydroCouple/include/hydrocouplespatial.h \
+		/usr/local/include/ogr_spatialref.h \
+		/usr/local/include/ogr_srs_api.h \
+		/usr/local/include/ogr_core.h \
+		/usr/local/include/cpl_port.h \
+		/usr/local/include/cpl_config.h \
+		/usr/local/include/gdal_version.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/spatialreferencesystem.o src/spatial/spatialreferencesystem.cpp
+
+build/debug/.obj/abstractadaptedoutputfactory.o: src/core/abstractadaptedoutputfactory.cpp include/stdafx.h \
+		include/core/abstractadaptedoutputfactory.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h \
+		include/core/componentinfo.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/abstractadaptedoutputfactory.o src/core/abstractadaptedoutputfactory.cpp
+
+build/debug/.obj/abstractadaptedoutput.o: src/core/abstractadaptedoutput.cpp include/stdafx.h \
+		include/core/abstractargument.h \
+		include/core/abstractcomponentdataitem.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
+		include/core/abstractadaptedoutput.h \
+		include/core/abstractoutput.h \
+		include/core/abstractexchangeitem.h \
+		include/core/abstractadaptedoutputfactory.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h \
+		include/core/componentinfo.h \
+		include/core/dimension.h \
+		include/core/valuedefinition.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/abstractadaptedoutput.o src/core/abstractadaptedoutput.cpp
+
+build/debug/.obj/timeseriesinterpolationadaptedoutput.o: src/temporal/timeseriesinterpolationadaptedoutput.cpp include/stdafx.h \
+		include/core/abstractadaptedoutput.h \
+		include/core/abstractoutput.h \
+		include/core/abstractexchangeitem.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/hydrocouplesdk.h \
+		include/core/abstractcomponentdataitem.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
+		include/core/valuedefinition.h \
+		include/temporal/timeseriesinterpolationadaptedoutput.h \
+		../HydroCouple/include/hydrocoupletemporal.h \
+		include/temporal/timeseriescomponentdataitem.h \
+		include/core/componentdataitem1d.h \
+		include/core/idbasedargument.h \
+		include/core/abstractargument.h \
+		include/core/idbasedcomponentdataitem.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QFileInfo \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qfileinfo.h \
+		include/core/dimension.h \
+		include/temporal/temporalinterpolationfactory.h \
+		include/core/abstractadaptedoutputfactory.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h \
+		include/core/componentinfo.h \
+		include/temporal/timedata.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QDateTime \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qdatetime.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/timeseriesinterpolationadaptedoutput.o src/temporal/timeseriesinterpolationadaptedoutput.cpp
+
+build/debug/.obj/temporalinterpolationfactory.o: src/temporal/temporalinterpolationfactory.cpp include/stdafx.h \
+		include/temporal/temporalinterpolationfactory.h \
+		include/core/abstractadaptedoutputfactory.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h \
+		include/core/componentinfo.h \
+		include/temporal/timeseriesinterpolationadaptedoutput.h \
+		../HydroCouple/include/hydrocoupletemporal.h \
+		include/core/abstractadaptedoutput.h \
+		include/core/abstractoutput.h \
+		include/core/abstractexchangeitem.h \
+		include/core/abstractcomponentdataitem.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QXmlStreamReader \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qxmlstream.h \
+		include/temporal/timeseriescomponentdataitem.h \
+		include/core/componentdataitem1d.h \
+		include/core/dimension.h \
+		include/core/valuedefinition.h \
+		include/core/unit.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/temporalinterpolationfactory.o src/temporal/temporalinterpolationfactory.cpp
+
+build/debug/.obj/abstractadaptedoutputfactorycomponentinfo.o: src/core/abstractadaptedoutputfactorycomponentinfo.cpp include/stdafx.h \
+		include/core/abstractadaptedoutputfactorycomponentinfo.h \
+		include/core/componentinfo.h \
+		include/core/identity.h \
+		include/core/description.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QVariant \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qvariant.h \
+		include/hydrocouplesdk.h \
+		../HydroCouple/include/hydrocouple.h \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/QSharedPointer \
+		../../../../Qt5.6.0/5.6/clang_64/lib/QtCore.framework/Headers/qsharedpointer.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/abstractadaptedoutputfactorycomponentinfo.o src/core/abstractadaptedoutputfactorycomponentinfo.cpp
 
 build/debug/.obj/moc_identity.o: build/debug/.moc/moc_identity.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_identity.o build/debug/.moc/moc_identity.cpp
@@ -1726,14 +2020,32 @@ build/debug/.obj/moc_timedata.o: build/debug/.moc/moc_timedata.cpp
 build/debug/.obj/moc_timeseriescomponentdataitem.o: build/debug/.moc/moc_timeseriescomponentdataitem.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_timeseriescomponentdataitem.o build/debug/.moc/moc_timeseriescomponentdataitem.cpp
 
-build/debug/.obj/moc_timeidbasedcomponentdataitem.o: build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp 
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_timeidbasedcomponentdataitem.o build/debug/.moc/moc_timeidbasedcomponentdataitem.cpp
+build/debug/.obj/moc_timeseriesidbasedcomponentdataitem.o: build/debug/.moc/moc_timeseriesidbasedcomponentdataitem.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_timeseriesidbasedcomponentdataitem.o build/debug/.moc/moc_timeseriesidbasedcomponentdataitem.cpp
 
-build/debug/.obj/moc_timeidbasedexchangeitem.o: build/debug/.moc/moc_timeidbasedexchangeitem.cpp 
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_timeidbasedexchangeitem.o build/debug/.moc/moc_timeidbasedexchangeitem.cpp
+build/debug/.obj/moc_timeseriesidbasedexchangeitem.o: build/debug/.moc/moc_timeseriesidbasedexchangeitem.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_timeseriesidbasedexchangeitem.o build/debug/.moc/moc_timeseriesidbasedexchangeitem.cpp
 
 build/debug/.obj/moc_timeseriesexchangeitem.o: build/debug/.moc/moc_timeseriesexchangeitem.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_timeseriesexchangeitem.o build/debug/.moc/moc_timeseriesexchangeitem.cpp
+
+build/debug/.obj/moc_spatialreferencesystem.o: build/debug/.moc/moc_spatialreferencesystem.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_spatialreferencesystem.o build/debug/.moc/moc_spatialreferencesystem.cpp
+
+build/debug/.obj/moc_abstractadaptedoutput.o: build/debug/.moc/moc_abstractadaptedoutput.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_abstractadaptedoutput.o build/debug/.moc/moc_abstractadaptedoutput.cpp
+
+build/debug/.obj/moc_abstractadaptedoutputfactory.o: build/debug/.moc/moc_abstractadaptedoutputfactory.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_abstractadaptedoutputfactory.o build/debug/.moc/moc_abstractadaptedoutputfactory.cpp
+
+build/debug/.obj/moc_temporalinterpolationfactory.o: build/debug/.moc/moc_temporalinterpolationfactory.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_temporalinterpolationfactory.o build/debug/.moc/moc_temporalinterpolationfactory.cpp
+
+build/debug/.obj/moc_timeseriesinterpolationadaptedoutput.o: build/debug/.moc/moc_timeseriesinterpolationadaptedoutput.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_timeseriesinterpolationadaptedoutput.o build/debug/.moc/moc_timeseriesinterpolationadaptedoutput.cpp
+
+build/debug/.obj/moc_abstractadaptedoutputfactorycomponentinfo.o: build/debug/.moc/moc_abstractadaptedoutputfactorycomponentinfo.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/debug/.obj/moc_abstractadaptedoutputfactorycomponentinfo.o build/debug/.moc/moc_abstractadaptedoutputfactorycomponentinfo.cpp
 
 ####### Install
 

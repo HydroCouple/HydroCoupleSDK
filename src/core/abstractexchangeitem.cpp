@@ -5,14 +5,21 @@
 
 using namespace HydroCouple;
 
-AbstractExchangeItem::AbstractExchangeItem(const QString &id, AbstractModelComponent *parentModelComponent)
-   :AbstractComponentDataItem(id,parentModelComponent)
+AbstractExchangeItem::AbstractExchangeItem(const QString& id,
+                                           const QList<Dimension*>& dimensions,
+                                           ValueDefinition* valueDefinition,
+                                           AbstractModelComponent *modelComponent)
+   :AbstractComponentDataItem(id,dimensions,valueDefinition,modelComponent)
 {
 
 }
 
-AbstractExchangeItem::AbstractExchangeItem(const QString &id, const QString &caption, AbstractModelComponent *parentModelComponent)
-   :AbstractComponentDataItem(id, caption, parentModelComponent)
+AbstractExchangeItem::AbstractExchangeItem(const QString& id,
+                                           const QString &caption,
+                                           const QList<Dimension*>& dimensions,
+                                           ValueDefinition* valueDefinition,
+                                           AbstractModelComponent *modelComponent)
+   :AbstractComponentDataItem(id, caption, dimensions, valueDefinition, modelComponent)
 {
 
 }

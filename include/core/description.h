@@ -36,7 +36,8 @@
  * in the HydroCouple interface definitions.
  *
  */
-class HYDROCOUPLESDK_EXPORT Description : public QObject, public virtual HydroCouple::IDescription
+class HYDROCOUPLESDK_EXPORT Description : public QObject,
+    public virtual HydroCouple::IDescription
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IDescription)
@@ -45,56 +46,27 @@ class HYDROCOUPLESDK_EXPORT Description : public QObject, public virtual HydroCo
 
   public:
 
-    /*!
-       * \brief Description
-       * \param caption
-       * \param description
-       * \param parent
-       */
     Description(QObject *parent = nullptr);
 
 
     Description(const QString &caption, QObject *parent = nullptr);
 
-    /*!
-       * \brief ~Description
-       */
     virtual ~Description();
 
-    /*!
-       * \brief Gets caption for the entity.
-       * \returns string representing caption for entity.
-       */
     QString caption() const override;
 
-    /*!
-       * \brief Sets caption for the entity.
-       * \param caption is a string representing the caption for the entity.
-       */
-    virtual void setCaption(const QString &caption) override;
+    void setCaption(const QString &caption) override;
 
-    /*!
-       * \brief Gets additional descriptive information for the entity.
-       * \returns description of entity
-       */
     QString description() const override;
 
-    /*!
-       * \brief Gets additional descriptive information for the entity.
-       * \param description is a string for describing an entity
-       */
-    virtual void setDescription(const QString &decription) override;
+    void setDescription(const QString &decription) override;
 
   signals:
 
-    /*!
-       * \brief propertyChanged
-       * \param propertyName
-       * \param value
-       */
     void propertyChanged(const QString& propertyName) override;
 
   protected:
+
     QString m_caption, m_description;
 };
 

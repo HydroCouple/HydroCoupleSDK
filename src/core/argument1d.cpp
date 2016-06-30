@@ -4,12 +4,44 @@
 #include "core/valuedefinition.h"
 #include <QFile>
 
-Argument1DInt::Argument1DInt(const QString &id, Dimension *dimension,
-                             ValueDefinition *valueDefinition, AbstractModelComponent *modelComponent):
-  ComponentDataItem1D<int>(dimension , valueDefinition),
-  AbstractArgument(id,modelComponent)
+Argument1DInt::Argument1DInt(const QString& id,
+                             Dimension* dimension,
+                             ValueDefinition* valueDefinition,
+                             AbstractModelComponent *modelComponent)
+  : AbstractArgument(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
+    ComponentDataItem1D<int>(dimension , valueDefinition->defaultValue().toInt())
 {
 
+}
+
+void Argument1DInt::getValue(int dimensionIndexes[], QVariant & data) const
+{
+  ComponentDataItem1D<int>::getValueT(dimensionIndexes,data);
+}
+
+void Argument1DInt::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+{
+  ComponentDataItem1D<int>::getValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DInt::getValues(int dimensionIndexes[], int stride[], void *data) const
+{
+  ComponentDataItem1D<int>::getValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DInt::setValue(int dimensionIndexes[], const QVariant &data)
+{
+  ComponentDataItem1D<int>::setValueT(dimensionIndexes,data);
+}
+
+void Argument1DInt::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
+{
+  ComponentDataItem1D<int>::setValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DInt::setValues(int dimensionIndexes[], int stride[], const void *data)
+{
+  ComponentDataItem1D<int>::setValuesT(dimensionIndexes,stride,data);
 }
 
 void Argument1DInt::readData(QXmlStreamReader &xmlReader)
@@ -44,10 +76,10 @@ void Argument1DInt::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!hDimension()->id().compare(id))
+              if(!dimensionInternal()->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                hDimension()->setLength(length.toInt());
+                dimensionInternal()->setLength(length.toInt());
               }
             }
 
@@ -62,7 +94,7 @@ void Argument1DInt::readData(QXmlStreamReader &xmlReader)
       }
       else if(!xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        hValueDefinition()->readData(xmlReader);
+        valueDefinitionInternal()->readData(xmlReader);
 
         while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
@@ -84,10 +116,10 @@ void Argument1DInt::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
 
-        if(values.size() == hDimension()->length())
+        if((int)values.size() == dimensionInternal()->length())
         {
           int ind[1] ={0};
-          int str[1] = {hDimension()->length()};
+          int str[1] = {dimensionInternal()->length()};
           setValues(ind,str,values.data());
         }
       }
@@ -104,16 +136,21 @@ void Argument1DInt::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeAttribute("Caption" , caption());
     xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+    for(const QString& comment : comments())
+    {
+      xmlWriter.writeComment(comment);
+    }
+
     //write value definition;
-    hValueDefinition()->writeData(xmlWriter);
+    valueDefinitionInternal()->writeData(xmlWriter);
 
     xmlWriter.writeStartElement("Dimensions");
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , hDimension()->id());
-        xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+        xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+        xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -122,11 +159,11 @@ void Argument1DInt::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {hDimension()->length()};
-      int values[hDimension()->length()];
+      int str[1] = {dimensionInternal()->length()};
+      int values[dimensionInternal()->length()];
       getValues(ind,str,values);
 
-      for(int i = 0 ; i < hDimension()->length() ; i++)
+      for(int i = 0 ; i < dimensionInternal()->length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -157,16 +194,21 @@ QString Argument1DInt::toString() const
         xmlWriter.writeAttribute("Caption" , caption());
         xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+        for(const QString& comment : comments())
+        {
+          xmlWriter.writeComment(comment);
+        }
+
         //write value definition;
-        hValueDefinition()->writeData(xmlWriter);
+        valueDefinitionInternal()->writeData(xmlWriter);
 
         xmlWriter.writeStartElement("Dimensions");
         {
           xmlWriter.writeStartElement("Dimension");
           {
-            xmlWriter.writeAttribute("Id" , hDimension()->id());
-            xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-            xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+            xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+            xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
           }
           xmlWriter.writeEndElement();
         }
@@ -175,11 +217,11 @@ QString Argument1DInt::toString() const
         xmlWriter.writeStartElement("Values");
         {
           int ind[1] = {0};
-          int str[1] = {hDimension()->length()};
-          int values[hDimension()->length()];
+          int str[1] = {dimensionInternal()->length()};
+          int values[dimensionInternal()->length()];
           getValues(ind,str,values);
 
-          for(int i = 0 ; i < hDimension()->length() ; i++)
+          for(int i = 0 ; i < dimensionInternal()->length() ; i++)
           {
             xmlWriter.writeStartElement("Value");
             {
@@ -211,15 +253,15 @@ QString Argument1DInt::toString() const
       xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
       //write value definition;
-      hValueDefinition()->writeData(xmlWriter);
+      valueDefinitionInternal()->writeData(xmlWriter);
 
       xmlWriter.writeStartElement("Dimensions");
       {
         xmlWriter.writeStartElement("Dimension");
         {
-          xmlWriter.writeAttribute("Id" , hDimension()->id());
-          xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+          xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+          xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+          xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
         }
         xmlWriter.writeEndElement();
       }
@@ -228,11 +270,11 @@ QString Argument1DInt::toString() const
       xmlWriter.writeStartElement("Values");
       {
         int ind[1] = {0};
-        int str[1] = {hDimension()->length()};
-        int values[hDimension()->length()];
+        int str[1] = {dimensionInternal()->length()};
+        int values[dimensionInternal()->length()];
         getValues(ind,str,values);
 
-        for(int i = 0 ; i < hDimension()->length() ; i++)
+        for(int i = 0 ; i < dimensionInternal()->length() ; i++)
         {
           xmlWriter.writeStartElement("Value");
           {
@@ -308,14 +350,14 @@ bool Argument1DInt::readValues(const QString &value, bool isFile)
 bool Argument1DInt::readValues(const IComponentDataItem *componentDataItem)
 {
 
-  if(componentDataItem->valueDefinition()->type() == hValueDefinition()->type() &&
+  if(componentDataItem->valueDefinition()->type() == valueDefinitionInternal()->type() &&
      componentDataItem->dimensions().length() == 1)
   {
-    hDimension()->setLength(componentDataItem->dimensions()[0]->length());
+    dimensionInternal()->setLength(componentDataItem->dimensions()[0]->length());
     resetDataArray();
     int ind[1] = {0};
-    int str[1] = {hDimension()->length()};
-    int data[hDimension()->length()];
+    int str[1] = {dimensionInternal()->length()};
+    int data[dimensionInternal()->length()];
     componentDataItem->getValues(ind,str,data);
     setValues(ind,str,data);
     return true;
@@ -324,14 +366,47 @@ bool Argument1DInt::readValues(const IComponentDataItem *componentDataItem)
   return false;
 }
 
+//===================================================================================================================
 
-
-Argument1DDouble::Argument1DDouble(const QString &id, Dimension *dimension,
-                                   ValueDefinition *valueDefinition, AbstractModelComponent *modelComponent):
-  ComponentDataItem1D<double>(dimension , valueDefinition),
-  AbstractArgument(id,modelComponent)
+Argument1DDouble::Argument1DDouble(const QString& id,
+                                   Dimension* dimension,
+                                   ValueDefinition* valueDefinition,
+                                   AbstractModelComponent *modelComponent)
+  : AbstractArgument(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
+    ComponentDataItem1D<double>(dimension , valueDefinition->defaultValue().toDouble())
 {
 
+}
+
+
+void Argument1DDouble::getValue(int dimensionIndexes[], QVariant & data) const
+{
+  ComponentDataItem1D<double>::getValueT(dimensionIndexes,data);
+}
+
+void Argument1DDouble::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+{
+  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DDouble::getValues(int dimensionIndexes[], int stride[], void *data) const
+{
+  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DDouble::setValue(int dimensionIndexes[], const QVariant &data)
+{
+  ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
+}
+
+void Argument1DDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
+{
+  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
+{
+  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
 }
 
 void Argument1DDouble::readData(QXmlStreamReader &xmlReader)
@@ -366,10 +441,10 @@ void Argument1DDouble::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!hDimension()->id().compare(id))
+              if(!dimensionInternal()->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                hDimension()->setLength(length.toInt());
+                dimensionInternal()->setLength(length.toInt());
               }
             }
 
@@ -384,7 +459,7 @@ void Argument1DDouble::readData(QXmlStreamReader &xmlReader)
       }
       else if(!xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        hValueDefinition()->readData(xmlReader);
+        valueDefinitionInternal()->readData(xmlReader);
 
         while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
@@ -406,10 +481,10 @@ void Argument1DDouble::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
 
-        if(values.size() == hDimension()->length())
+        if((int)values.size() == dimensionInternal()->length())
         {
           int ind[1] = {0};
-          int str[1] = {hDimension()->length()};
+          int str[1] = {dimensionInternal()->length()};
 
           setValues(ind,str,values.data());
         }
@@ -427,16 +502,21 @@ void Argument1DDouble::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeAttribute("Caption" , caption());
     xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+    for(const QString& comment : comments())
+    {
+      xmlWriter.writeComment(comment);
+    }
+
     //write value definition;
-    hValueDefinition()->writeData(xmlWriter);
+    valueDefinitionInternal()->writeData(xmlWriter);
 
     xmlWriter.writeStartElement("Dimensions");
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , hDimension()->id());
-        xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+        xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+        xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -445,12 +525,12 @@ void Argument1DDouble::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {hDimension()->length()};
-      double values[hDimension()->length()];
+      int str[1] = {dimensionInternal()->length()};
+      double values[dimensionInternal()->length()];
       getValues(ind,str,values);
 
 
-      for(int i = 0 ; i < hDimension()->length() ; i++)
+      for(int i = 0 ; i < dimensionInternal()->length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -481,16 +561,21 @@ QString Argument1DDouble::toString() const
         xmlWriter.writeAttribute("Caption" , caption());
         xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+        for(const QString& comment : comments())
+        {
+          xmlWriter.writeComment(comment);
+        }
+
         //write value definition;
-        hValueDefinition()->writeData(xmlWriter);
+        valueDefinitionInternal()->writeData(xmlWriter);
 
         xmlWriter.writeStartElement("Dimensions");
         {
           xmlWriter.writeStartElement("Dimension");
           {
-            xmlWriter.writeAttribute("Id" , hDimension()->id());
-            xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-            xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+            xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+            xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
           }
           xmlWriter.writeEndElement();
         }
@@ -499,11 +584,11 @@ QString Argument1DDouble::toString() const
         xmlWriter.writeStartElement("Values");
         {
           int ind[1] = {0};
-          int str[1] = {hDimension()->length()};
-          double values[hDimension()->length()];
+          int str[1] = {dimensionInternal()->length()};
+          double values[dimensionInternal()->length()];
           getValues(ind,str,values);
 
-          for(int i = 0 ; i < hDimension()->length() ; i++)
+          for(int i = 0 ; i < dimensionInternal()->length() ; i++)
           {
             xmlWriter.writeStartElement("Value");
             {
@@ -534,16 +619,21 @@ QString Argument1DDouble::toString() const
       xmlWriter.writeAttribute("Caption" , caption());
       xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+      for(const QString& comment : comments())
+      {
+        xmlWriter.writeComment(comment);
+      }
+
       //write value definition;
-      hValueDefinition()->writeData(xmlWriter);
+      valueDefinitionInternal()->writeData(xmlWriter);
 
       xmlWriter.writeStartElement("Dimensions");
       {
         xmlWriter.writeStartElement("Dimension");
         {
-          xmlWriter.writeAttribute("Id" , hDimension()->id());
-          xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+          xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+          xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+          xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
         }
         xmlWriter.writeEndElement();
       }
@@ -552,11 +642,11 @@ QString Argument1DDouble::toString() const
       xmlWriter.writeStartElement("Values");
       {
         int ind[1] = {0};
-        int str[1] = {hDimension()->length()};
-        double values[hDimension()->length()];
+        int str[1] = {dimensionInternal()->length()};
+        double values[dimensionInternal()->length()];
         getValues(ind,str,values);
 
-        for(int i = 0 ; i < hDimension()->length() ; i++)
+        for(int i = 0 ; i < dimensionInternal()->length() ; i++)
         {
           xmlWriter.writeStartElement("Value");
           {
@@ -632,14 +722,14 @@ bool Argument1DDouble::readValues(const QString &value, bool isFile)
 bool Argument1DDouble::readValues(const IComponentDataItem *componentDataItem)
 {
 
-  if(componentDataItem->valueDefinition()->type() == hValueDefinition()->type() &&
+  if(componentDataItem->valueDefinition()->type() == valueDefinitionInternal()->type() &&
      componentDataItem->dimensions().length() == 1)
   {
-    hDimension()->setLength(componentDataItem->dimensions()[0]->length());
+    dimensionInternal()->setLength(componentDataItem->dimensions()[0]->length());
     resetDataArray();
     int ind[1] = {0};
-    int str[1] = {hDimension()->length()};
-    double data[hDimension()->length()];
+    int str[1] = {dimensionInternal()->length()};
+    double data[dimensionInternal()->length()];
     componentDataItem->getValues(ind,str,data);
     setValues(ind,str,data);
     return true;
@@ -648,14 +738,46 @@ bool Argument1DDouble::readValues(const IComponentDataItem *componentDataItem)
   return false;
 }
 
+//===================================================================================================================
 
-
-Argument1DString::Argument1DString(const QString &id, Dimension *dimension,
-                                   ValueDefinition *valueDefinition, AbstractModelComponent *modelComponent):
-  ComponentDataItem1D<QString>(dimension , valueDefinition),
-  AbstractArgument(id,modelComponent)
+Argument1DString::Argument1DString(const QString& id,
+                                   Dimension* dimension,
+                                   ValueDefinition* valueDefinition,
+                                   AbstractModelComponent *modelComponent)
+  : AbstractArgument(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
+    ComponentDataItem1D<QString>(dimension , valueDefinition->defaultValue().toString())
 {
 
+}
+
+void Argument1DString::getValue(int dimensionIndexes[], QVariant & data) const
+{
+  ComponentDataItem1D<QString>::getValueT(dimensionIndexes,data);
+}
+
+void Argument1DString::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+{
+  ComponentDataItem1D<QString>::getValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DString::getValues(int dimensionIndexes[], int stride[], void *data) const
+{
+  ComponentDataItem1D<QString>::getValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DString::setValue(int dimensionIndexes[], const QVariant &data)
+{
+  ComponentDataItem1D<QString>::setValueT(dimensionIndexes,data);
+}
+
+void Argument1DString::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
+{
+  ComponentDataItem1D<QString>::setValuesT(dimensionIndexes,stride,data);
+}
+
+void Argument1DString::setValues(int dimensionIndexes[], int stride[], const void *data)
+{
+  ComponentDataItem1D<QString>::setValuesT(dimensionIndexes,stride,data);
 }
 
 void Argument1DString::readData(QXmlStreamReader &xmlReader)
@@ -690,10 +812,10 @@ void Argument1DString::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!hDimension()->id().compare(id))
+              if(!dimensionInternal()->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                hDimension()->setLength(length.toInt());
+                dimensionInternal()->setLength(length.toInt());
               }
             }
 
@@ -708,7 +830,7 @@ void Argument1DString::readData(QXmlStreamReader &xmlReader)
       }
       else if(!xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        hValueDefinition()->readData(xmlReader);
+        valueDefinitionInternal()->readData(xmlReader);
 
         while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
@@ -730,10 +852,10 @@ void Argument1DString::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
 
-        if(values.size() == hDimension()->length())
+        if((int)values.size() == dimensionInternal()->length())
         {
           int ind[1] = {0};
-          int str[1] = {hDimension()->length()};
+          int str[1] = {dimensionInternal()->length()};
           setValues(ind, str,values.data());
         }
       }
@@ -751,16 +873,20 @@ void Argument1DString::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeAttribute("Caption" , caption());
     xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+    for(const QString& comment : comments())
+    {
+      xmlWriter.writeComment(comment);
+    }
     //write value definition;
-    hValueDefinition()->writeData(xmlWriter);
+    valueDefinitionInternal()->writeData(xmlWriter);
 
     xmlWriter.writeStartElement("Dimensions");
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , hDimension()->id());
-        xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+        xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+        xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -769,12 +895,12 @@ void Argument1DString::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {hDimension()->length()};
-      QString* values = new QString[hDimension()->length()];
+      int str[1] = {dimensionInternal()->length()};
+      QString* values = new QString[dimensionInternal()->length()];
       getValues(ind,str,values);
 
 
-      for(int i = 0 ; i < hDimension()->length() ; i++)
+      for(int i = 0 ; i < dimensionInternal()->length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -807,16 +933,21 @@ QString Argument1DString::toString() const
         xmlWriter.writeAttribute("Caption" , caption());
         xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+        for(const QString& comment : comments())
+        {
+          xmlWriter.writeComment(comment);
+        }
+
         //write value definition;
-        hValueDefinition()->writeData(xmlWriter);
+        valueDefinitionInternal()->writeData(xmlWriter);
 
         xmlWriter.writeStartElement("Dimensions");
         {
           xmlWriter.writeStartElement("Dimension");
           {
-            xmlWriter.writeAttribute("Id" , hDimension()->id());
-            xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-            xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+            xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+            xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
           }
           xmlWriter.writeEndElement();
         }
@@ -825,11 +956,11 @@ QString Argument1DString::toString() const
         xmlWriter.writeStartElement("Values");
         {
           int ind[1] = {0};
-          int str[1] = {hDimension()->length()};
-          QString *values = new QString[hDimension()->length()];
+          int str[1] = {dimensionInternal()->length()};
+          QString *values = new QString[dimensionInternal()->length()];
           getValues(ind,str,values);
 
-          for(int i = 0 ; i < hDimension()->length() ; i++)
+          for(int i = 0 ; i < dimensionInternal()->length() ; i++)
           {
             xmlWriter.writeStartElement("Value");
             {
@@ -862,16 +993,21 @@ QString Argument1DString::toString() const
       xmlWriter.writeAttribute("Caption" , caption());
       xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
+      for(const QString& comment : comments())
+      {
+        xmlWriter.writeComment(comment);
+      }
+
       //write value definition;
-      hValueDefinition()->writeData(xmlWriter);
+      valueDefinitionInternal()->writeData(xmlWriter);
 
       xmlWriter.writeStartElement("Dimensions");
       {
         xmlWriter.writeStartElement("Dimension");
         {
-          xmlWriter.writeAttribute("Id" , hDimension()->id());
-          xmlWriter.writeAttribute("Caption" , hDimension()->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(hDimension()->length()));
+          xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
+          xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
+          xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
         }
         xmlWriter.writeEndElement();
       }
@@ -880,11 +1016,11 @@ QString Argument1DString::toString() const
       xmlWriter.writeStartElement("Values");
       {
         int ind[1] = {0};
-        int str[1] = {hDimension()->length()};
-        QString *values = new QString[hDimension()->length()];
+        int str[1] = {dimensionInternal()->length()};
+        QString *values = new QString[dimensionInternal()->length()];
         getValues(ind,str,values);
 
-        for(int i = 0 ; i < hDimension()->length() ; i++)
+        for(int i = 0 ; i < dimensionInternal()->length() ; i++)
         {
           xmlWriter.writeStartElement("Value");
           {
@@ -962,14 +1098,14 @@ bool Argument1DString::readValues(const QString &value, bool isFile)
 bool Argument1DString::readValues(const IComponentDataItem *componentDataItem)
 {
 
-  if(componentDataItem->valueDefinition()->type() == hValueDefinition()->type() &&
+  if(componentDataItem->valueDefinition()->type() == valueDefinitionInternal()->type() &&
      componentDataItem->dimensions().length() == 1)
   {
-    hDimension()->setLength(componentDataItem->dimensions()[0]->length());
+    dimensionInternal()->setLength(componentDataItem->dimensions()[0]->length());
     resetDataArray();
     int ind[1] = {0};
-    int str[1] = {hDimension()->length()};
-    QString *data = new QString[hDimension()->length()];
+    int str[1] = {dimensionInternal()->length()};
+    QString *data = new QString[dimensionInternal()->length()];
     componentDataItem->getValues(ind,str,data);
     setValues(ind,str,data);
 
@@ -981,3 +1117,7 @@ bool Argument1DString::readValues(const IComponentDataItem *componentDataItem)
   return false;
 }
 
+
+template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<int>;
+template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<double>;
+template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<QString>;

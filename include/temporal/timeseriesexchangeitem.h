@@ -5,92 +5,173 @@
 #include "core/abstractinput.h"
 #include "core/abstractoutput.h"
 
-namespace Temporal
+
+class HYDROCOUPLESDK_EXPORT TimeSeriesOutputDouble: public AbstractOutput,
+    public TimeSeriesComponentDataItem<double>,
+    public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
 {
-  class HYDROCOUPLESDK_EXPORT TimeSeriesOutputDouble: public AbstractOutput,
-      public TimeSeriesComponentDataItem<double>,
-      public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
-  {
 
-      Q_OBJECT
-      Q_INTERFACES(HydroCouple::Temporal::ITimeComponentDataItem
-                   HydroCouple::Temporal::ITimeSeriesComponentDataItem
-                   HydroCouple::Temporal::ITimeExchangeItem
-                   HydroCouple::Temporal::ITimeSeriesExchangeItem)
+    Q_OBJECT
+    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesExchangeItem)
 
-      Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-      Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
-      Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
-      Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
-      Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
+    Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
+    Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
+    Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
 
-    public:
-      TimeSeriesOutputDouble(const QString &id, const QList<Time*> &times,
-                             Dimension *timeDimension, ValueDefinition *valueDefinition,
-                             AbstractModelComponent* parentModelComponent);
+  public:
+    TimeSeriesOutputDouble(const QString& id,
+                           const QList<SDKTemporal::Time*>& times,
+                           Dimension* timeDimension,
+                           ValueDefinition* valueDefinition,
+                           AbstractModelComponent* modelComponent);
 
-      virtual ~TimeSeriesOutputDouble();
-  };
+    virtual ~TimeSeriesOutputDouble();
 
+    QList<HydroCouple::Temporal::ITime*> times() const override;
 
+    HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
 
-  class HYDROCOUPLESDK_EXPORT TimeSeriesInputDouble: public AbstractInput,
-      public TimeSeriesComponentDataItem<double> ,
-      public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
-  {
+    HydroCouple::IDimension* timeDimension() const override;
 
-      Q_OBJECT
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
 
-      Q_INTERFACES(HydroCouple::Temporal::ITimeComponentDataItem
-                   HydroCouple::Temporal::ITimeSeriesComponentDataItem
-                   HydroCouple::Temporal::ITimeExchangeItem
-                   HydroCouple::Temporal::ITimeSeriesExchangeItem)
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
 
-      Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-      Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
-      Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
-      Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
-      Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
 
-    public:
-      TimeSeriesInputDouble(const QString &id, const QList<Time*> &times,
-                            Dimension *timeDimension, ValueDefinition *valueDefinition,
-                            AbstractModelComponent* parentModelComponent);
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
 
-      virtual ~TimeSeriesInputDouble();
-  };
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
+    void getValue(int timeIndex, QVariant &data) const override;
+
+    void getValues(int timeIndex, int stride, QVariant data[]) const override;
+
+    void getValues(int timeIndex, int stride, void *data) const override;
+
+    void setValue(int timeIndex, const QVariant &data) override;
+
+    void setValues(int timeIndex, int stride, const QVariant data[]) override;
+
+    void setValues(int timeIndex, int stride, const void *data) override;
+};
+
+//==============================================================================================================================
 
 
-  class HYDROCOUPLESDK_EXPORT TimeSeriesMultiInputDouble: public AbstractMultiInput,
-      public TimeSeriesComponentDataItem<double>,
-      public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
-  {
+class HYDROCOUPLESDK_EXPORT TimeSeriesInputDouble: public AbstractInput,
+    public TimeSeriesComponentDataItem<double>,
+    public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
+{
 
-      Q_OBJECT
+    Q_OBJECT
+    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesExchangeItem)
 
-      Q_INTERFACES(HydroCouple::Temporal::ITimeComponentDataItem
-                   HydroCouple::Temporal::ITimeSeriesComponentDataItem
-                   HydroCouple::Temporal::ITimeExchangeItem
-                   HydroCouple::Temporal::ITimeSeriesExchangeItem)
+    Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
+    Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
+    Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
 
-      Q_PROPERTY(QList<HydroCouple::IDimension*> Dimensions READ dimensions)
-      Q_PROPERTY(HydroCouple::IValueDefinition* ValueDefinition READ valueDefinition)
-      Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
-      Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
-      Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
+  public:
+    TimeSeriesInputDouble(const QString& id,
+                          const QList<SDKTemporal::Time*>& times,
+                          Dimension* timeDimension,
+                          ValueDefinition* valueDefinition,
+                          AbstractModelComponent* modelComponent);
 
-    public:
-      TimeSeriesMultiInputDouble(const QString &id, const QList<Time*> &times,
-                                 Dimension *timeDimension, ValueDefinition *valueDefinition,
-                                 AbstractModelComponent* parentModelComponent);
+    virtual ~TimeSeriesInputDouble();
 
-      virtual ~TimeSeriesMultiInputDouble();
-  };
-}
+    QList<HydroCouple::Temporal::ITime*> times() const override;
 
-Q_DECLARE_METATYPE(Temporal::TimeSeriesOutputDouble*)
-Q_DECLARE_METATYPE(Temporal::TimeSeriesInputDouble*)
-Q_DECLARE_METATYPE(Temporal::TimeSeriesMultiInputDouble*)
+    HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
+
+    HydroCouple::IDimension* timeDimension() const override;
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
+    void getValue(int timeIndex, QVariant &data) const override;
+
+    void getValues(int timeIndex, int stride, QVariant data[]) const override;
+
+    void getValues(int timeIndex, int stride, void *data) const override;
+
+    void setValue(int timeIndex, const QVariant &data) override;
+
+    void setValues(int timeIndex, int stride, const QVariant data[]) override;
+
+    void setValues(int timeIndex, int stride, const void *data) override;
+};
+
+//==============================================================================================================================
+
+class HYDROCOUPLESDK_EXPORT TimeSeriesMultiInputDouble: public AbstractMultiInput,
+    public TimeSeriesComponentDataItem<double>,
+    public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
+{
+
+    Q_OBJECT
+    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesExchangeItem)
+
+    Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
+    Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
+    Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
+
+  public:
+
+    TimeSeriesMultiInputDouble(const QString& id,
+                               const QList<SDKTemporal::Time*>& times,
+                               Dimension* timeDimension,
+                               ValueDefinition* valueDefinition,
+                               AbstractModelComponent* modelComponent);
+
+    virtual ~TimeSeriesMultiInputDouble();
+
+    QList<HydroCouple::Temporal::ITime*> times() const override;
+
+    HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
+
+    HydroCouple::IDimension* timeDimension() const override;
+
+    void getValue(int dimensionIndexes[], QVariant &data) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+
+    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
+
+    void setValue(int dimensionIndexes[], const QVariant &data) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
+
+    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+
+    void getValue(int timeIndex, QVariant &data) const override;
+
+    void getValues(int timeIndex, int stride, QVariant data[]) const override;
+
+    void getValues(int timeIndex, int stride, void *data) const override;
+
+    void setValue(int timeIndex, const QVariant &data) override;
+
+    void setValues(int timeIndex, int stride, const QVariant data[]) override;
+
+    void setValues(int timeIndex, int stride, const void *data) override;
+};
+
+
+Q_DECLARE_METATYPE(TimeSeriesOutputDouble*)
+Q_DECLARE_METATYPE(TimeSeriesInputDouble*)
+Q_DECLARE_METATYPE(TimeSeriesMultiInputDouble*)
 
 #endif // TIMESERIESEXCHANGEITEM_H
 

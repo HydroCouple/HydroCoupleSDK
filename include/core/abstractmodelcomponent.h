@@ -31,11 +31,13 @@ class AbstractOutput;
 class AbstractInput;
 class AbstractArgument;
 class ComponentStatusChangeEventArgs;
+class AbstractAdaptedOutputFactory;
 
 /*!
-   * \brief  AbstractModelComponent class.
-   */
-class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public virtual HydroCouple::IModelComponent
+ * \brief  AbstractModelComponent class.
+ */
+class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
+    public virtual HydroCouple::IModelComponent
 {
 
     friend class ModelComponentInfo;
@@ -147,7 +149,8 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public vir
 
     void clearChildComponents();
 
-    QHash<QString,AbstractModelComponent*> clonesMap() const;
+
+    QHash<QString,AbstractModelComponent*> clonesInternal() const;
 
     void addInputExchangeItem(AbstractInput *input);
 
@@ -155,7 +158,8 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public vir
 
     void clearInputExchangeItems();
 
-    QHash<QString,AbstractInput*> inputsMap() const;
+    QHash<QString,AbstractInput*> inputsInternal() const;
+
 
     void addOutputExchangeItem(AbstractOutput *output);
 
@@ -163,13 +167,17 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public vir
 
     void clearOutputExchangeItems();
 
-    QHash<QString,AbstractOutput*> outputsMap() const;
+    QHash<QString,AbstractOutput*> outputsInternal() const;
 
-    void addAdaptedOutputFactory(HydroCouple::IAdaptedOutputFactory *adaptedOutputFactory);
 
-    bool removeAdaptedOutputFactory(HydroCouple::IAdaptedOutputFactory *adaptedOutputFactory);
+    void addAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory);
+
+    bool removeAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory);
 
     void clearAdaptedOutputFactory();
+
+    QHash<QString,AbstractAdaptedOutputFactory*> adaptedOutputFactoriesInternal() const;
+
 
     void addArgument(AbstractArgument *argument);
 
@@ -177,7 +185,8 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public vir
 
     void clearArguments();
 
-    QHash<QString,AbstractArgument*> argumentsMap() const;
+    QHash<QString,AbstractArgument*> argumentsInternal() const;
+
 
     void setStatus(HydroCouple::ComponentStatus status);
 
@@ -190,7 +199,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity, public vir
     HydroCouple::ComponentStatus m_status;
     QHash<QString,AbstractInput*> m_inputs;
     QHash<QString,AbstractOutput*> m_outputs;
-    QHash<QString,HydroCouple::IAdaptedOutputFactory*> m_adaptedOutputFactories;
+    QHash<QString,AbstractAdaptedOutputFactory*> m_adaptedOutputFactories;
     QHash<QString,AbstractArgument*> m_arguments;
     ModelComponentInfo *m_modelComponentInfo;
     AbstractModelComponent *m_parentModelComponent;

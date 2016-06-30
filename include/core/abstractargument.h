@@ -7,16 +7,28 @@
 class Dimension;
 class AbstractComponentDataItem;
 
-class HYDROCOUPLESDK_EXPORT AbstractArgument : public AbstractComponentDataItem , public virtual HydroCouple::IArgument
+class HYDROCOUPLESDK_EXPORT AbstractArgument : public AbstractComponentDataItem,
+    public virtual HydroCouple::IArgument
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IArgument)
     Q_PROPERTY(bool Optional READ isOptional NOTIFY propertyChanged)
     Q_PROPERTY(bool ReadOnly READ isReadOnly NOTIFY propertyChanged)
     Q_PROPERTY(QStringList InputFileTypeFilters READ inputFileTypeFilters NOTIFY propertyChanged)
+    Q_PROPERTY(bool CanReadFromFile READ canReadFromFile NOTIFY propertyChanged)
+    Q_PROPERTY(bool CanReadFromString READ canReadFromString NOTIFY propertyChanged)
 
   public:
-    AbstractArgument(const QString &id, AbstractModelComponent* parentModelComponent);
+    AbstractArgument(const QString& id,
+                     const QList<Dimension*>& dimensions,
+                     ValueDefinition* valueDefinition,
+                     AbstractModelComponent *modelComponent);
+
+    AbstractArgument(const QString& id,
+                     const QString& caption,
+                     const QList<Dimension*>& dimensions,
+                     ValueDefinition* valueDefinition,
+                     AbstractModelComponent *modelComponent);
 
     virtual ~AbstractArgument();
 

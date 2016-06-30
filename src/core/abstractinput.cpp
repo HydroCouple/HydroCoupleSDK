@@ -3,18 +3,26 @@
 
 using namespace HydroCouple;
 
-AbstractInput::AbstractInput(const QString &id, AbstractModelComponent* modelComponent)
-   :AbstractExchangeItem(id,modelComponent), m_provider(nullptr)
+AbstractInput::AbstractInput(const QString& id,
+                             const QList<Dimension*>& dimensions,
+                             ValueDefinition* valueDefinition,
+                             AbstractModelComponent* modelComponent)
+   :AbstractExchangeItem(id,dimensions,valueDefinition,modelComponent),
+     m_provider(nullptr)
 {
 
 }
 
-AbstractInput::AbstractInput(const QString &id, const QString &caption, AbstractModelComponent* modelComponent)
-   :AbstractExchangeItem(id,caption,modelComponent), m_provider(nullptr)
+AbstractInput::AbstractInput(const QString& id,
+                             const QString& caption,
+                             const QList<Dimension*>& dimensions,
+                             ValueDefinition* valueDefinition,
+                             AbstractModelComponent* modelComponent)
+   :AbstractExchangeItem(id,caption,dimensions,valueDefinition,modelComponent),
+     m_provider(nullptr)
 {
 
 }
-
 
 AbstractInput::~AbstractInput()
 {
@@ -32,23 +40,30 @@ void AbstractInput::setProvider(IOutput *provider)
    emit propertyChanged("Provider");
 }
 
-bool AbstractInput::canConsume(IOutput *provider, QString &message) const
-{
-   message = "";
-   return true;
-}
+//bool AbstractInput::canConsume(IOutput *provider, QString &message) const
+//{
+//   message = "";
+//   return true;
+//}
 
 
 //======================================================================================================================================================================
 
-AbstractMultiInput::AbstractMultiInput(const QString &id, AbstractModelComponent *modelComponent)
-   :AbstractInput(id, modelComponent)
+AbstractMultiInput::AbstractMultiInput(const QString& id,
+                                       const QList<Dimension*>& dimensions,
+                                       ValueDefinition* valueDefinition,
+                                       AbstractModelComponent* modelComponent)
+   :AbstractInput(id, dimensions, valueDefinition, modelComponent)
 {
 
 }
 
-AbstractMultiInput::AbstractMultiInput(const QString &id, const QString &caption, AbstractModelComponent *modelComponent)
-   :AbstractInput(id,caption, modelComponent)
+AbstractMultiInput::AbstractMultiInput(const QString& id,
+                                       const QString& caption,
+                                       const QList<Dimension*>& dimensions,
+                                       ValueDefinition* valueDefinition,
+                                       AbstractModelComponent* modelComponent)
+   :AbstractInput(id,caption,dimensions,valueDefinition,modelComponent)
 {
 
 }

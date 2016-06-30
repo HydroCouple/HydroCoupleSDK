@@ -40,11 +40,17 @@ HEADERS += ./include/stdafx.h \
            ./include/core/idbasedargument.h \
            ./include/temporal/timedata.h \
            ./include/temporal/timeseriescomponentdataitem.h \
-           ./include/temporal/timeidbasedcomponentdataitem.h \
-           ./include/temporal/timeidbasedexchangeitem.h \
+           ./include/temporal/timeseriesidbasedcomponentdataitem.h \
+           ./include/temporal/timeseriesidbasedexchangeitem.h \
            ./include/temporal/timeseriesexchangeitem.h \
-    include/spatial/geometry.h \
-    include/core/argument1d.h
+           ./include/spatial/geometry.h \
+           ./include/core/argument1d.h \
+    include/spatial/spatialreferencesystem.h \
+    include/core/abstractadaptedoutput.h \
+    include/core/abstractadaptedoutputfactory.h \
+    include/temporal/temporalinterpolationfactory.h \
+    include/temporal/timeseriesinterpolationadaptedoutput.h \
+    include/core/abstractadaptedoutputfactorycomponentinfo.h
 
 SOURCES += ./src/stdafx.cpp \
            ./src/core/description.cpp \
@@ -70,11 +76,34 @@ SOURCES += ./src/stdafx.cpp \
            ./src/core/idbasedargument.cpp \
            ./src/temporal/timedata.cpp \
            ./src/temporal/timeseriescomponentdataitem.cpp \
-           ./src/temporal/timeidbasedcomponentdataitem.cpp \
-           ./src/temporal/timeidbasedexchangeitem.cpp \
+           ./src/temporal/timeseriesidbasedcomponentdataitem.cpp \
+           ./src/temporal/timeseriesidbasedexchangeitem.cpp \
            ./src/temporal/timeseriesexchangeitem.cpp \
-    src/core/argument1d.cpp
+           ./src/core/argument1d.cpp \
+    src/spatial/spatialreferencesystem.cpp \
+    src/core/abstractadaptedoutputfactory.cpp \
+    src/core/abstractadaptedoutput.cpp \
+    src/temporal/timeseriesinterpolationadaptedoutput.cpp \
+    src/temporal/temporalinterpolationfactory.cpp \
+    src/core/abstractadaptedoutputfactorycomponentinfo.cpp
 
+macx {
+
+INCLUDEPATH += /usr/local/include \
+               /usr/local/include/geos
+
+LIBS += -L/usr/local/lib/ -lgdal \
+        -L/usr/local/lib/ -lgeos
+
+}
+
+win32 {
+
+}
+
+linux-g++ {
+
+}
 
 CONFIG(debug, debug|release) {
    DESTDIR = ./build/debug

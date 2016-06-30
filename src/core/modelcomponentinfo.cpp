@@ -12,7 +12,7 @@ ModelComponentInfo::ModelComponentInfo(QObject *parent)
 
 bool ModelComponentInfo::validateLicense(QString& message) const
 {
-   message = name() + " | " + version() + "'s license has been validated";
+   message = id() + " | " + version() + "'s license has been validated";
    return true;
 }
 

@@ -32,8 +32,9 @@
 class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity, public virtual HydroCouple::IComponentInfo
 {
     Q_OBJECT
+
     Q_INTERFACES(HydroCouple::IComponentInfo)
-    Q_PROPERTY(QString Name READ name NOTIFY propertyChanged)
+
     Q_PROPERTY(QString LibraryPath READ libraryFilePath NOTIFY propertyChanged)
     Q_PROPERTY(QString IconFilePath READ iconFilePath NOTIFY propertyChanged)
     Q_PROPERTY(QString Vendor READ vendor NOTIFY propertyChanged)
@@ -57,12 +58,6 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity, public virtual Hyd
        * \brief ~ComponentInfo
        */
     virtual ~ComponentInfo(){}
-
-    /*!
-       * \brief Name of the current Component.
-       * \returns QString representing the name of this component.
-       */
-    virtual QString name() const override;
 
     /*!
        * \brief File path to Component library.
@@ -145,7 +140,6 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity, public virtual Hyd
 
 
   protected:
-    void setName(const QString &name);
 
     void setIconFilePath(const QString &filepath);
 
@@ -166,7 +160,8 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity, public virtual Hyd
     void setCategory(const QString &category);
 
   private:
-    QString m_name, m_iconFilePath, m_vendor,
+
+    QString m_iconFilePath, m_vendor,
     m_license, m_copyright, m_url,
     m_email, m_version, m_category,
     m_filePath;

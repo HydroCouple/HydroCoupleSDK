@@ -19,6 +19,8 @@ class HYDROCOUPLESDK_EXPORT ExchangeItemEventArgs : public QObject,
 
     ExchangeItemEventArgs(const QString &message, AbstractExchangeItem* exchangeItem);
 
+    virtual ~ExchangeItemEventArgs(){}
+
     HydroCouple::IExchangeItem* exchangeItem() const override;
 
     QString message() const override;
