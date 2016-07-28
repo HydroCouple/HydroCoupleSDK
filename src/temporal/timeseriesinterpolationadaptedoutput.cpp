@@ -7,27 +7,26 @@
 #include "core/idbasedargument.h"
 #include "temporal/temporalinterpolationfactory.h"
 #include "temporal/timedata.h"
+#include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Temporal;
 
 TimeSeriesInterpolationAdaptedOutput::TimeSeriesInterpolationAdaptedOutput(const QString& id,
-                                                                           Dimension* dimension,
                                                                            Quantity* valueDefinition,
-                                                                           HydroCouple::Temporal::ITimeSeriesExchangeItem* adaptee,
+                                                                           HydroCouple::Temporal::ITimeExchangeItem* adaptee,
                                                                            AbstractAdaptedOutputFactory* temporalInterpolationFactory)
-  : AbstractAdaptedOutput(id,QList<Dimension*>({dimension}),valueDefinition,dynamic_cast<HydroCouple::IOutput*>(adaptee),temporalInterpolationFactory),
-    TimeSeriesComponentDataItem<double>(QList<SDKTemporal::Time*>({new SDKTemporal::Time(temporalInterpolationFactory)}), dimension,valueDefinition->defaultValue().toDouble()),
+  : AbstractAdaptedOutput(id,QList<Dimension*>({new Dimension("timeDimension" , "Time dimension for adapted output", temporalInterpolationFactory )}),valueDefinition,dynamic_cast<HydroCouple::IOutput*>(adaptee),temporalInterpolationFactory),
+    TimeSeriesComponentDataItem<double>(QList<SDKTemporal::Time*>({new SDKTemporal::Time(temporalInterpolationFactory)}),valueDefinition->defaultValue().toDouble()),
     m_polynomialOrderArgument(nullptr),
-    m_polynomialOrder(3),
-    m_dimension(dimension),
+    m_polynomialOrder(2),
     m_adaptee(adaptee)
 {
+  m_timeDimension = dimensionsInternal()[0];
 
-
-  Dimension *identifierDimension = new Dimension("InterpolationModeDimension",1,HydroCouple::ConstantLength, this);
+  Dimension *identifierDimension = new Dimension("PolynomialOrderDimension","Dimension for the order of the polynomial",this);
   QStringList identifiers;
-  identifiers.append("InterpolationMode");
+  identifiers.append("PolynomialOrder");
   Quantity* quantity = Quantity::unitLessValues("IdentifiersUnit","", QVariant::Int , this);
 
   m_polynomialOrderArgument = new IdBasedArgumentInt("PolynomialOrder", identifiers, identifierDimension, quantity, nullptr);
@@ -36,6 +35,7 @@ TimeSeriesInterpolationAdaptedOutput::TimeSeriesInterpolationAdaptedOutput(const
   m_polynomialOrderArgument->setValue(0, m_polynomialOrder);
 
   addArgument(m_polynomialOrderArgument);
+  m_timeSeriesBuffer[-1000000000000000000000.00000] = 0;
 }
 
 
@@ -65,18 +65,18 @@ void TimeSeriesInterpolationAdaptedOutput::initialize()
     if(m_polynomialOrder < 2)
       m_polynomialOrder = 2;
 
-
+    initializeAdaptedOutputs();
 }
 
 void TimeSeriesInterpolationAdaptedOutput::refresh()
 {
   //retrieve data into buffer and trim appropriately.
 
-  double time = m_adaptee->times()[m_adaptee->timeDimension()->length()-1]->dateTime();
+  int timeDimIndex = m_adaptee->dimensionLength(nullptr,0) - 1;
+  double time = m_adaptee->times()[timeDimIndex]->dateTime();
 
   QVariant value(0.0);
-  int dimIndex = m_adaptee->timeDimension()->length() - 1;
-  m_adaptee->getValue(dimIndex,value);
+  m_adaptee->getValue(timeDimIndex,value);
 
   m_timeSeriesBuffer[time] = value.toDouble();
 
@@ -85,6 +85,7 @@ void TimeSeriesInterpolationAdaptedOutput::refresh()
      m_timeSeriesBuffer.remove(m_timeSeriesBuffer.keys()[0]);
   }
 
+  refreshAdaptedOutputs();
 }
 
 QList<ITime*> TimeSeriesInterpolationAdaptedOutput::times() const
@@ -107,7 +108,7 @@ ITimeSpan* TimeSeriesInterpolationAdaptedOutput::timeSpan() const
 
 IDimension* TimeSeriesInterpolationAdaptedOutput::timeDimension() const
 {
-  return TimeSeriesComponentDataItem<double>::timeDimensionInternal();
+  return m_timeDimension;
 }
 
 void TimeSeriesInterpolationAdaptedOutput::update(IInput *querySpecifier)
@@ -124,6 +125,33 @@ void TimeSeriesInterpolationAdaptedOutput::update(IInput *querySpecifier)
     {
       modelComponent()->update();
     }
+
+    int timeDimLength = length();
+
+    QList<SDKTemporal::Time*> ctimes = timesInternal();
+    SDKTemporal::Time* lastTime = ctimes[timeDimLength -1];
+
+    double currentTime = m_timeSeriesBuffer.keys()[m_timeSeriesBuffer.keys().length() - 1];
+
+    if(currentTime > lastTime->dateTime())
+    {
+      if(timeDimLength > 1)
+      {
+        double values[timeDimLength -1];
+        getValues(1,timeDimLength - 1,values);
+        setValues(0,timeDimLength - 1,values);
+
+        for(int i = 0 ; i < timeDimLength -1; i++)
+        {
+          ctimes[i]->setDateTime(ctimes[i+1]->qDateTime());
+        }
+      }
+
+      lastTime->setDateTime(currentTime);
+    }
+
+    double value = interpolate(queryTime->dateTime(), m_timeSeriesBuffer.keys() , m_timeSeriesBuffer.values());
+    setValueT(timeDimLength - 1, value);
   }
   else
   {
@@ -135,32 +163,6 @@ void TimeSeriesInterpolationAdaptedOutput::update(IInput *querySpecifier)
     }
   }
 
-  int timeDimLength = timeDimension()->length();
-
-  QList<SDKTemporal::Time*> ctimes = timesInternal();
-  SDKTemporal::Time*lastTime = ctimes[timeDimLength -1];
-
-  double currentTime = m_timeSeriesBuffer.keys()[m_timeSeriesBuffer.keys().length() - 1];
-
-  if(currentTime > lastTime->dateTime())
-  {
-    if(timeDimLength > 1)
-    {
-      double values[timeDimLength -1];
-      getValues(1,timeDimLength - 1,values);
-      setValues(0,timeDimLength - 1,values);
-
-      for(int i = 0 ; i < timeDimLength -1; i++)
-      {
-        ctimes[i]->setDateTime(ctimes[i+1]->qDateTime());
-      }
-    }
-
-    lastTime->setDateTime(currentTime);
-  }
-
-  setValueT(timeDimLength - 1,m_timeSeriesBuffer[currentTime]);
-
   QList<HydroCouple::IAdaptedOutput*> tadaptedOutputs = adaptedOutputs();
 
   for(HydroCouple::IAdaptedOutput* adaptedOutput :tadaptedOutputs)
@@ -169,6 +171,12 @@ void TimeSeriesInterpolationAdaptedOutput::update(IInput *querySpecifier)
   }
 }
 
+int TimeSeriesInterpolationAdaptedOutput::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  //assert(dimensionIndexes == nullptr);
+  return length();
+}
 
 void TimeSeriesInterpolationAdaptedOutput::getValue(int dimensionIndexes[], QVariant & data) const
 {
@@ -242,10 +250,10 @@ double TimeSeriesInterpolationAdaptedOutput::interpolate(double t, const QList<d
   return value;
 }
 
-double TimeSeriesInterpolationAdaptedOutput::basis(int tIndex, double t, const QList<double> &ts)
+double TimeSeriesInterpolationAdaptedOutput::basis(int tIndex, double t, const QList<double>& ts)
 {
   double tsj = ts[tIndex];
-  double value = 0;
+  double value = 1.0;
 
   for(int i = 0 ; i < ts.length() ; i++)
   {
@@ -258,117 +266,4 @@ double TimeSeriesInterpolationAdaptedOutput::basis(int tIndex, double t, const Q
   return value;
 }
 
-//void ComponentDataItem1DDouble::readData(QXmlStreamReader &xmlReader)
-//{
-//  if(!xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)
-//     && !xmlReader.hasError()
-//     &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
-//  {
-//    QXmlStreamAttributes attributes = xmlReader.attributes();
-
-//    if(attributes.hasAttribute("Id"))
-//    {
-//      QString id = attributes.value("Id").toString();
-//    }
-
-//    while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)) && !xmlReader.hasError())
-//    {
-//      if(!xmlReader.name().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
-//      {
-//        while (!(xmlReader.isEndElement()  && !xmlReader.name().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
-//        {
-//          if(!xmlReader.name().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
-//          {
-//            QXmlStreamAttributes attributes = xmlReader.attributes();
-
-//            if(attributes.hasAttribute("Id") && attributes.hasAttribute("Length"))
-//            {
-//              QString id = attributes.value("Id").toString();
-
-//              if(!m_dimension->id().compare(id))
-//              {
-//                QString length = attributes.value("Length").toString();
-//                m_dimension->setLength(length.toInt());
-//              }
-//            }
-
-//            while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
-//            {
-//              xmlReader.readNext();
-//            }
-//          }
-//          xmlReader.readNext();
-//        }
-//        resetDataArray();
-//      }
-//      else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
-//      {
-//        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
-//        {
-//          if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
-//          {
-//            QXmlStreamAttributes attributes = xmlReader.attributes();
-
-//            if(attributes.hasAttribute("Index"))
-//            {
-//              int index = attributes.value("Index").toString().toInt();
-
-//              QString value = xmlReader.readElementText();
-
-//              setValue(&index,value.toDouble());
-//            }
-//          }
-//          xmlReader.readNext();
-//        }
-//      }
-//      xmlReader.readNext();
-//    }
-//  }
-//}
-
-//void ComponentDataItem1DDouble::writeData(QXmlStreamWriter &xmlWriter)
-//{
-//  xmlWriter.writeStartElement("ComponentDataItem");
-//  {
-//    xmlWriter.writeAttribute("Id" , id());
-//    xmlWriter.writeAttribute("Caption" , caption());
-
-//    for(const QString& comment : comments())
-//    {
-//      xmlWriter.writeComment(comment);
-//    }
-
-//    xmlWriter.writeStartElement("Dimensions");
-//    {
-//      xmlWriter.writeStartElement("Dimension");
-//      {
-//        xmlWriter.writeAttribute("Id" , m_dimension->id());
-//        xmlWriter.writeAttribute("Caption" , m_dimension->caption());
-//        xmlWriter.writeAttribute("Length" , QString::number(m_dimension->length()));
-//      }
-//      xmlWriter.writeEndElement();
-//    }
-//    xmlWriter.writeEndElement();
-
-//    xmlWriter.writeStartElement("Values");
-//    {
-//      int ind[1] = {0};
-//      int str[1] = {m_dimension->length()};
-//      int values[m_dimension->length()];
-//      getValues(ind,str,values);
-
-//      for(int i = 0 ; i < m_dimension->length() ; i++)
-//      {
-//        xmlWriter.writeStartElement("Value");
-//        {
-//          xmlWriter.writeAttribute("Index" , QString::number(i));
-//          xmlWriter.writeCharacters(QString::number(values[i]));
-//        }
-//        xmlWriter.writeEndElement();
-//      }
-//    }
-//    xmlWriter.writeEndElement();
-//  }
-//  xmlWriter.writeEndElement();
-//}
 

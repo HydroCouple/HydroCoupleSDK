@@ -3,6 +3,7 @@
 #include "core/valuedefinition.h"
 #include "temporal/timeseriesidbasedexchangeitem.h"
 #include "temporal/timedata.h"
+#include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Temporal;
@@ -15,7 +16,9 @@ TimeSeriesIdBasedOutputDouble::TimeSeriesIdBasedOutputDouble(const QString& id,
                                                              ValueDefinition* valueDefinition,
                                                              AbstractModelComponent* modelComponent)
   : AbstractOutput(id,QList<Dimension*>({identifierDimension, timeDimension}),valueDefinition, modelComponent),
-    TimeSeriesIdBasedComponentDataItem<double>(identifiers, identifierDimension, times, timeDimension,valueDefinition->defaultValue().toDouble())
+    TimeSeriesIdBasedComponentDataItem<double>(identifiers, times,valueDefinition->defaultValue().toDouble()),
+    m_identifierDimension(identifierDimension),
+    m_timeDimension(timeDimension)
 {
 
 }
@@ -32,7 +35,7 @@ QStringList TimeSeriesIdBasedOutputDouble::identifiers() const
 
 IDimension* TimeSeriesIdBasedOutputDouble::identifierDimension() const
 {
-  return TimeSeriesIdBasedComponentDataItem<double>::identifierDimensionInternal();
+  return m_identifierDimension;
 }
 
 QList<ITime*> TimeSeriesIdBasedOutputDouble::times() const
@@ -55,7 +58,21 @@ ITimeSpan* TimeSeriesIdBasedOutputDouble::timeSpan() const
 
 IDimension* TimeSeriesIdBasedOutputDouble::timeDimension() const
 {
-  return TimeSeriesIdBasedComponentDataItem<double>::timeDimensionInternal();
+  return m_timeDimension;
+}
+
+int TimeSeriesIdBasedOutputDouble::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else
+  {
+    return jLength();
+  }
 }
 
 void TimeSeriesIdBasedOutputDouble::getValue(int dimensionIndexes[], QVariant &data) const
@@ -129,7 +146,9 @@ TimeSeriesIdBasedInputDouble::TimeSeriesIdBasedInputDouble(const QString& id,
                                                            ValueDefinition* valueDefinition,
                                                            AbstractModelComponent* modelComponent)
   : AbstractInput(id,QList<Dimension*>({identifierDimension, timeDimension}),valueDefinition, modelComponent),
-    TimeSeriesIdBasedComponentDataItem<double>(identifiers, identifierDimension, times, timeDimension,valueDefinition->defaultValue().toDouble())
+    TimeSeriesIdBasedComponentDataItem<double>(identifiers, times,valueDefinition->defaultValue().toDouble()),
+    m_identifierDimension(identifierDimension),
+    m_timeDimension(timeDimension)
 {
 
 }
@@ -146,7 +165,7 @@ QStringList TimeSeriesIdBasedInputDouble::identifiers() const
 
 IDimension* TimeSeriesIdBasedInputDouble::identifierDimension() const
 {
-  return TimeSeriesIdBasedComponentDataItem<double>::identifierDimensionInternal();
+  return m_identifierDimension;
 }
 
 QList<ITime*> TimeSeriesIdBasedInputDouble::times() const
@@ -169,7 +188,21 @@ ITimeSpan* TimeSeriesIdBasedInputDouble::timeSpan() const
 
 IDimension* TimeSeriesIdBasedInputDouble::timeDimension() const
 {
-  return TimeSeriesIdBasedComponentDataItem<double>::timeDimensionInternal();
+  return m_timeDimension;
+}
+
+int TimeSeriesIdBasedInputDouble::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else
+  {
+    return jLength();
+  }
 }
 
 void TimeSeriesIdBasedInputDouble::getValue(int dimensionIndexes[], QVariant &data) const
@@ -242,7 +275,9 @@ TimeSeriesIdBasedMultiInputDouble::TimeSeriesIdBasedMultiInputDouble(const QStri
                                                                      ValueDefinition* valueDefinition,
                                                                      AbstractModelComponent* modelComponent)
   : AbstractMultiInput(id,QList<Dimension*>({identifierDimension, timeDimension}),valueDefinition, modelComponent),
-    TimeSeriesIdBasedComponentDataItem<double>(identifiers, identifierDimension, times, timeDimension,valueDefinition->defaultValue().toDouble())
+    TimeSeriesIdBasedComponentDataItem<double>(identifiers, times,valueDefinition->defaultValue().toDouble()),
+    m_identifierDimension(identifierDimension),
+    m_timeDimension(timeDimension)
 {
 
 }
@@ -259,7 +294,7 @@ QStringList TimeSeriesIdBasedMultiInputDouble::identifiers() const
 
 IDimension* TimeSeriesIdBasedMultiInputDouble::identifierDimension() const
 {
-  return TimeSeriesIdBasedComponentDataItem<double>::identifierDimensionInternal();
+  return m_identifierDimension;
 }
 
 QList<ITime*> TimeSeriesIdBasedMultiInputDouble::times() const
@@ -282,7 +317,22 @@ ITimeSpan* TimeSeriesIdBasedMultiInputDouble::timeSpan() const
 
 IDimension* TimeSeriesIdBasedMultiInputDouble::timeDimension() const
 {
-  return TimeSeriesIdBasedComponentDataItem<double>::timeDimensionInternal();
+  return m_timeDimension;
+}
+
+
+int TimeSeriesIdBasedMultiInputDouble::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else
+  {
+    return jLength();
+  }
 }
 
 void TimeSeriesIdBasedMultiInputDouble::getValue(int dimensionIndexes[], QVariant &data) const

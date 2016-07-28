@@ -27,35 +27,24 @@
 /*!
  * \brief The Dimension class
  */
-class HYDROCOUPLESDK_EXPORT Dimension : public Identity , public virtual HydroCouple::IDimension
+class HYDROCOUPLESDK_EXPORT Dimension : public Identity,
+    public virtual HydroCouple::IDimension
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IDimension)
-    Q_PROPERTY(int Length READ length NOTIFY propertyChanged)
 
   public:
 
-    Dimension(const QString& id, int length, HydroCouple::DimensionLengthType lengthType = HydroCouple::ConstantLength, QObject* parent = nullptr);
-
-    Dimension(const QString& id, const QString& caption, int length, HydroCouple::DimensionLengthType lengthType = HydroCouple::ConstantLength, QObject* parent = nullptr);
+    Dimension(const QString& id, const QString& caption, QObject* parent = nullptr);
 
     virtual ~Dimension();
 
-    int length() const override;
-
-    void setLength(int length) ;
-
-    int previousLength() const;
-
-    HydroCouple::DimensionLengthType lengthType() const override;
-
   signals:
+
     void propertyChanged(const QString& propertyName) override;
 
   private:
     QString m_name;
-    int m_length, m_previousLength;
-    HydroCouple::DimensionLengthType m_lengthType;
 };
 
 Q_DECLARE_METATYPE(Dimension*)

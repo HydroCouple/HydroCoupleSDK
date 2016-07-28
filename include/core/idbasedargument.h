@@ -21,7 +21,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentInt : public AbstractArgument,
   public:
     IdBasedArgumentInt(const QString& id,
                        const QStringList& identifiers,
-                       Dimension* dimension,
+                       Dimension* identifierDimension,
                        ValueDefinition* valueDefinition,
                        AbstractModelComponent* parentModelComponent);
 
@@ -30,6 +30,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentInt : public AbstractArgument,
     QStringList identifiers() const override;
 
     HydroCouple::IDimension* identifierDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -72,6 +74,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentInt : public AbstractArgument,
   private:
     QFileInfo m_inputFile;
     bool m_matchIdentifiersDuringRead;
+    Dimension* m_identifierDimension;
 };
 
 //==============================================================================================================================
@@ -88,7 +91,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentDouble : public AbstractArgument,
   public:
     IdBasedArgumentDouble(const QString& id,
                           const QStringList& identifiers,
-                          Dimension* dimension,
+                          Dimension* identifierDimension,
                           ValueDefinition* valueDefinition,
                           AbstractModelComponent* parentModelComponent);
 
@@ -98,6 +101,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentDouble : public AbstractArgument,
     QStringList identifiers() const override;
 
     HydroCouple::IDimension* identifierDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -140,6 +145,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentDouble : public AbstractArgument,
   private:
     QFileInfo m_inputFile;
     bool m_matchIdentifiersDuringRead;
+    Dimension* m_identifierDimension;
 };
 
 //==============================================================================================================================
@@ -156,7 +162,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentQString : public AbstractArgument,
   public:
     IdBasedArgumentQString(const QString& id,
                            const QStringList& identifiers,
-                           Dimension* dimension,
+                           Dimension* identifierDimension,
                            ValueDefinition* valueDefinition,
                            AbstractModelComponent* parentModelComponent);
 
@@ -165,6 +171,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentQString : public AbstractArgument,
     QStringList identifiers() const override;
 
     HydroCouple::IDimension* identifierDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -207,6 +215,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentQString : public AbstractArgument,
   private:
     QFileInfo m_inputFile;
     bool m_matchIdentifiersDuringRead;
+    Dimension* m_identifierDimension;
 };
 
 Q_DECLARE_METATYPE(IdBasedArgumentInt*)

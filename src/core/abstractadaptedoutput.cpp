@@ -24,7 +24,14 @@ AbstractAdaptedOutput::AbstractAdaptedOutput(const QString& id,
 
 IModelComponent* AbstractAdaptedOutput::modelComponent() const
 {
-  return adaptee()->modelComponent();
+  if(adaptee())
+  {
+    return adaptee()->modelComponent();
+  }
+  else
+  {
+    return nullptr;
+  }
 }
 
 QList<IDimension*> AbstractAdaptedOutput::dimensions() const
@@ -66,43 +73,43 @@ void AbstractAdaptedOutput::addComment(const QString& comment)
 
 QList<HydroCouple::IInput*> AbstractAdaptedOutput::consumers() const
 {
-   return m_consumers.values();
+  return m_consumers.values();
 }
 
 void AbstractAdaptedOutput::addConsumer(HydroCouple::IInput* consumer)
 {
-   if(!m_consumers.contains(consumer->id()))
-      m_consumers[consumer->id()] = consumer;
+  if(!m_consumers.contains(consumer->id()))
+    m_consumers[consumer->id()] = consumer;
 
-   emit propertyChanged("Consumers");
+  emit propertyChanged("Consumers");
 }
 
 bool AbstractAdaptedOutput::removeConsumer(HydroCouple::IInput *consumer)
 {
-   bool happened = m_consumers.remove(consumer->id());
+  bool happened = m_consumers.remove(consumer->id());
 
-   emit propertyChanged("Consumers");
-   return happened;
+  emit propertyChanged("Consumers");
+  return happened;
 }
 
 QList<HydroCouple::IAdaptedOutput*> AbstractAdaptedOutput::adaptedOutputs()  const
 {
-   return m_adaptedOutputs.values();
+  return m_adaptedOutputs.values();
 }
 
 void AbstractAdaptedOutput::addAdaptedOutput(HydroCouple::IAdaptedOutput* adaptedOutput)
 {
-   if(!m_adaptedOutputs.contains(adaptedOutput->id()))
-      m_adaptedOutputs[adaptedOutput->id()] = adaptedOutput;
+  if(!m_adaptedOutputs.contains(adaptedOutput->id()))
+    m_adaptedOutputs[adaptedOutput->id()] = adaptedOutput;
 
-   emit propertyChanged("Consumers");
+  emit propertyChanged("Consumers");
 }
 
 bool AbstractAdaptedOutput::removeAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOutput)
 {
-   bool happened = m_adaptedOutputs.remove(adaptedOutput->id());
-   emit propertyChanged("Consumers");
-   return happened;
+  bool happened = m_adaptedOutputs.remove(adaptedOutput->id());
+  emit propertyChanged("Consumers");
+  return happened;
 }
 
 IAdaptedOutputFactory* AbstractAdaptedOutput::adaptedOutputFactory() const
@@ -116,7 +123,7 @@ QList<IArgument*> AbstractAdaptedOutput::arguments() const
 
   for(AbstractArgument *argument : m_arguments.values())
   {
-     arguments.append(argument);
+    arguments.append(argument);
   }
 
   return arguments;
@@ -138,6 +145,16 @@ void AbstractAdaptedOutput::setInput(IInput* input)
   emit propertyChanged("Input");
 }
 
+QList<Dimension*> AbstractAdaptedOutput::dimensionsInternal() const
+{
+  return m_dimensions;
+}
+
+ValueDefinition* AbstractAdaptedOutput::valueDefinitionInternal() const
+{
+  return m_valueDefinition;
+}
+
 AbstractAdaptedOutputFactory* AbstractAdaptedOutput::adaptedOutputFactoryInternal() const
 {
   return m_adaptedOutputFactory;
@@ -147,8 +164,8 @@ void AbstractAdaptedOutput::addArgument(AbstractArgument *argument)
 {
   if(!m_arguments.contains(argument->id()))
   {
-     m_arguments[argument->id()] = argument;
-     emit propertyChanged("Arguments");
+    m_arguments[argument->id()] = argument;
+    emit propertyChanged("Arguments");
   }
 }
 
@@ -156,10 +173,10 @@ bool AbstractAdaptedOutput::removeArgument(AbstractArgument *argument)
 {
   if(m_arguments.contains(argument->id()))
   {
-     m_arguments.remove(argument->id());
-     delete argument;
-     emit propertyChanged("Arguments");
-     return true;
+    m_arguments.remove(argument->id());
+    delete argument;
+    emit propertyChanged("Arguments");
+    return true;
   }
 
   return false;
@@ -167,13 +184,29 @@ bool AbstractAdaptedOutput::removeArgument(AbstractArgument *argument)
 
 void AbstractAdaptedOutput::clearArguments()
 {
-   qDeleteAll(m_arguments.values());
-   m_arguments.clear();
+  qDeleteAll(m_arguments.values());
+  m_arguments.clear();
 
-   emit propertyChanged("Arguments");
+  emit propertyChanged("Arguments");
 }
 
 QHash<QString,AbstractArgument*> AbstractAdaptedOutput::argumentsInternal() const
 {
-   return m_arguments;
+  return m_arguments;
+}
+
+void AbstractAdaptedOutput::initializeAdaptedOutputs()
+{
+  for(IAdaptedOutput* adaptedOutput : adaptedOutputs())
+  {
+    adaptedOutput->initialize();
+  }
+}
+
+void AbstractAdaptedOutput::refreshAdaptedOutputs()
+{
+  for(IAdaptedOutput* adaptedOutput : adaptedOutputs())
+  {
+    adaptedOutput->refresh();
+  }
 }

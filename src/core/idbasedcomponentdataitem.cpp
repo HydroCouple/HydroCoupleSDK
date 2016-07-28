@@ -3,14 +3,14 @@
 #include "core/dimension.h"
 #include "core/valuedefinition.h"
 #include "core/abstractmodelcomponent.h"
+#include <assert.h>
 
 using namespace HydroCouple;
 
 template<class T>
 IdBasedComponentDataItem<T>::IdBasedComponentDataItem(const QStringList& identifiers,
-                                                      Dimension* dimension,
                                                       const T& defaultValue)
-  :ComponentDataItem1D<T>(dimension, defaultValue),
+  :ComponentDataItem1D<T>(identifiers.length(), defaultValue),
     m_identifiers(identifiers)
 {
 }
@@ -27,7 +27,7 @@ bool IdBasedComponentDataItem<T>::addIdentifier(const QString &identifier, bool 
   if(!m_identifiers.contains(identifier))
   {
     m_identifiers.append(identifier);
-    identifierDimensionInternal()->setLength(m_identifiers.length());
+    ComponentDataItem1D<T>::setLength(m_identifiers.length());
 
     if(resetDataArray)
     {
@@ -58,7 +58,7 @@ void IdBasedComponentDataItem<T>::addIdentifiers(const QList<QString> &identifie
 
   if(added)
   {
-    identifierDimensionInternal()->setLength(m_identifiers.length());
+    ComponentDataItem1D<T>::setLength(m_identifiers.length());
 
     if(resetDataArray)
     {
@@ -72,7 +72,7 @@ bool IdBasedComponentDataItem<T>::removeIdentifier(const QString &identifier, bo
 {
   if(m_identifiers.removeOne(identifier))
   {
-    identifierDimensionInternal()->setLength(m_identifiers.length());
+    ComponentDataItem1D<T>::setLength(m_identifiers.length());
 
     if(resetDataArray)
     {
@@ -93,12 +93,6 @@ QStringList IdBasedComponentDataItem<T>::identifiersInternal() const
 }
 
 template<class T>
-Dimension* IdBasedComponentDataItem<T>::identifierDimensionInternal() const
-{
-  return ComponentDataItem1D<T>::dimensionInternal();
-}
-
-template<class T>
 void IdBasedComponentDataItem<T>::clearIdentifiers()
 {
   m_identifiers.clear();
@@ -106,18 +100,20 @@ void IdBasedComponentDataItem<T>::clearIdentifiers()
 
 //==============================================================================================================================
 
-IdBasedComponentDataItemInt::IdBasedComponentDataItemInt(const QString& id, const QStringList& identifiers,
-                                                         Dimension* dimension, ValueDefinition* valueDefinition,
+IdBasedComponentDataItemInt::IdBasedComponentDataItemInt(const QString& id,
+                                                         const QStringList& identifiers,
+                                                         Dimension* dimension,
+                                                         ValueDefinition* valueDefinition,
                                                          AbstractModelComponent* modelComponent)
   : AbstractComponentDataItem(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    IdBasedComponentDataItem<int>(identifiers,dimension,valueDefinition->defaultValue().toInt())
+    IdBasedComponentDataItem<int>(identifiers,valueDefinition->defaultValue().toInt()),
+    m_identifierDimension(dimension)
 {
 
 }
 
 IdBasedComponentDataItemInt::~IdBasedComponentDataItemInt()
 {
-
 }
 
 QStringList IdBasedComponentDataItemInt::identifiers() const
@@ -127,8 +123,15 @@ QStringList IdBasedComponentDataItemInt::identifiers() const
 
 IDimension* IdBasedComponentDataItemInt::identifierDimension() const
 {
-  return IdBasedComponentDataItem<int>::identifierDimensionInternal();
+  return m_identifierDimension;
 }
+
+int IdBasedComponentDataItemInt::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  return length();
+}
+
 
 void IdBasedComponentDataItemInt::getValue(int dimensionIndexes[], QVariant & data) const
 {
@@ -217,10 +220,10 @@ void IdBasedComponentDataItemInt::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!identifierDimensionInternal()->id().compare(id))
+              if(!m_identifierDimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                identifierDimensionInternal()->setLength(length.toInt());
+                setLength(length.toInt());
               }
             }
 
@@ -283,9 +286,9 @@ void IdBasedComponentDataItemInt::writeData(QXmlStreamWriter &xmlWriter)
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , identifierDimensionInternal()->id());
-        xmlWriter.writeAttribute("Caption" , identifierDimensionInternal()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(identifierDimensionInternal()->length()));
+        xmlWriter.writeAttribute("Id" , m_identifierDimension->id());
+        xmlWriter.writeAttribute("Caption" , m_identifierDimension->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -294,11 +297,11 @@ void IdBasedComponentDataItemInt::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {identifierDimensionInternal()->length()};
-      int values[identifierDimensionInternal()->length()];
+      int str[1] = {length()};
+      int values[length()];
       getValues(ind,str,values);
 
-      for(int i = 0 ; i < identifierDimensionInternal()->length() ; i++)
+      for(int i = 0 ; i < length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -317,11 +320,12 @@ void IdBasedComponentDataItemInt::writeData(QXmlStreamWriter &xmlWriter)
 
 IdBasedComponentDataItemDouble::IdBasedComponentDataItemDouble(const QString& id,
                                                                const QStringList& identifiers,
-                                                               Dimension* dimension,
+                                                               Dimension* identifierDimension,
                                                                ValueDefinition* valueDefinition,
                                                                AbstractModelComponent *modelComponent)
-  : AbstractComponentDataItem(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    IdBasedComponentDataItem<double>(identifiers,dimension,valueDefinition->defaultValue().toDouble())
+  : AbstractComponentDataItem(id,QList<Dimension*>({identifierDimension}),valueDefinition,modelComponent),
+    IdBasedComponentDataItem<double>(identifiers,valueDefinition->defaultValue().toDouble()),
+    m_identifierDimension(identifierDimension)
 {
 }
 
@@ -337,7 +341,13 @@ QStringList IdBasedComponentDataItemDouble::identifiers() const
 
 IDimension* IdBasedComponentDataItemDouble::identifierDimension() const
 {
-  return IdBasedComponentDataItem<double>::identifierDimensionInternal();
+  return m_identifierDimension;
+}
+
+int IdBasedComponentDataItemDouble::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  return length();
 }
 
 void IdBasedComponentDataItemDouble::getValue(int dimensionIndexes[], QVariant & data) const
@@ -427,10 +437,10 @@ void IdBasedComponentDataItemDouble::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!identifierDimensionInternal()->id().compare(id))
+              if(!m_identifierDimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                identifierDimensionInternal()->setLength(length.toInt());
+                setLength(length.toInt());
               }
             }
 
@@ -493,9 +503,9 @@ void IdBasedComponentDataItemDouble::writeData(QXmlStreamWriter &xmlWriter)
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , identifierDimensionInternal()->id());
-        xmlWriter.writeAttribute("Caption" , identifierDimensionInternal()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(identifierDimensionInternal()->length()));
+        xmlWriter.writeAttribute("Id" , m_identifierDimension->id());
+        xmlWriter.writeAttribute("Caption" , m_identifierDimension->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -504,11 +514,11 @@ void IdBasedComponentDataItemDouble::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {identifierDimensionInternal()->length()};
-      double values[identifierDimensionInternal()->length()];
+      int str[1] = {length()};
+      double values[length()];
       getValues(ind,str,values);
 
-      for(int i = 0 ; i < identifierDimensionInternal()->length() ; i++)
+      for(int i = 0 ; i < length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -526,10 +536,12 @@ void IdBasedComponentDataItemDouble::writeData(QXmlStreamWriter &xmlWriter)
 //==============================================================================================================================
 
 IdBasedComponentDataItemString::IdBasedComponentDataItemString(const QString &id, const QStringList &identifiers,
-                                                               Dimension *dimension, ValueDefinition* valueDefinition,
+                                                               Dimension *identifierDimension,
+                                                               ValueDefinition* valueDefinition,
                                                                AbstractModelComponent *modelComponent)
-  : AbstractComponentDataItem(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    IdBasedComponentDataItem<QString>(identifiers,dimension,valueDefinition->defaultValue().toString())
+  : AbstractComponentDataItem(id,QList<Dimension*>({identifierDimension}),valueDefinition,modelComponent),
+    IdBasedComponentDataItem<QString>(identifiers,valueDefinition->defaultValue().toString()),
+    m_identifierDimension(identifierDimension)
 {
 }
 
@@ -545,7 +557,13 @@ QStringList IdBasedComponentDataItemString::identifiers() const
 
 IDimension* IdBasedComponentDataItemString::identifierDimension() const
 {
-  return IdBasedComponentDataItem<QString>::identifierDimensionInternal();
+  return m_identifierDimension;
+}
+
+int IdBasedComponentDataItemString::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  return length();
 }
 
 void IdBasedComponentDataItemString::getValue(int dimensionIndexes[], QVariant & data) const
@@ -636,10 +654,10 @@ void IdBasedComponentDataItemString::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!identifierDimensionInternal()->id().compare(id))
+              if(!m_identifierDimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                identifierDimensionInternal()->setLength(length.toInt());
+                setLength(length.toInt());
               }
             }
 
@@ -702,9 +720,9 @@ void IdBasedComponentDataItemString::writeData(QXmlStreamWriter &xmlWriter)
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , identifierDimensionInternal()->id());
-        xmlWriter.writeAttribute("Caption" , identifierDimensionInternal()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(identifierDimensionInternal()->length()));
+        xmlWriter.writeAttribute("Id" , m_identifierDimension->id());
+        xmlWriter.writeAttribute("Caption" , m_identifierDimension->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -713,11 +731,11 @@ void IdBasedComponentDataItemString::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {identifierDimensionInternal()->length()};
-      QString* values = new QString[identifierDimensionInternal()->length()];
+      int str[1] = {length()};
+      QString* values = new QString[length()];
       getValues(ind,str,values);
 
-      for(int i = 0 ; i < identifierDimensionInternal()->length() ; i++)
+      for(int i = 0 ; i < length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {

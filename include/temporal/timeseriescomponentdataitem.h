@@ -18,7 +18,6 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem : public ComponentDataIt
   public:
 
     TimeSeriesComponentDataItem(const QList<SDKTemporal::Time*>& times,
-                                Dimension* timeDimension,
                                 const T& defaultValue);
 
     virtual ~TimeSeriesComponentDataItem();
@@ -47,28 +46,25 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem : public ComponentDataIt
 
     QList<SDKTemporal::Time*> timesInternal() const;
 
-    Dimension* timeDimensionInternal() const;
+    SDKTemporal::TimeSpan* timeSpanInternal() const;
 
     void clearTimes();
-
-    SDKTemporal::TimeSpan* timeSpanInternal() const;
 
   private:
 
     QList<SDKTemporal::Time*> m_times;
     SDKTemporal::TimeSpan *m_timeSpan;
-    Dimension *m_timeDimension;
 };
 
 //==============================================================================================================================
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItemDouble : public AbstractComponentDataItem,
     public TimeSeriesComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesComponentDataItem
+    public virtual HydroCouple::Temporal::ITimeComponentDataItem
 {
     Q_OBJECT
 
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesComponentDataItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeComponentDataItem)
 
     Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
     Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
@@ -89,6 +85,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItemDouble : public AbstractC
     HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
 
     HydroCouple::IDimension* timeDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -117,6 +115,10 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItemDouble : public AbstractC
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+  private:
+    Dimension *m_timeDimension;
+
 };
 
 Q_DECLARE_METATYPE(TimeSeriesComponentDataItemDouble*)

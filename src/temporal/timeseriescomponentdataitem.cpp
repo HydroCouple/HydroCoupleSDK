@@ -4,18 +4,16 @@
 #include "core/abstractmodelcomponent.h"
 #include "temporal/timedata.h"
 #include "temporal/timeseriescomponentdataitem.h"
+#include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Temporal;
 
 
 template<class T>
-TimeSeriesComponentDataItem<T>::TimeSeriesComponentDataItem(const QList<SDKTemporal::Time*>& times,
-                                                            Dimension* timeDimension,
-                                                            const T& defaultValue)
-  : ComponentDataItem1D<T>(timeDimension , defaultValue),
-    m_times(times),
-    m_timeDimension(timeDimension)
+TimeSeriesComponentDataItem<T>::TimeSeriesComponentDataItem(const QList<SDKTemporal::Time*>& times, const T& defaultValue)
+  : ComponentDataItem1D<T>(times.length() , defaultValue),
+    m_times(times)
 {
   double duration = times[0]->dateTime() - times[times.length() -1]->dateTime();
   m_timeSpan = new SDKTemporal::TimeSpan(times[0]->qDateTime(), duration, nullptr);
@@ -49,7 +47,7 @@ bool TimeSeriesComponentDataItem<T>::addTime(SDKTemporal::Time* time, bool reset
   m_timeSpan->setDateTime(m_times[0]->qDateTime());
   m_timeSpan->setDuration(duration);
 
-  m_timeDimension->setLength(m_times.length());
+  ComponentDataItem1D<T>::setLength(m_times.length());
 
   if(resetDataArray)
   {
@@ -86,7 +84,7 @@ void TimeSeriesComponentDataItem<T>::addTimes(const QList<SDKTemporal::Time*>& t
   m_timeSpan->setDateTime(m_times[0]->qDateTime());
   m_timeSpan->setDuration(duration);
 
-  m_timeDimension->setLength(m_times.length());
+  ComponentDataItem1D<T>::setLength(m_times.length());
 
   if(resetDataArray)
   {
@@ -103,7 +101,7 @@ bool TimeSeriesComponentDataItem<T>::removeTime(SDKTemporal::Time* time, bool re
     m_timeSpan->setDateTime(m_times[0]->qDateTime());
     m_timeSpan->setDuration(duration);
 
-    m_timeDimension->setLength(m_times.length());
+    ComponentDataItem1D<T>::setLength(m_times.length());
 
     if(resetDataArray)
     {
@@ -132,7 +130,7 @@ void TimeSeriesComponentDataItem<T>::setTimes(const QList<SDKTemporal::Time*>& t
   m_timeSpan->setDateTime(m_times[0]->qDateTime());
   m_timeSpan->setDuration(duration);
 
-  m_timeDimension->setLength(m_times.length());
+  ComponentDataItem1D<T>::setLength(m_times.length());
 }
 
 template<class T>
@@ -177,11 +175,6 @@ QList<SDKTemporal::Time*> TimeSeriesComponentDataItem<T>::timesInternal() const
   return m_times;
 }
 
-template<class T>
-Dimension* TimeSeriesComponentDataItem<T>::timeDimensionInternal() const
-{
-  return m_timeDimension;
-}
 
 template<class T>
 void TimeSeriesComponentDataItem<T>::clearTimes()
@@ -204,7 +197,8 @@ TimeSeriesComponentDataItemDouble::TimeSeriesComponentDataItemDouble(const QStri
                                                                      ValueDefinition* valueDefinition,
                                                                      AbstractModelComponent* modelComponent)
   : AbstractComponentDataItem(id,QList<Dimension*>({timeDimension}), valueDefinition, modelComponent),
-    TimeSeriesComponentDataItem<double>(times,timeDimension,valueDefinition->defaultValue().toDouble())
+    TimeSeriesComponentDataItem<double>(times,valueDefinition->defaultValue().toDouble()),
+    m_timeDimension(timeDimension)
 {
 
 }
@@ -233,7 +227,14 @@ ITimeSpan* TimeSeriesComponentDataItemDouble::timeSpan() const
 
 IDimension* TimeSeriesComponentDataItemDouble::timeDimension() const
 {
-  return TimeSeriesComponentDataItem<double>::timeDimensionInternal();
+  return m_timeDimension;
+}
+
+int TimeSeriesComponentDataItemDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  //assert(dimensionIndexes == nullptr);
+  return length();
 }
 
 void TimeSeriesComponentDataItemDouble::getValue(int dimensionIndexes[], QVariant &data) const
@@ -323,10 +324,10 @@ void TimeSeriesComponentDataItemDouble::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!timeDimensionInternal()->id().compare(id))
+              if(!m_timeDimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                timeDimensionInternal()->setLength(length.toInt());
+                ComponentDataItem1D<double>::setLength(length.toInt());
               }
             }
 
@@ -386,9 +387,9 @@ void TimeSeriesComponentDataItemDouble::writeData(QXmlStreamWriter &xmlWriter)
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , timeDimensionInternal()->id());
-        xmlWriter.writeAttribute("Caption" , timeDimensionInternal()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(timeDimensionInternal()->length()));
+        xmlWriter.writeAttribute("Id" , m_timeDimension->id());
+        xmlWriter.writeAttribute("Caption" , m_timeDimension->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -396,10 +397,10 @@ void TimeSeriesComponentDataItemDouble::writeData(QXmlStreamWriter &xmlWriter)
 
     xmlWriter.writeStartElement("Values");
     {
-      double values[timeDimensionInternal()->length()];
-      getValues(0,timeDimensionInternal()->length(),values);
+      double values[length()];
+      getValues(0,length(),values);
 
-      for(int i = 0 ; i < timeDimensionInternal()->length() ; i++)
+      for(int i = 0 ; i < length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {

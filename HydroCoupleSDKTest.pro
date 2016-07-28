@@ -13,7 +13,8 @@ QT += core testlib
 
 INCLUDEPATH += ./include \
                ./include/tests \
-               ../HydroCouple/include
+               ../HydroCouple/include \
+               /usr/local/include
 
 PRECOMPILED_HEADER += ./include/stdafx.h 
 

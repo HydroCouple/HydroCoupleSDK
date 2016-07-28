@@ -19,10 +19,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem : public Componen
   public:
 
     TimeSeriesIdBasedComponentDataItem(const QStringList& identifiers,
-                                 Dimension* identifierDimension,
-                                 const QList<SDKTemporal::Time*>& times,
-                                 Dimension *timeDimension,
-                                 const T& defaultValue);
+                                       const QList<SDKTemporal::Time*>& times,
+                                       const T& defaultValue);
 
     virtual ~TimeSeriesIdBasedComponentDataItem();
 
@@ -56,34 +54,28 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem : public Componen
 
     QStringList identifiersInternal() const;
 
-    Dimension* identifierDimensionInternal() const;
-
     void clearIdentifiers();
 
     QList<SDKTemporal::Time*> timesInternal() const;
 
-    Dimension* timeDimensionInternal() const;
+    SDKTemporal::TimeSpan* timeSpanInternal() const;
 
     void clearTimes();
 
-    SDKTemporal::TimeSpan* timeSpanInternal() const;
-
   private:
     QStringList  m_identifiers;
-    Dimension* m_identifierDimension;
     QList<SDKTemporal::Time*> m_times;
     SDKTemporal::TimeSpan* m_timeSpan;
-    Dimension* m_timeDimension;
 };
 
 //==============================================================================================================================
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItemDouble : public AbstractComponentDataItem,
     public TimeSeriesIdBasedComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesIdBasedComponentDataItem
+    public virtual HydroCouple::Temporal::ITimeIdBasedComponentDataItem
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesIdBasedComponentDataItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeIdBasedComponentDataItem)
 
     Q_PROPERTY(QStringList Identifiers READ identifiers)
     Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
@@ -94,12 +86,12 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItemDouble : public Ab
   public:
 
     TimeSeriesIdBasedComponentDataItemDouble (const QString& id,
-                                        const QStringList& identifiers,
-                                        Dimension* identifierDimension,
-                                        const QList<SDKTemporal::Time*>& times,
-                                        Dimension* timeDimension,
-                                        ValueDefinition* valueDefinition,
-                                        AbstractModelComponent* modelComponent);
+                                              const QStringList& identifiers,
+                                              Dimension* identifierDimension,
+                                              const QList<SDKTemporal::Time*>& times,
+                                              Dimension* timeDimension,
+                                              ValueDefinition* valueDefinition,
+                                              AbstractModelComponent* modelComponent);
 
     virtual ~TimeSeriesIdBasedComponentDataItemDouble();
 
@@ -112,6 +104,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItemDouble : public Ab
     HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
 
     HydroCouple::IDimension* timeDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -136,6 +130,9 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItemDouble : public Ab
     void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const QVariant data[]) override;
 
     void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const void *data) override;
+
+  private:
+    Dimension *m_identifierDimension, *m_timeDimension;
 
 };
 

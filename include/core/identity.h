@@ -23,6 +23,7 @@
 #define IDENTITY_H
 
 #include "description.h"
+#include <QUuid>
 
 /*!
  * \brief The Identity class is an implementation of the HydroCouple::IIdentity of the HydroCouple interface definitions.
@@ -37,9 +38,9 @@ class HYDROCOUPLESDK_EXPORT Identity : public Description,
 
   public:
 
-    Identity(const QString &id, QObject *parent = nullptr);
+    Identity(const QString& id, QObject* parent = nullptr);
 
-    Identity(const QString &id, const QString &caption, QObject *parent = nullptr);
+    Identity(const QString& id, const QString& caption, QObject* parent = nullptr);
 
     virtual ~Identity(){}
 

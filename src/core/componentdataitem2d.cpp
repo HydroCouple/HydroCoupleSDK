@@ -4,12 +4,14 @@
 #include "core/dimension.h"
 #include "core/abstractcomponentdataitem.h"
 #include <QDebug>
+#include <assert.h>
 
 using namespace HydroCouple;
 
 template<class T>
-ComponentDataItem2D<T>::ComponentDataItem2D(const QList<Dimension*> &dimensions, const T& defaultValue)
-  : m_dimensions(dimensions),
+ComponentDataItem2D<T>::ComponentDataItem2D(int iLength, int jLength, const T& defaultValue)
+  : m_iLength(iLength),
+    m_jLength(jLength),
     m_defaultValue(defaultValue),
     m_data(nullptr)
 {
@@ -117,6 +119,15 @@ void ComponentDataItem2D<T>::resetDataArray()
 }
 
 template<class T>
+void ComponentDataItem2D<T>::resetDataArray(int iLength, int jLength )
+{
+  m_iLength = iLength;
+  m_jLength = jLength;
+
+  createData();
+}
+
+template<class T>
 T ComponentDataItem2D<T>::defaultValue() const
 {
   return m_defaultValue;
@@ -129,23 +140,47 @@ void ComponentDataItem2D<T>::setDefaultValue(const T &defaultValue)
 }
 
 template<class T>
+int ComponentDataItem2D<T>::iLength() const
+{
+  return m_iLength;
+}
+
+template<class T>
+void ComponentDataItem2D<T>::setILength(int iLength)
+{
+  m_iLength = iLength;
+}
+
+template<class T>
+int ComponentDataItem2D<T>::jLength() const
+{
+  return m_jLength;
+}
+
+template<class T>
+void ComponentDataItem2D<T>::setJLength(int jLength)
+{
+  m_jLength = jLength;
+}
+
+template<class T>
 void ComponentDataItem2D<T>::createData()
 {
-  if(m_data)
-    deleteData();
 
-  int ilength = m_dimensions[0]->length();
-  int jlength = m_dimensions[1]->length();
+  deleteData();
 
-  m_data = new T*[ilength];
-
-  for(int i = 0 ; i < ilength ; i++)
+  if(m_iLength > 0 && m_jLength > 0)
   {
-    m_data[i] = new T[jlength];
+    m_data = new T*[m_iLength];
 
-    for(int j = 0; j < jlength ; j++)
+    for(int i = 0 ; i < m_iLength ; i++)
     {
-      m_data[i][j] = m_defaultValue;
+      m_data[i] = new T[m_jLength];
+
+      for(int j = 0; j < m_jLength ; j++)
+      {
+        m_data[i][j] = m_defaultValue;
+      }
     }
   }
 }
@@ -155,31 +190,46 @@ void ComponentDataItem2D<T>::deleteData()
 {
   if(m_data)
   {
-
-    int ilength = m_dimensions[0]->previousLength();
-
-    for(int i = 0 ; i < ilength ; i++)
+    for(int i = 0 ; i < m_iLength ; i++)
+    {
       delete[] m_data[i];
+    }
 
     delete[] m_data;
+
+    m_data = nullptr;
   }
 }
 
 //==============================================================================================================================
 
-
 ComponentDataItem2DInt::ComponentDataItem2DInt(const QString& id,
-                                               const QList<Dimension*>& dimensions,
+                                               Dimension* iDimension, Dimension* jDimension,
+                                               int iLength, int jLength,
                                                ValueDefinition* valueDefinition,
                                                AbstractModelComponent* modelComponent)
-  : ComponentDataItem2D<int>(dimensions,valueDefinition->defaultValue().toInt()),
-    AbstractComponentDataItem(id,dimensions,valueDefinition,modelComponent)
+  : ComponentDataItem2D<int>(iLength,jLength,valueDefinition->defaultValue().toInt()),
+    AbstractComponentDataItem(id,QList<Dimension*>({iDimension,jDimension}),valueDefinition,modelComponent)
 {
 
 }
 
 ComponentDataItem2DInt::~ComponentDataItem2DInt()
 {
+}
+
+int ComponentDataItem2DInt::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else
+  {
+    return jLength();
+  }
 }
 
 void ComponentDataItem2DInt::getValue(int dimensionIndexes[], QVariant & data) const
@@ -217,17 +267,33 @@ void ComponentDataItem2DInt::setValues(int dimensionIndexes[], int stride[], con
 
 
 ComponentDataItem2DDouble::ComponentDataItem2DDouble(const QString& id,
-                                                     const QList<Dimension*>& dimensions,
+                                                     Dimension* iDimension, Dimension* jDimension,
+                                                     int iDimensionLength, int jDimensionLength,
                                                      ValueDefinition* valueDefinition,
                                                      AbstractModelComponent* modelComponent)
-  : ComponentDataItem2D<double>(dimensions,valueDefinition->defaultValue().toInt()),
-    AbstractComponentDataItem(id,dimensions,valueDefinition,modelComponent)
+  : ComponentDataItem2D<double>(iDimensionLength,jDimensionLength,valueDefinition->defaultValue().toInt()),
+    AbstractComponentDataItem(id,QList<Dimension*>({iDimension,jDimension}),valueDefinition,modelComponent)
 {
 
 }
 
 ComponentDataItem2DDouble::~ComponentDataItem2DDouble()
 {
+}
+
+int ComponentDataItem2DDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else
+  {
+    //int iloc = dimensionIndexes[0];
+    return jLength();
+  }
 }
 
 void ComponentDataItem2DDouble::getValue(int dimensionIndexes[], QVariant & data) const
@@ -264,17 +330,33 @@ void ComponentDataItem2DDouble::setValues(int dimensionIndexes[], int stride[], 
 
 
 ComponentDataItem2DString::ComponentDataItem2DString(const QString& id,
-                                                     const QList<Dimension*>& dimensions,
+                                                     Dimension* iDimension, Dimension* jDimension,
+                                                     int iDimensionLength, int jDimensionLength,
                                                      ValueDefinition* valueDefinition,
                                                      AbstractModelComponent* modelComponent)
-  : ComponentDataItem2D<QString>(dimensions,valueDefinition->defaultValue().toString()),
-    AbstractComponentDataItem(id,dimensions,valueDefinition,modelComponent)
+  : ComponentDataItem2D<QString>(iDimensionLength,jDimensionLength,valueDefinition->defaultValue().toString()),
+    AbstractComponentDataItem(id,QList<Dimension*>({iDimension,jDimension}),valueDefinition,modelComponent)
 {
 
 }
 
 ComponentDataItem2DString::~ComponentDataItem2DString()
 {
+}
+
+int ComponentDataItem2DString::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else
+  {
+   // int iloc = dimensionIndexes[0];
+    return jLength();
+  }
 }
 
 void ComponentDataItem2DString::getValue(int dimensionIndexes[], QVariant & data) const

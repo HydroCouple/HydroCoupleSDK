@@ -10,7 +10,6 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem : public ComponentDataItem1
   public:
 
     IdBasedComponentDataItem(const QStringList& identifiers,
-                             Dimension* dimension,
                              const T& defaultValue);
 
     virtual ~IdBasedComponentDataItem();
@@ -24,8 +23,6 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem : public ComponentDataItem1
   protected:
 
     QStringList identifiersInternal() const;
-
-    Dimension* identifierDimensionInternal() const;
 
     void clearIdentifiers();
 
@@ -49,7 +46,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemInt : public AbstractCompone
 
     IdBasedComponentDataItemInt(const QString& id,
                                 const QStringList& identifiers,
-                                Dimension *dimension,
+                                Dimension *identifierDimension,
                                 ValueDefinition* valueDefinition,
                                 AbstractModelComponent* modelComponent);
 
@@ -58,6 +55,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemInt : public AbstractCompone
     QStringList identifiers() const override;
 
     HydroCouple::IDimension* identifierDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -86,6 +85,9 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemInt : public AbstractCompone
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+  private:
+    Dimension* m_identifierDimension;
 
 };
 
@@ -104,7 +106,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemDouble : public  AbstractCom
 
     IdBasedComponentDataItemDouble(const QString& id,
                                    const QStringList& identifiers,
-                                   Dimension *dimension,
+                                   Dimension *identifierDimension,
                                    ValueDefinition* valueDefinition,
                                    AbstractModelComponent* modelComponent);
 
@@ -113,6 +115,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemDouble : public  AbstractCom
     QStringList identifiers() const override;
 
     HydroCouple::IDimension* identifierDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -142,6 +146,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemDouble : public  AbstractCom
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
 
+  private:
+    Dimension* m_identifierDimension;
 };
 
 //==============================================================================================================================
@@ -159,7 +165,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemString : public AbstractComp
 
     IdBasedComponentDataItemString(const QString& id,
                                    const QStringList& identifiers,
-                                   Dimension *dimension,
+                                   Dimension *identifierDimension,
                                    ValueDefinition* valueDefinition,
                                    AbstractModelComponent* modelComponent);
 
@@ -168,6 +174,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemString : public AbstractComp
     QStringList identifiers() const override;
 
     HydroCouple::IDimension* identifierDimension() const override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -196,6 +204,9 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemString : public AbstractComp
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+  private:
+    Dimension* m_identifierDimension;
 };
 
 Q_DECLARE_METATYPE(IdBasedComponentDataItemInt*)

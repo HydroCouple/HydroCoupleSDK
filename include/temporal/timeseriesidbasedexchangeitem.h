@@ -7,10 +7,10 @@
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedOutputDouble: public AbstractOutput,
     public TimeSeriesIdBasedComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesIdBasedExchangeItem
+    public virtual HydroCouple::Temporal::ITimeIdBasedExchangeItem
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesIdBasedExchangeItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeIdBasedExchangeItem)
 
     Q_PROPERTY(QStringList Identifiers READ identifiers)
     Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
@@ -39,6 +39,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedOutputDouble: public AbstractOutput
 
     HydroCouple::IDimension* timeDimension() const override;
 
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
     void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
@@ -63,16 +65,18 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedOutputDouble: public AbstractOutput
 
     void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const void *data) override;
 
+  private:
+    Dimension *m_identifierDimension, *m_timeDimension;
 };
 
 //==============================================================================================================================
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedInputDouble: public AbstractInput,
     public TimeSeriesIdBasedComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesIdBasedExchangeItem
+    public virtual HydroCouple::Temporal::ITimeIdBasedExchangeItem
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesIdBasedExchangeItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeIdBasedExchangeItem)
 
     Q_PROPERTY(QStringList Identifiers READ identifiers)
     Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
@@ -101,6 +105,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedInputDouble: public AbstractInput,
 
     HydroCouple::IDimension* timeDimension() const override;
 
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
     void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
@@ -125,16 +131,18 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedInputDouble: public AbstractInput,
 
     void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const void *data) override;
 
+  private:
+    Dimension *m_identifierDimension, *m_timeDimension;
 };
 
 //==============================================================================================================================
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedMultiInputDouble: public AbstractMultiInput,
     public TimeSeriesIdBasedComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesIdBasedExchangeItem
+    public virtual HydroCouple::Temporal::ITimeIdBasedExchangeItem
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesIdBasedExchangeItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeIdBasedExchangeItem)
 
     Q_PROPERTY(QStringList Identifiers READ identifiers)
     Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
@@ -164,6 +172,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedMultiInputDouble: public AbstractMu
 
     HydroCouple::IDimension* timeDimension() const override;
 
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
     void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
@@ -188,6 +198,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedMultiInputDouble: public AbstractMu
 
     void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const void *data) override;
 
+  private:
+    Dimension *m_identifierDimension, *m_timeDimension;
 };
 
 

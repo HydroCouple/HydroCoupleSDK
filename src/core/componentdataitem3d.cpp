@@ -4,12 +4,15 @@
 #include "core/dimension.h"
 #include "core/abstractcomponentdataitem.h"
 #include <QDebug>
+#include <assert.h>
 
 using namespace HydroCouple;
 
 template<class T>
-ComponentDataItem3D<T>::ComponentDataItem3D(const QList<Dimension*> &dimensions, const T& defaultValue)
-  : m_dimensions(dimensions),
+ComponentDataItem3D<T>::ComponentDataItem3D(int iLength, int jLength, int kLength, const T& defaultValue)
+  : m_iLength(iLength),
+    m_jLength(jLength),
+    m_kLength(kLength),
     m_defaultValue(defaultValue),
     m_data(nullptr)
 {
@@ -137,6 +140,16 @@ void ComponentDataItem3D<T>::resetDataArray()
 }
 
 template<class T>
+void ComponentDataItem3D<T>::resetDataArray(int iLength, int jLength, int kLength)
+{
+  m_iLength = iLength;
+  m_jLength = jLength;
+  m_kLength = kLength;
+
+  createData();
+}
+
+template<class T>
 T ComponentDataItem3D<T>::defaultValue() const
 {
   return m_defaultValue;
@@ -149,26 +162,57 @@ void ComponentDataItem3D<T>::setDefaultValue(const T& defaultValue)
 }
 
 template<class T>
+int ComponentDataItem3D<T>::iLength() const
+{
+  return m_iLength;
+}
+
+template<class T>
+void ComponentDataItem3D<T>::setILength(int ilength)
+{
+  m_iLength = ilength;
+}
+
+template<class T>
+int ComponentDataItem3D<T>::jLength() const
+{
+  return m_jLength;
+}
+
+template<class T>
+void ComponentDataItem3D<T>::setJLength(int jlength)
+{
+  m_jLength = jlength;
+}
+
+template<class T>
+int ComponentDataItem3D<T>::kLength() const
+{
+  return m_kLength;
+}
+
+template<class T>
+void ComponentDataItem3D<T>::setKLength(int klength)
+{
+  m_kLength = klength;
+}
+
+template<class T>
 void ComponentDataItem3D<T>::createData()
 {
-  if(m_data)
-    deleteData();
+  deleteData();
 
-  int ilength = m_dimensions[0]->length();
-  int jlength = m_dimensions[1]->length();
-  int klength = m_dimensions[2]->length();
+  m_data = new T**[m_iLength];
 
-  m_data = new T**[ilength];
-
-  for(int i = 0 ; i < ilength ; i++)
+  for(int i = 0 ; i < m_iLength ; i++)
   {
-    m_data[i] = new T*[jlength];
+    m_data[i] = new T*[m_jLength];
 
-    for(int j = 0; j < jlength ; j++)
+    for(int j = 0; j < m_jLength ; j++)
     {
-      m_data[i][j] = new T[klength];
+      m_data[i][j] = new T[m_kLength];
 
-      for(int k = 0 ; k < klength ; k++)
+      for(int k = 0 ; k < m_kLength ; k++)
       {
         m_data[i][j][k] = m_defaultValue;
       }
@@ -182,29 +226,29 @@ void ComponentDataItem3D<T>::deleteData()
 {
   if(m_data)
   {
-    int ilength = m_dimensions[0]->previousLength();
-    int jlength = m_dimensions[1]->previousLength();
-
-    for(int i = 0 ; i < ilength ; i++)
+    for(int i = 0 ; i < m_iLength ; i++)
     {
-      for(int j = 0 ; j < jlength ; j++)
+      for(int j = 0 ; j < m_jLength ; j++)
       {
         delete[] m_data[i][j];
       }
       delete[] m_data[i];
     }
+
     delete[] m_data;
+    m_data = nullptr;
   }
 }
 
 //==============================================================================================================================
 
 ComponentDataItem3DInt::ComponentDataItem3DInt(const QString& id,
-                                               const QList<Dimension*>& dimensions,
+                                               Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
+                                               int iLength, int jLength, int kLength,
                                                ValueDefinition* valueDefinition,
                                                AbstractModelComponent* modelComponent)
-  : AbstractComponentDataItem(id,dimensions,valueDefinition,modelComponent),
-    ComponentDataItem3D<int>(dimensions, valueDefinition->defaultValue().toInt())
+  : AbstractComponentDataItem(id,QList<Dimension*>({iDimension,jDimension,kDimension}),valueDefinition,modelComponent),
+    ComponentDataItem3D<int>(iLength,jLength,kLength, valueDefinition->defaultValue().toInt())
 {
 }
 
@@ -212,6 +256,25 @@ ComponentDataItem3DInt::~ComponentDataItem3DInt()
 {
 }
 
+int ComponentDataItem3DInt::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else if(dimensionIndexesLength == 1)
+  {
+    //dimensionIndexes[0];
+    return jLength();
+  }
+  else
+  {
+   // dimensionIndexes[0];
+    return kLength();
+  }
+}
 
 void ComponentDataItem3DInt::getValue(int dimensionIndexes[], QVariant & data) const
 {
@@ -246,16 +309,38 @@ void ComponentDataItem3DInt::setValues(int dimensionIndexes[], int stride[], con
 //==============================================================================================================================
 
 ComponentDataItem3DDouble::ComponentDataItem3DDouble(const QString& id,
-                                                     const QList<Dimension*>& dimensions,
+                                                     Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
+                                                     int iLength, int jLength, int kLength,
                                                      ValueDefinition* valueDefinition,
                                                      AbstractModelComponent* modelComponent)
-  : AbstractComponentDataItem(id,dimensions,valueDefinition,modelComponent),
-    ComponentDataItem3D<double>(dimensions, valueDefinition->defaultValue().toDouble())
+  : AbstractComponentDataItem(id,QList<Dimension*>({iDimension,jDimension,kDimension}),valueDefinition,modelComponent),
+    ComponentDataItem3D<double>(iLength,jLength,kLength, valueDefinition->defaultValue().toDouble())
 {
 }
 
 ComponentDataItem3DDouble::~ComponentDataItem3DDouble()
 {
+}
+
+int ComponentDataItem3DDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else if(dimensionIndexesLength == 1)
+  {
+    //int iloc = dimensionIndexes[0];
+    return jLength();
+  }
+  else
+  {
+    //int iloc = dimensionIndexes[0];
+    //int jloc = dimensionIndexes[1];
+    return kLength();
+  }
 }
 
 void ComponentDataItem3DDouble::getValue(int dimensionIndexes[], QVariant & data) const
@@ -291,16 +376,38 @@ void ComponentDataItem3DDouble::setValues(int dimensionIndexes[], int stride[], 
 //==============================================================================================================================
 
 ComponentDataItem3DString::ComponentDataItem3DString(const QString& id,
-                                                     const QList<Dimension*>& dimensions,
+                                                     Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
+                                                     int iLength, int jLength, int kLength,
                                                      ValueDefinition* valueDefinition,
                                                      AbstractModelComponent* modelComponent)
-  : AbstractComponentDataItem(id,dimensions,valueDefinition,modelComponent),
-    ComponentDataItem3D<QString>(dimensions, valueDefinition->defaultValue().toString())
+  : AbstractComponentDataItem(id,QList<Dimension*>({iDimension,jDimension,kDimension}),valueDefinition,modelComponent),
+    ComponentDataItem3D<QString>(iLength,jLength,kLength, valueDefinition->defaultValue().toString())
 {
 }
 
 ComponentDataItem3DString::~ComponentDataItem3DString()
 {
+}
+
+int ComponentDataItem3DString::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength < dimensions().length());
+
+  if(dimensionIndexesLength == 0)
+  {
+    return iLength();
+  }
+  else if(dimensionIndexesLength == 1)
+  {
+    //int iloc = dimensionIndexes[0];
+    return jLength();
+  }
+  else
+  {
+    //int iloc = dimensionIndexes[0];
+    //int jloc = dimensionIndexes[1];
+    return kLength();
+  }
 }
 
 void ComponentDataItem3DString::getValue(int dimensionIndexes[], QVariant & data) const

@@ -1,3 +1,23 @@
+/*!
+ *  \file    AbstractAdaptedOutputFactoryComponentInfo.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  AbstractAdaptedOutputFactoryComponentInfo.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  AbstractAdaptedOutputFactoryComponentInfo.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef COMPONENTDATAITEM1D_H
 #define COMPONENTDATAITEM1D_H
 
@@ -12,7 +32,7 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1D
 
   public:
 
-    ComponentDataItem1D(Dimension *dimension, const T& defaultValue);
+    ComponentDataItem1D(int length, const T& defaultValue);
 
     virtual ~ComponentDataItem1D();
 
@@ -30,13 +50,17 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1D
 
     virtual void resetDataArray();
 
+    virtual void resetDataArray(int length);
+
     T defaultValue() const;
 
   protected:
 
     void setDefaultValue(const T& defaultValue);
 
-    Dimension* dimensionInternal() const;
+    int length() const;
+
+    void setLength(int length);
 
   private:
 
@@ -45,7 +69,7 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1D
     void deleteData();
 
   private:
-    Dimension* m_dimension;
+    int m_length;
     T m_defaultValue;
     T* m_data;
 };
@@ -61,10 +85,13 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1DInt: public AbstractComponentData
 
     ComponentDataItem1DInt(const QString& id,
                            Dimension* dimension,
+                           int length,
                            ValueDefinition *valueDefinition,
                            AbstractModelComponent* modelComponent);
 
     virtual ~ComponentDataItem1DInt();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -81,9 +108,6 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1DInt: public AbstractComponentData
     void readData(QXmlStreamReader &xmlReader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
-
-  private:
-    Dimension* m_dimension;
 };
 
 //==============================================================================================================================
@@ -98,10 +122,13 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1DDouble: public AbstractComponentD
 
     ComponentDataItem1DDouble(const QString& id,
                               Dimension* dimension,
+                              int length,
                               ValueDefinition* valueDefinition,
                               AbstractModelComponent *modelComponent);
 
     virtual ~ComponentDataItem1DDouble();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -119,8 +146,6 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1DDouble: public AbstractComponentD
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
 
-  private:
-    Dimension* m_dimension;
 };
 
 //==============================================================================================================================
@@ -134,10 +159,13 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1DString: public AbstractComponentD
 
     ComponentDataItem1DString(const QString &id,
                               Dimension* dimension,
+                              int length,
                               ValueDefinition* valueDefinition,
                               AbstractModelComponent* modelComponent);
 
     virtual ~ComponentDataItem1DString();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -155,8 +183,6 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1DString: public AbstractComponentD
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
 
-  private:
-    Dimension* m_dimension;
 };
 
 Q_DECLARE_METATYPE(ComponentDataItem1DInt*)

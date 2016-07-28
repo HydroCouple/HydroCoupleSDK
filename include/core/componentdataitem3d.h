@@ -1,3 +1,23 @@
+/*!
+ *  \file    AbstractAdaptedOutputFactoryComponentInfo.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  AbstractAdaptedOutputFactoryComponentInfo.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  AbstractAdaptedOutputFactoryComponentInfo.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef COMPONENTDATAITEM3D_H
 #define COMPONENTDATAITEM3D_H
 
@@ -15,7 +35,7 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3D
 
   public:
 
-    ComponentDataItem3D(const QList<Dimension*> &dimensions, const T& defaultValue);
+    ComponentDataItem3D(int iLength, int jLength, int kLength, const T& defaultValue);
 
     virtual ~ComponentDataItem3D();
 
@@ -33,11 +53,25 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3D
 
     virtual void resetDataArray();
 
+    virtual void resetDataArray(int iLength, int jLength, int kLength);
+
     T defaultValue() const;
 
   protected:
 
     void setDefaultValue(const T& defaultValue);
+
+    int iLength() const;
+
+    void setILength(int ilength);
+
+    int jLength() const;
+
+    void setJLength(int jlength);
+
+    int kLength() const;
+
+    void setKLength(int klength);
 
   private:
 
@@ -46,8 +80,7 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3D
     void deleteData();
 
   private:
-
-    QList<Dimension*> m_dimensions;
+    int m_iLength, m_jLength, m_kLength;
     T m_defaultValue;
     T*** m_data;
 };
@@ -64,11 +97,14 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3DInt: public AbstractComponentData
   public:
 
     ComponentDataItem3DInt(const QString& id,
-                           const QList<Dimension*>& dimensions,
+                           Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
+                           int iLength, int jLength, int kLength,
                            ValueDefinition *valueDefinition,
                            AbstractModelComponent* parentModelComponent);
 
     virtual ~ComponentDataItem3DInt();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -94,9 +130,15 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3DDouble: public AbstractComponentD
 
   public:
 
-    ComponentDataItem3DDouble(const QString &id, const QList<Dimension*> &dimensions, ValueDefinition *valueDefinition, AbstractModelComponent* parentModelComponent);
+    ComponentDataItem3DDouble(const QString &id,
+                              Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
+                              int iLength, int jLength, int kLength,
+                              ValueDefinition *valueDefinition,
+                              AbstractModelComponent* parentModelComponent);
 
     virtual ~ComponentDataItem3DDouble();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -121,9 +163,15 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3DString: public AbstractComponentD
 
   public:
 
-    ComponentDataItem3DString(const QString &id, const QList<Dimension*> &dimensions, ValueDefinition *valueDefinition, AbstractModelComponent* parentModelComponent);
+    ComponentDataItem3DString(const QString &id,
+                              Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
+                              int iLength, int jLength, int kLength,
+                              ValueDefinition *valueDefinition,
+                              AbstractModelComponent* parentModelComponent);
 
     virtual ~ComponentDataItem3DString();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 

@@ -3,15 +3,23 @@
 #include "core/dimension.h"
 #include "core/valuedefinition.h"
 #include <QFile>
+#include <assert.h>
 
 Argument1DInt::Argument1DInt(const QString& id,
                              Dimension* dimension,
+                             int length,
                              ValueDefinition* valueDefinition,
                              AbstractModelComponent *modelComponent)
   : AbstractArgument(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<int>(dimension , valueDefinition->defaultValue().toInt())
+    ComponentDataItem1D<int>(length , valueDefinition->defaultValue().toInt()),
+    m_dimension(dimension)
 {
+}
 
+int Argument1DInt::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  return length();
 }
 
 void Argument1DInt::getValue(int dimensionIndexes[], QVariant & data) const
@@ -76,10 +84,10 @@ void Argument1DInt::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!dimensionInternal()->id().compare(id))
+              if(!m_dimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                dimensionInternal()->setLength(length.toInt());
+                setLength(length.toInt());
               }
             }
 
@@ -116,10 +124,10 @@ void Argument1DInt::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
 
-        if((int)values.size() == dimensionInternal()->length())
+        if((int)values.size() == length())
         {
           int ind[1] ={0};
-          int str[1] = {dimensionInternal()->length()};
+          int str[1] = {length()};
           setValues(ind,str,values.data());
         }
       }
@@ -148,9 +156,9 @@ void Argument1DInt::writeData(QXmlStreamWriter &xmlWriter)
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-        xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+        xmlWriter.writeAttribute("Id" , m_dimension->id());
+        xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -159,11 +167,11 @@ void Argument1DInt::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {dimensionInternal()->length()};
-      int values[dimensionInternal()->length()];
+      int str[1] = {length()};
+      int values[length()];
       getValues(ind,str,values);
 
-      for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+      for(int i = 0 ; i < length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -206,9 +214,9 @@ QString Argument1DInt::toString() const
         {
           xmlWriter.writeStartElement("Dimension");
           {
-            xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-            xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-            xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+            xmlWriter.writeAttribute("Id" , m_dimension->id());
+            xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(length()));
           }
           xmlWriter.writeEndElement();
         }
@@ -217,11 +225,11 @@ QString Argument1DInt::toString() const
         xmlWriter.writeStartElement("Values");
         {
           int ind[1] = {0};
-          int str[1] = {dimensionInternal()->length()};
-          int values[dimensionInternal()->length()];
+          int str[1] = {length()};
+          int values[length()];
           getValues(ind,str,values);
 
-          for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+          for(int i = 0 ; i < length() ; i++)
           {
             xmlWriter.writeStartElement("Value");
             {
@@ -259,9 +267,9 @@ QString Argument1DInt::toString() const
       {
         xmlWriter.writeStartElement("Dimension");
         {
-          xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-          xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+          xmlWriter.writeAttribute("Id" , m_dimension->id());
+          xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+          xmlWriter.writeAttribute("Length" , QString::number(length()));
         }
         xmlWriter.writeEndElement();
       }
@@ -270,11 +278,11 @@ QString Argument1DInt::toString() const
       xmlWriter.writeStartElement("Values");
       {
         int ind[1] = {0};
-        int str[1] = {dimensionInternal()->length()};
-        int values[dimensionInternal()->length()];
+        int str[1] = {length()};
+        int values[length()];
         getValues(ind,str,values);
 
-        for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+        for(int i = 0 ; i < length() ; i++)
         {
           xmlWriter.writeStartElement("Value");
           {
@@ -353,11 +361,11 @@ bool Argument1DInt::readValues(const IComponentDataItem *componentDataItem)
   if(componentDataItem->valueDefinition()->type() == valueDefinitionInternal()->type() &&
      componentDataItem->dimensions().length() == 1)
   {
-    dimensionInternal()->setLength(componentDataItem->dimensions()[0]->length());
+    setLength(componentDataItem->dimensionLength(nullptr,0));
     resetDataArray();
     int ind[1] = {0};
-    int str[1] = {dimensionInternal()->length()};
-    int data[dimensionInternal()->length()];
+    int str[1] = {length()};
+    int data[length()];
     componentDataItem->getValues(ind,str,data);
     setValues(ind,str,data);
     return true;
@@ -370,14 +378,20 @@ bool Argument1DInt::readValues(const IComponentDataItem *componentDataItem)
 
 Argument1DDouble::Argument1DDouble(const QString& id,
                                    Dimension* dimension,
+                                   int length,
                                    ValueDefinition* valueDefinition,
                                    AbstractModelComponent *modelComponent)
   : AbstractArgument(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<double>(dimension , valueDefinition->defaultValue().toDouble())
+    ComponentDataItem1D<double>(length , valueDefinition->defaultValue().toDouble()),
+    m_dimension(dimension)
 {
-
 }
 
+int Argument1DDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  return length();
+}
 
 void Argument1DDouble::getValue(int dimensionIndexes[], QVariant & data) const
 {
@@ -441,10 +455,10 @@ void Argument1DDouble::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!dimensionInternal()->id().compare(id))
+              if(!m_dimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                dimensionInternal()->setLength(length.toInt());
+                setLength(length.toInt());
               }
             }
 
@@ -481,10 +495,10 @@ void Argument1DDouble::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
 
-        if((int)values.size() == dimensionInternal()->length())
+        if((int)values.size() == length())
         {
           int ind[1] = {0};
-          int str[1] = {dimensionInternal()->length()};
+          int str[1] = {length()};
 
           setValues(ind,str,values.data());
         }
@@ -514,9 +528,9 @@ void Argument1DDouble::writeData(QXmlStreamWriter &xmlWriter)
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-        xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+        xmlWriter.writeAttribute("Id" , m_dimension->id());
+        xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -525,12 +539,12 @@ void Argument1DDouble::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {dimensionInternal()->length()};
-      double values[dimensionInternal()->length()];
+      int str[1] = {length()};
+      double values[length()];
       getValues(ind,str,values);
 
 
-      for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+      for(int i = 0 ; i < length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -573,9 +587,9 @@ QString Argument1DDouble::toString() const
         {
           xmlWriter.writeStartElement("Dimension");
           {
-            xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-            xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-            xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+            xmlWriter.writeAttribute("Id" , m_dimension->id());
+            xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(length()));
           }
           xmlWriter.writeEndElement();
         }
@@ -584,11 +598,11 @@ QString Argument1DDouble::toString() const
         xmlWriter.writeStartElement("Values");
         {
           int ind[1] = {0};
-          int str[1] = {dimensionInternal()->length()};
-          double values[dimensionInternal()->length()];
+          int str[1] = {length()};
+          double values[length()];
           getValues(ind,str,values);
 
-          for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+          for(int i = 0 ; i < length() ; i++)
           {
             xmlWriter.writeStartElement("Value");
             {
@@ -631,9 +645,9 @@ QString Argument1DDouble::toString() const
       {
         xmlWriter.writeStartElement("Dimension");
         {
-          xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-          xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+          xmlWriter.writeAttribute("Id" , m_dimension->id());
+          xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+          xmlWriter.writeAttribute("Length" , QString::number(length()));
         }
         xmlWriter.writeEndElement();
       }
@@ -642,11 +656,11 @@ QString Argument1DDouble::toString() const
       xmlWriter.writeStartElement("Values");
       {
         int ind[1] = {0};
-        int str[1] = {dimensionInternal()->length()};
-        double values[dimensionInternal()->length()];
+        int str[1] = {length()};
+        double values[length()];
         getValues(ind,str,values);
 
-        for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+        for(int i = 0 ; i < length() ; i++)
         {
           xmlWriter.writeStartElement("Value");
           {
@@ -725,11 +739,11 @@ bool Argument1DDouble::readValues(const IComponentDataItem *componentDataItem)
   if(componentDataItem->valueDefinition()->type() == valueDefinitionInternal()->type() &&
      componentDataItem->dimensions().length() == 1)
   {
-    dimensionInternal()->setLength(componentDataItem->dimensions()[0]->length());
+    setLength(componentDataItem->dimensionLength(nullptr,0));
     resetDataArray();
     int ind[1] = {0};
-    int str[1] = {dimensionInternal()->length()};
-    double data[dimensionInternal()->length()];
+    int str[1] = {length()};
+    double data[length()];
     componentDataItem->getValues(ind,str,data);
     setValues(ind,str,data);
     return true;
@@ -742,12 +756,19 @@ bool Argument1DDouble::readValues(const IComponentDataItem *componentDataItem)
 
 Argument1DString::Argument1DString(const QString& id,
                                    Dimension* dimension,
+                                   int length,
                                    ValueDefinition* valueDefinition,
                                    AbstractModelComponent *modelComponent)
   : AbstractArgument(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<QString>(dimension , valueDefinition->defaultValue().toString())
+    ComponentDataItem1D<QString>(length, valueDefinition->defaultValue().toString()),
+    m_dimension(dimension)
 {
+}
 
+int Argument1DString::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+{
+  assert(dimensionIndexesLength == 0);
+  return length();
 }
 
 void Argument1DString::getValue(int dimensionIndexes[], QVariant & data) const
@@ -812,10 +833,10 @@ void Argument1DString::readData(QXmlStreamReader &xmlReader)
             {
               QString id = attributes.value("Id").toString();
 
-              if(!dimensionInternal()->id().compare(id))
+              if(!m_dimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                dimensionInternal()->setLength(length.toInt());
+                setLength(length.toInt());
               }
             }
 
@@ -852,10 +873,10 @@ void Argument1DString::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
 
-        if((int)values.size() == dimensionInternal()->length())
+        if((int)values.size() == length())
         {
           int ind[1] = {0};
-          int str[1] = {dimensionInternal()->length()};
+          int str[1] = {length()};
           setValues(ind, str,values.data());
         }
       }
@@ -884,9 +905,9 @@ void Argument1DString::writeData(QXmlStreamWriter &xmlWriter)
     {
       xmlWriter.writeStartElement("Dimension");
       {
-        xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-        xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-        xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+        xmlWriter.writeAttribute("Id" , m_dimension->id());
+        xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+        xmlWriter.writeAttribute("Length" , QString::number(length()));
       }
       xmlWriter.writeEndElement();
     }
@@ -895,12 +916,12 @@ void Argument1DString::writeData(QXmlStreamWriter &xmlWriter)
     xmlWriter.writeStartElement("Values");
     {
       int ind[1] = {0};
-      int str[1] = {dimensionInternal()->length()};
-      QString* values = new QString[dimensionInternal()->length()];
+      int str[1] = {length()};
+      QString* values = new QString[length()];
       getValues(ind,str,values);
 
 
-      for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+      for(int i = 0 ; i < length() ; i++)
       {
         xmlWriter.writeStartElement("Value");
         {
@@ -945,9 +966,9 @@ QString Argument1DString::toString() const
         {
           xmlWriter.writeStartElement("Dimension");
           {
-            xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-            xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-            xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+            xmlWriter.writeAttribute("Id" , m_dimension->id());
+            xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(length()));
           }
           xmlWriter.writeEndElement();
         }
@@ -956,11 +977,11 @@ QString Argument1DString::toString() const
         xmlWriter.writeStartElement("Values");
         {
           int ind[1] = {0};
-          int str[1] = {dimensionInternal()->length()};
-          QString *values = new QString[dimensionInternal()->length()];
+          int str[1] = {length()};
+          QString *values = new QString[length()];
           getValues(ind,str,values);
 
-          for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+          for(int i = 0 ; i < length() ; i++)
           {
             xmlWriter.writeStartElement("Value");
             {
@@ -1005,9 +1026,9 @@ QString Argument1DString::toString() const
       {
         xmlWriter.writeStartElement("Dimension");
         {
-          xmlWriter.writeAttribute("Id" , dimensionInternal()->id());
-          xmlWriter.writeAttribute("Caption" , dimensionInternal()->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(dimensionInternal()->length()));
+          xmlWriter.writeAttribute("Id" , m_dimension->id());
+          xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+          xmlWriter.writeAttribute("Length" , QString::number(length()));
         }
         xmlWriter.writeEndElement();
       }
@@ -1016,11 +1037,11 @@ QString Argument1DString::toString() const
       xmlWriter.writeStartElement("Values");
       {
         int ind[1] = {0};
-        int str[1] = {dimensionInternal()->length()};
-        QString *values = new QString[dimensionInternal()->length()];
+        int str[1] = {length()};
+        QString *values = new QString[length()];
         getValues(ind,str,values);
 
-        for(int i = 0 ; i < dimensionInternal()->length() ; i++)
+        for(int i = 0 ; i < length() ; i++)
         {
           xmlWriter.writeStartElement("Value");
           {
@@ -1101,11 +1122,11 @@ bool Argument1DString::readValues(const IComponentDataItem *componentDataItem)
   if(componentDataItem->valueDefinition()->type() == valueDefinitionInternal()->type() &&
      componentDataItem->dimensions().length() == 1)
   {
-    dimensionInternal()->setLength(componentDataItem->dimensions()[0]->length());
+    setLength(componentDataItem->dimensionLength(nullptr,0));
     resetDataArray();
     int ind[1] = {0};
-    int str[1] = {dimensionInternal()->length()};
-    QString *data = new QString[dimensionInternal()->length()];
+    int str[1] = {length()};
+    QString *data = new QString[length()];
     componentDataItem->getValues(ind,str,data);
     setValues(ind,str,data);
 

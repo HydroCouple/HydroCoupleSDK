@@ -45,12 +45,19 @@ HEADERS += ./include/stdafx.h \
            ./include/temporal/timeseriesexchangeitem.h \
            ./include/spatial/geometry.h \
            ./include/core/argument1d.h \
-    include/spatial/spatialreferencesystem.h \
-    include/core/abstractadaptedoutput.h \
-    include/core/abstractadaptedoutputfactory.h \
-    include/temporal/temporalinterpolationfactory.h \
-    include/temporal/timeseriesinterpolationadaptedoutput.h \
-    include/core/abstractadaptedoutputfactorycomponentinfo.h
+           ./include/spatial/spatialreferencesystem.h \
+           ./include/core/abstractadaptedoutput.h \
+           ./include/core/abstractadaptedoutputfactory.h \
+           ./include/temporal/temporalinterpolationfactory.h \
+           ./include/temporal/timeseriesinterpolationadaptedoutput.h \
+           ./include/core/abstractadaptedoutputfactorycomponentinfo.h \
+           ./include/spatial/geometryfactory.h \
+           ./include/spatial/point.h \
+           ./include/spatial/geometrycollection.h \
+           ./include/spatial/linestring.h \
+           ./include/spatial/edge.h \
+    include/spatial/polygon.h \
+    include/spatial/polyhedralsurface.h
 
 SOURCES += ./src/stdafx.cpp \
            ./src/core/description.cpp \
@@ -80,20 +87,30 @@ SOURCES += ./src/stdafx.cpp \
            ./src/temporal/timeseriesidbasedexchangeitem.cpp \
            ./src/temporal/timeseriesexchangeitem.cpp \
            ./src/core/argument1d.cpp \
-    src/spatial/spatialreferencesystem.cpp \
-    src/core/abstractadaptedoutputfactory.cpp \
-    src/core/abstractadaptedoutput.cpp \
-    src/temporal/timeseriesinterpolationadaptedoutput.cpp \
-    src/temporal/temporalinterpolationfactory.cpp \
-    src/core/abstractadaptedoutputfactorycomponentinfo.cpp
+           ./src/spatial/spatialreferencesystem.cpp \
+           ./src/core/abstractadaptedoutputfactory.cpp \
+           ./src/core/abstractadaptedoutput.cpp \
+           ./src/temporal/timeseriesinterpolationadaptedoutput.cpp \
+           ./src/temporal/temporalinterpolationfactory.cpp \
+           ./src/core/abstractadaptedoutputfactorycomponentinfo.cpp \
+           ./src/spatial/geometry.cpp \
+           ./src/spatial/geometryfactory.cpp \
+           ./src/spatial/point.cpp \
+           ./src/spatial/vertex.cpp \
+           ./src/spatial/geometrycollection.cpp \
+           ./src/spatial/multipoint.cpp \
+           ./src/spatial/linestring.cpp \
+           ./src/spatial/multilinestring.cpp \
+           ./src/spatial/line.cpp \
+           ./src/spatial/linearring.cpp \
+           ./src/spatial/edge.cpp \
+    src/spatial/polygon.cpp \
+    src/spatial/polyhedralsurface.cpp
 
 macx {
 
-INCLUDEPATH += /usr/local/include \
-               /usr/local/include/geos
-
-LIBS += -L/usr/local/lib/ -lgdal \
-        -L/usr/local/lib/ -lgeos
+INCLUDEPATH += /usr/local/include
+LIBS += -L/usr/local/lib/ -lgdal
 
 }
 

@@ -1,8 +1,9 @@
 #include "stdafx.h"
 #include <QtTest/QtTest>
-#include "unit.h"
-#include "valuedefinition.h"
-#include "dimension.h"
+#include "core/unit.h"
+#include "core/valuedefinition.h"
+#include "core/dimension.h"
+#include "spatial/point.h"
 
 using namespace HydroCouple;
 
@@ -99,6 +100,11 @@ class ValueSetTest : public QObject
             qDeleteAll(dimensions);
             dimensions.clear();
          }
+      }
+
+      void testPoint()
+      {
+        HCPoint* point = new HCPoint();
       }
 
       void cleanup()

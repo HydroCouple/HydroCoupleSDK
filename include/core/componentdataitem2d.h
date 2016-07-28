@@ -1,3 +1,23 @@
+/*!
+ *  \file    AbstractAdaptedOutputFactoryComponentInfo.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  AbstractAdaptedOutputFactoryComponentInfo.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  AbstractAdaptedOutputFactoryComponentInfo.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef COMPONENTDATAITEM2D_H
 #define COMPONENTDATAITEM2D_H
 
@@ -15,7 +35,7 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2D
 
   public:
 
-    ComponentDataItem2D(const QList<Dimension*> &dimensions, const T& defaultValue);
+    ComponentDataItem2D(int iLength, int jLength, const T& defaultValue);
 
     virtual ~ComponentDataItem2D();
 
@@ -33,11 +53,21 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2D
 
     virtual void resetDataArray();
 
+    virtual void resetDataArray(int iLength, int jLength);
+
     T defaultValue() const;
 
   protected:
 
     void setDefaultValue(const T& defaultValue);
+
+    int iLength() const;
+
+    void setILength(int iLength);
+
+    int jLength() const;
+
+    void setJLength(int jLength);
 
   private:
 
@@ -46,7 +76,7 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2D
     void deleteData(); //=0;
 
   private:
-    QList<Dimension*> m_dimensions;
+    int m_iLength, m_jLength;
     T m_defaultValue;
     T** m_data;
 };
@@ -61,11 +91,14 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2DInt: public AbstractComponentData
   public:
 
     ComponentDataItem2DInt(const QString& id,
-                           const QList<Dimension*>& dimensions,
+                           Dimension* iDimension, Dimension* jDimension,
+                           int iLength, int jLength,
                            ValueDefinition* valueDefinition,
                            AbstractModelComponent* modelComponent);
 
     virtual ~ComponentDataItem2DInt();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -91,11 +124,14 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2DDouble: public AbstractComponentD
   public:
 
     ComponentDataItem2DDouble(const QString& id,
-                              const QList<Dimension*>& dimensions,
+                              Dimension* iDimension, Dimension* jDimension,
+                              int iDimensionLength, int jDimensionLength,
                               ValueDefinition* valueDefinition,
                               AbstractModelComponent* modelComponent);
 
     virtual ~ComponentDataItem2DDouble();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -121,11 +157,14 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2DString: public AbstractComponentD
   public:
 
     ComponentDataItem2DString(const QString& id,
-                              const QList<Dimension*>& dimensions,
+                              Dimension* iDimension, Dimension* jDimension,
+                              int iDimensionLength, int jDimensionLength,
                               ValueDefinition* valueDefinition,
                               AbstractModelComponent* modelComponent);
 
     virtual ~ComponentDataItem2DString();
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 

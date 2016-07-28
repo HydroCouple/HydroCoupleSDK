@@ -1,40 +1,114 @@
 #ifndef GEOMETRY_H
 #define GEOMETRY_H
 
-//#include "hydrocouplespatial.h"
-//#include "core/identity.h"
+#include "hydrocouplespatial.h"
+#include "core/identity.h"
+#include "ogrsf_frmts.h"
 
-//class HYDROCOUPLESDK_EXPORT Geometry : public Identity,
-//    public virtual HydroCouple::Spatial::IGeometry
-//{
+class SpatialReferenceSystem;
 
-//    Q_OBJECT
+class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
+    public virtual HydroCouple::Spatial::IGeometry
+{
 
-//  public:
-//    Geometry();
+    Q_OBJECT
+    Q_INTERFACES(HydroCouple::Spatial::IGeometry)
 
-//    virtual ~Geometry();
+  public:
 
-//    int index() const override;
+    enum GeometryFlag
+    {
+      Node = 0x00,
+      IsEmpty = 0x01,
+      HasZ = 0x02,
+      HasM = 0x04
+    };
 
-//    void setIndex(int index);
+    Q_ENUM(GeometryFlag)
+    Q_DECLARE_FLAGS(GeometryFlags, GeometryFlag)
 
-//    int dimension() const override;
+    HCGeometry(QObject* parent =  nullptr);
 
-//    int coordinateDimension() const override;
+    HCGeometry(const QString& id = QUuid::createUuid().toString(), QObject* parent =  nullptr);
 
-//    HydroCouple::Spatial::GeometryType geometryType() const override;
+    virtual ~HCGeometry();
 
-//  protected:
+    unsigned int index() const override;
 
-//    virtual void setDimension(int dimension);
+    virtual void setIndex(unsigned int index);
 
-//    virtual void setCoordinateDimension(int dimension);
+    int coordinateDimension() const override;
 
-//  private:
-//    int m_index, m_dimension, m_coordinateDimension;
-//    HydroCouple::Spatial::GeometryType m_geometryType;
-//};
+    HydroCouple::Spatial::GeometryType geometryType() const override;
+
+    HydroCouple::Spatial::ISpatialReferenceSystem* spatialReferenceSystem() const override;
+
+    QString wkt() const override;
+
+    bool isEmpty() const override;
+
+    bool isSimple() const override;
+
+    bool is3D() const override;
+
+    bool isMeasured() const override;
+
+    HydroCouple::Spatial::IGeometry* boundary() const override;
+
+    bool equals(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool disjoint(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool intersects(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool touches(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool crosses(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool within(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool contains(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool overlaps(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    double distance(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    bool relate(const HydroCouple::Spatial::IGeometry *geom) const override;
+
+    HydroCouple::Spatial::IGeometry* locateAlong(double value) const override;
+
+    HydroCouple::Spatial::IGeometry* locateBetween(double mStart, double mEnd) const override;
+
+    HydroCouple::Spatial::IGeometry* buffer(double bufferDistance) const override;
+
+    HydroCouple::Spatial::IGeometry* convexHull() const override;
+
+    HydroCouple::Spatial::IGeometry* intersection(const HydroCouple::Spatial::IGeometry* geom) const override;
+
+    HydroCouple::Spatial::IGeometry* unionG(const HydroCouple::Spatial::IGeometry* geom) const override;
+
+    HydroCouple::Spatial::IGeometry* difference(const HydroCouple::Spatial::IGeometry* geom) const override;
+
+    HydroCouple::Spatial::IGeometry* symmetricDifference(const HydroCouple::Spatial::IGeometry* geom) const override;
+
+    GeometryFlags geometryFlags() const;
+
+  protected:
+
+    virtual void setGeometryFlag(GeometryFlag flag, bool on = true);
+
+    virtual void setCoordinateDimension(int dimension);
+
+  private:
+    unsigned int m_index;
+    int m_coordinateDimension;
+    HydroCouple::Spatial::GeometryType m_geometryType;
+    SpatialReferenceSystem *m_srs;
+    GeometryFlags m_geomFlags;
+};
+
+Q_DECLARE_METATYPE(HCGeometry*)
+Q_DECLARE_OPERATORS_FOR_FLAGS(HCGeometry::GeometryFlags)
 
 #endif // GEOMETRY_H
 

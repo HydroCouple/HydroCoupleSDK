@@ -12,12 +12,12 @@ class IdBasedArgumentInt;
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public AbstractAdaptedOutput,
     public TimeSeriesComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
+    public virtual HydroCouple::Temporal::ITimeExchangeItem
 {
     Q_OBJECT
 
     Q_INTERFACES(HydroCouple::IAdaptedOutput
-                 HydroCouple::Temporal::ITimeSeriesExchangeItem)
+                 HydroCouple::Temporal::ITimeExchangeItem)
 
     Q_PROPERTY(int PolynomialOrder READ polynomialOrder WRITE setPolynomialOrder NOTIFY propertyChanged)
 
@@ -26,9 +26,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public Abstra
 
 
     TimeSeriesInterpolationAdaptedOutput(const QString& id,
-                                         Dimension* dimension,
                                          Quantity* valueDefinition,
-                                         HydroCouple::Temporal::ITimeSeriesExchangeItem* adaptee,
+                                         HydroCouple::Temporal::ITimeExchangeItem* adaptee,
                                          AbstractAdaptedOutputFactory* timeSeriesInterpolationFactory);
 
     virtual ~TimeSeriesInterpolationAdaptedOutput();
@@ -48,6 +47,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public Abstra
     HydroCouple::IDimension* timeDimension() const override;
 
     void update(HydroCouple::IInput* querySpecifier) override;
+
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
@@ -87,9 +88,9 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public Abstra
 
     IdBasedArgumentInt* m_polynomialOrderArgument;
     int m_polynomialOrder;
-    Dimension* m_dimension;
+    Dimension* m_timeDimension;
     QMap<double,double> m_timeSeriesBuffer;
-    HydroCouple::Temporal::ITimeSeriesExchangeItem* m_adaptee;
+    HydroCouple::Temporal::ITimeExchangeItem* m_adaptee;
 
 };
 

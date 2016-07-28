@@ -8,11 +8,11 @@
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesOutputDouble: public AbstractOutput,
     public TimeSeriesComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
+    public virtual HydroCouple::Temporal::ITimeExchangeItem
 {
 
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesExchangeItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeExchangeItem)
 
     Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
     Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
@@ -33,6 +33,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesOutputDouble: public AbstractOutput,
 
     HydroCouple::IDimension* timeDimension() const override;
 
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
     void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
@@ -56,6 +58,9 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesOutputDouble: public AbstractOutput,
     void setValues(int timeIndex, int stride, const QVariant data[]) override;
 
     void setValues(int timeIndex, int stride, const void *data) override;
+
+  private:
+    Dimension *m_timeDimension;
 };
 
 //==============================================================================================================================
@@ -63,11 +68,11 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesOutputDouble: public AbstractOutput,
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesInputDouble: public AbstractInput,
     public TimeSeriesComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
+    public virtual HydroCouple::Temporal::ITimeExchangeItem
 {
 
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesExchangeItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeExchangeItem)
 
     Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
     Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
@@ -88,6 +93,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInputDouble: public AbstractInput,
 
     HydroCouple::IDimension* timeDimension() const override;
 
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
     void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
@@ -111,17 +118,20 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInputDouble: public AbstractInput,
     void setValues(int timeIndex, int stride, const QVariant data[]) override;
 
     void setValues(int timeIndex, int stride, const void *data) override;
+
+  private:
+    Dimension *m_timeDimension;
 };
 
 //==============================================================================================================================
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesMultiInputDouble: public AbstractMultiInput,
     public TimeSeriesComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeSeriesExchangeItem
+    public virtual HydroCouple::Temporal::ITimeExchangeItem
 {
 
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeSeriesExchangeItem)
+    Q_INTERFACES(HydroCouple::Temporal::ITimeExchangeItem)
 
     Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
     Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
@@ -143,6 +153,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesMultiInputDouble: public AbstractMultiInpu
 
     HydroCouple::IDimension* timeDimension() const override;
 
+    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+
     void getValue(int dimensionIndexes[], QVariant &data) const override;
 
     void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
@@ -166,6 +178,9 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesMultiInputDouble: public AbstractMultiInpu
     void setValues(int timeIndex, int stride, const QVariant data[]) override;
 
     void setValues(int timeIndex, int stride, const void *data) override;
+
+  private:
+    Dimension *m_timeDimension;
 };
 
 

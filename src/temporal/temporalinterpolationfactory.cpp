@@ -29,8 +29,8 @@ QList<IIdentity*> TemporalInterpolationFactory::getAvailableAdaptedOutputIds(con
 {
   QList<IIdentity*> available;
 
-  if(dynamic_cast<const ITimeSeriesExchangeItem*>(provider) &&
-     (consumer == nullptr || dynamic_cast<const ITimeSeriesExchangeItem*>(consumer)))
+  if(dynamic_cast<const ITimeExchangeItem*>(provider) &&
+     (consumer == nullptr || dynamic_cast<const ITimeExchangeItem*>(consumer)))
   {
     available.append(m_availableAdapters["TimeSeriesInterpolator"]);
   }
@@ -43,10 +43,9 @@ IAdaptedOutput* TemporalInterpolationFactory::createAdaptedOutput(IIdentity *ada
   if(adaptedProviderId->id().compare("TimeSeriesInterpolation" , Qt::CaseInsensitive))
   {
 
-    ITimeSeriesExchangeItem* timeSeries = dynamic_cast<ITimeSeriesExchangeItem*>(provider);
+    ITimeExchangeItem* timeSeries = dynamic_cast<ITimeExchangeItem*>(provider);
 
     TimeSeriesInterpolationAdaptedOutput* tsAdaptedOutput = new TimeSeriesInterpolationAdaptedOutput(adaptedProviderId->id() + provider->id(),
-                                                                                                     new Dimension("TimeSeriesAdaptedOutputId", 1, HydroCouple::ConstantLength , this),
                                                                                                      new Quantity(QVariant::Double , Unit::unitlessCoefficient(this), this),
                                                                                                      timeSeries, this);
     tsAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
@@ -85,8 +84,8 @@ QList<IIdentity*> TemporalInterpolationFactoryComponent::getAvailableAdaptedOutp
 {
   QList<IIdentity*> available;
 
-  if(dynamic_cast<const ITimeSeriesExchangeItem*>(provider) &&
-     (consumer == nullptr || dynamic_cast<const ITimeSeriesExchangeItem*>(consumer)))
+  if(dynamic_cast<const ITimeExchangeItem*>(provider) &&
+     (consumer == nullptr || dynamic_cast<const ITimeExchangeItem*>(consumer)))
   {
     available.append(m_availableAdapters["TimeSeriesInterpolator"]);
   }
@@ -99,10 +98,9 @@ IAdaptedOutput* TemporalInterpolationFactoryComponent::createAdaptedOutput(IIden
   if(adaptedProviderId->id().compare("TimeSeriesInterpolation" , Qt::CaseInsensitive))
   {
 
-    ITimeSeriesExchangeItem* timeSeries = dynamic_cast<ITimeSeriesExchangeItem*>(provider);
+    ITimeExchangeItem* timeSeries = dynamic_cast<ITimeExchangeItem*>(provider);
 
     TimeSeriesInterpolationAdaptedOutput* tsAdaptedOutput = new TimeSeriesInterpolationAdaptedOutput(adaptedProviderId->id() + provider->id(),
-                                                                                                     new Dimension("TimeSeriesAdaptedOutputId", 1, HydroCouple::ConstantLength , this),
                                                                                                      new Quantity(QVariant::Double , Unit::unitlessCoefficient(this), this),
                                                                                                      timeSeries, this);
     tsAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
