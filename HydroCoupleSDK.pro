@@ -56,8 +56,8 @@ HEADERS += ./include/stdafx.h \
            ./include/spatial/geometrycollection.h \
            ./include/spatial/linestring.h \
            ./include/spatial/edge.h \
-    include/spatial/polygon.h \
-    include/spatial/polyhedralsurface.h
+           ./include/spatial/polygon.h \
+           ./include/spatial/polyhedralsurface.h
 
 SOURCES += ./src/stdafx.cpp \
            ./src/core/description.cpp \
@@ -104,8 +104,8 @@ SOURCES += ./src/stdafx.cpp \
            ./src/spatial/line.cpp \
            ./src/spatial/linearring.cpp \
            ./src/spatial/edge.cpp \
-    src/spatial/polygon.cpp \
-    src/spatial/polyhedralsurface.cpp
+           ./src/spatial/polygon.cpp \
+           ./src/spatial/polyhedralsurface.cpp
 
 macx {
 
@@ -118,7 +118,10 @@ win32 {
 
 }
 
-linux-g++ {
+linux{
+
+INCLUDEPATH += /usr/include/gdal
+LIBS += -L/usr/lib/ogdi -lgdal
 
 }
 
