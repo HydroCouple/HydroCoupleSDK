@@ -57,7 +57,9 @@ HEADERS += ./include/stdafx.h \
            ./include/spatial/linestring.h \
            ./include/spatial/edge.h \
            ./include/spatial/polygon.h \
-           ./include/spatial/polyhedralsurface.h
+           ./include/spatial/polyhedralsurface.h \
+    include/hydrocoupleexceptions.h \
+    include/spatial/geometrycomponentdataitem.h
 
 SOURCES += ./src/stdafx.cpp \
            ./src/core/description.cpp \
@@ -105,24 +107,26 @@ SOURCES += ./src/stdafx.cpp \
            ./src/spatial/linearring.cpp \
            ./src/spatial/edge.cpp \
            ./src/spatial/polygon.cpp \
-           ./src/spatial/polyhedralsurface.cpp
+           ./src/spatial/polyhedralsurface.cpp \
+    src/spatial/tin.cpp \
+    src/spatial/triangle.cpp \
+    src/spatial/multipolygon.cpp \
+    src/hydrocoupleexceptions.cpp
 
-macx {
+macx{
+INCLUDEPATH += /usr/local/include \
+               /usr/local
 
-INCLUDEPATH += /usr/local/include
-LIBS += -L/usr/local/lib/ -lgdal
-
+LIBS += -L/usr/local/lib/gdal -lgdal.20
 }
 
-win32 {
+win32{
 
 }
 
 linux{
-
-INCLUDEPATH += /usr/include/gdal
+INCLUDEPATH += /usr/include
 LIBS += -L/usr/lib/ogdi -lgdal
-
 }
 
 CONFIG(debug, debug|release) {
@@ -141,3 +145,4 @@ CONFIG(release, debug|release) {
     RCC_DIR = $$RELEASE_EXTRAS/.qrc
     UI_DIR = $$RELEASE_EXTRAS/.ui
 }   
+

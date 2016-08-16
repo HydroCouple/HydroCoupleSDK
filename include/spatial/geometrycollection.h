@@ -5,6 +5,7 @@
 
 class HCLineString;
 class HCPoint;
+class HCPolygon;
 
 class HYDROCOUPLESDK_EXPORT HCGeometryCollection : public HCGeometry,
     public virtual HydroCouple::Spatial::IGeometryCollection
@@ -24,11 +25,15 @@ class HYDROCOUPLESDK_EXPORT HCGeometryCollection : public HCGeometry,
 
     HydroCouple::Spatial::IGeometry* geometry(int index) const override;
 
+    void initializeData(int length) override;
+
   protected:
 
     QList<HCGeometry*> geometries() const;
 
-    void addGeometry(HCGeometry* geometry);
+    void addGeometry(HCGeometry *geometry);
+
+    bool removeGeometry(HCGeometry *geometry);
 
   private:
     QList<HCGeometry*> m_geometries;
@@ -51,15 +56,17 @@ class HYDROCOUPLESDK_EXPORT HCMultiPoint : public HCGeometryCollection,
 
     HydroCouple::Spatial::IPoint* point(int index) const override;
 
-    void addPoint(HCPoint* point);
+    void addPoint(HCPoint *point);
 
-    virtual void enable3D();
+    bool removePoint(HCPoint *point);
 
-    virtual void disable3D();
+    void enable3D() override;
 
-    virtual void enableM();
+    void disable3D() override;
 
-    virtual void disableM();
+    void enableM() override;
+
+    void disableM() override;
 };
 
 
@@ -89,18 +96,57 @@ class HYDROCOUPLESDK_EXPORT HCMultiLineString : public HCGeometryCollection,
 
     void addLineString(HCLineString* lineString);
 
-    virtual void enable3D();
+    bool removeLineString(HCLineString *lineString);
 
-    virtual void disable3D();
+    void enable3D() override;
 
-    virtual void enableM();
+    void disable3D() override;
 
-    virtual void disableM();
+    void enableM() override;
+
+    void disableM() override;
 
   private:
 
     QList<HCLineString*> m_lineStrings;
 
+};
+
+class HCMultiPolygon : public HCGeometryCollection,
+    public virtual HydroCouple::Spatial::IMultiSurface,
+    public virtual HydroCouple::Spatial::IMultiPolygon
+{
+    Q_OBJECT
+    Q_INTERFACES(HydroCouple::Spatial::IMultiSurface
+                 HydroCouple::Spatial::IMultiPolygon)
+
+  public:
+    HCMultiPolygon(QObject *parent);
+
+    virtual ~HCMultiPolygon();
+
+    double area() const override;
+
+    HydroCouple::Spatial::IPoint* centroid() const override;
+
+    HydroCouple::Spatial::IPoint* pointOnSurface() const override;
+
+    HydroCouple::Spatial::IPolygon *element(int index) const override;
+
+    void addPolygon(HCPolygon *polygon);
+
+    bool removePolygon(HCPolygon *polygon);
+
+    void enable3D() override;
+
+    void disable3D() override;
+
+    void enableM() override;
+
+    void disableM() override;
+
+   private:
+    QList<HCPolygon*> m_polygons;
 };
 
 Q_DECLARE_METATYPE(HCGeometryCollection*)

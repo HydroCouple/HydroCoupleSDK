@@ -76,7 +76,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public Abstra
 
   signals:
 
-    void propertyChanged(const QString& propertyName);
+    void propertyChanged(const QString& propertyName) override;
 
   private:
 

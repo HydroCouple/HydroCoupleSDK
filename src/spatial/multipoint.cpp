@@ -47,6 +47,11 @@ void HCMultiPoint::addPoint(HCPoint *point)
   addGeometry(point);
 }
 
+bool HCMultiPoint::removePoint(HCPoint *point)
+{
+  return removeGeometry(point);
+}
+
 void HCMultiPoint::enable3D()
 {
   for(HCGeometry* geom : geometries())
@@ -54,6 +59,7 @@ void HCMultiPoint::enable3D()
     HCPoint* point = dynamic_cast<HCPoint*>(geom);
     point->setGeometryFlag(GeometryFlag::HasZ , true);
   }
+  setGeometryFlag(GeometryFlag::HasZ , true);
 }
 
 void HCMultiPoint::disable3D()
@@ -63,6 +69,7 @@ void HCMultiPoint::disable3D()
     HCPoint* point = dynamic_cast<HCPoint*>(geom);
     point->setGeometryFlag(GeometryFlag::HasZ , false);
   }
+  setGeometryFlag(GeometryFlag::HasZ , false);
 }
 
 void HCMultiPoint::enableM()
@@ -72,6 +79,7 @@ void HCMultiPoint::enableM()
     HCPoint* point = dynamic_cast<HCPoint*>(geom);
     point->setGeometryFlag(GeometryFlag::HasM , true);
   }
+  setGeometryFlag(GeometryFlag::HasM , true);
 }
 
 void HCMultiPoint::disableM()
@@ -81,4 +89,5 @@ void HCMultiPoint::disableM()
     HCPoint* point = dynamic_cast<HCPoint*>(geom);
     point->setGeometryFlag(GeometryFlag::HasM , false);
   }
+  setGeometryFlag(GeometryFlag::HasM , false);
 }

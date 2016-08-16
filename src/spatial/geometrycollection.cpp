@@ -46,6 +46,15 @@ IGeometry* HCGeometryCollection::geometry(int index) const
   return m_geometries[index];
 }
 
+void HCGeometryCollection::initializeData(int length)
+{
+  for(HCGeometry *geometry : m_geometries)
+  {
+    geometry->initializeData(length);
+  }
+  initializeData(length);
+}
+
 QList<HCGeometry*> HCGeometryCollection::geometries() const
 {
   return m_geometries;
@@ -61,4 +70,9 @@ void HCGeometryCollection::addGeometry(HCGeometry *geometry)
     geometry->setIndex(m_geometries.length());
     m_geometries.append(geometry);
   }
+}
+
+bool HCGeometryCollection::removeGeometry(HCGeometry *geometry)
+{
+  return m_geometries.removeAll(geometry);
 }

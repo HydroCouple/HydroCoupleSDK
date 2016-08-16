@@ -3,84 +3,79 @@
 
 #include "linestring.h"
 
-class HCEdge;
+//class HCEdge;
 class HCVertex;
 class HCPolygon;
-
-class QuadEdge
-{
-  public:
-
-    QuadEdge(QObject* parent);
-
-    HCEdge* m_edges;
-};
-
 
 class HYDROCOUPLESDK_EXPORT HCEdge : public HCLine,
     public virtual HydroCouple::Spatial::IEdge
 {
 
     friend class QuadEdge;
+    friend class HCPolyhedralSurface;
+    friend class HCTIN;
 
     Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IEdge)
 
-  protected:
+  public:
+//  private:
 
-    HCEdge(QObject* parent = nullptr);
+    HCEdge();
 
     virtual ~HCEdge();
 
+    static HCEdge *createEdge(QObject *parent);
+
+    static void deleteEdge(HCEdge *edge);
+
   public:
 
-    static HCEdge* createEdge(QObject* parent);
-
-    static void deleteEdge(HCEdge* edge);
-
-    static void splice(HCEdge* a, HCEdge* b);
-
-    static unsigned int getNextId();
+    static void splice(HCEdge *a, HCEdge *b);
 
     void setIndex(unsigned int index) override;
 
-    HydroCouple::Spatial::IVertex* orig() const override;
+    HydroCouple::Spatial::IVertex *orig() override;
 
-    void setOrig(HCVertex* origin);
+    void setOrig(HCVertex *origin);
 
-    HydroCouple::Spatial::IVertex* dest() const override;
+    HydroCouple::Spatial::IVertex *dest() override;
 
-    void setDest(HCVertex* destination);
+    void setDest(HCVertex *destination);
 
-    virtual HydroCouple::Spatial::IPolygon* left() const override;
+    virtual HydroCouple::Spatial::IPolygon *left() override;
 
-    void setLeft(HCPolygon* left);
+    void setLeft(HCPolygon *left);
 
-    virtual HydroCouple::Spatial::IPolygon* right() const override;
+    virtual HydroCouple::Spatial::IPolygon *right()  override;
 
-    void setRight(HCPolygon* right);
+    void setRight(HCPolygon *right);
 
-    HydroCouple::Spatial::IEdge* rot()  override;
+    HydroCouple::Spatial::IPolygon *face() override;
 
-    HydroCouple::Spatial::IEdge* invRot() override;
+    HydroCouple::Spatial::IEdge *rot()  override;
 
-    HydroCouple::Spatial::IEdge* sym() override;
+    HydroCouple::Spatial::IEdge *invRot() override;
 
-    HydroCouple::Spatial::IEdge* origNext() const override;
+    HydroCouple::Spatial::IEdge *sym() override;
 
-    HydroCouple::Spatial::IEdge* origPrev() const override;
+    HydroCouple::Spatial::IEdge *origNext() override;
 
-    HydroCouple::Spatial::IEdge* destNext() const override;
+    HydroCouple::Spatial::IEdge *origPrev() override;
 
-    HydroCouple::Spatial::IEdge* destPrev() const override;
+    HydroCouple::Spatial::IEdge *destNext() override;
 
-    HydroCouple::Spatial::IEdge* leftNext() const override;
+    HydroCouple::Spatial::IEdge *destPrev() override;
 
-    HydroCouple::Spatial::IEdge* leftPrev() const override;
+    HydroCouple::Spatial::IEdge *leftNext() override;
 
-    HydroCouple::Spatial::IEdge* rightNext() const override;
+    HydroCouple::Spatial::IEdge *leftPrev() override;
 
-    HydroCouple::Spatial::IEdge* rightPrev() const override;
+    HydroCouple::Spatial::IEdge *rightNext() override;
+
+    HydroCouple::Spatial::IEdge *rightPrev() override;
+
+    static unsigned int getNextId();
 
   private:
 
@@ -88,26 +83,34 @@ class HYDROCOUPLESDK_EXPORT HCEdge : public HCLine,
     static unsigned int m_nextId;
 
     /*
-     * The next ccw edge around (from) the origin of this edge.
-     * Nonnull.
+      *The next ccw edge around (from) the origin of this edge.
+      *Nonnull.
      */
-    HCEdge* m_next;
+    HCEdge *m_next;
 
     /*
-     * The origin vertex of this edge, if prime.
-     * Null if not prime.
+      *The origin vertex of this edge, if prime.
+      *Null if not prime.
      */
     HCVertex *m_vertex;
 
     /*
-     * The target face of this edge, if dual.
-     * Null if not dual.
+      *The target face of this edge, if dual.
+      *Null if not dual.
      */
     HCPolygon *m_face;
 };
 
+class QuadEdge
+{
+  public:
 
-//Q_DECLARE_METATYPE(HCEdge*)
+    QuadEdge(QObject *parent);
+
+    HCEdge m_edges[4];
+};
+
+Q_DECLARE_METATYPE(HCEdge*)
 
 #endif // EDGE
 

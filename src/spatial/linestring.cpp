@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "spatial/point.h"
 #include "spatial/linestring.h"
+#include "spatial/edge.h"
+
+#include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
@@ -45,11 +48,6 @@ IGeometry* HCLineString::envelope() const
   return nullptr;
 }
 
-unsigned char* HCLineString::wkb(int &size) const
-{
-  return 0;
-}
-
 double HCLineString::length() const
 {
   double outLength = 0;
@@ -58,7 +56,7 @@ double HCLineString::length() const
   {
     for(int i = 1 ; i < m_points.length() ; i++)
     {
-      outLength += m_points[i]->dist(m_points[i-1]);
+      outLength += HCPoint::dist(m_points[i], m_points[i-1]);
     }
   }
   return outLength ;
@@ -92,31 +90,38 @@ bool HCLineString::isClosed() const
     return comp;
   }
 
-  return false;
+  return true;
 }
 
 bool HCLineString::isRing() const
 {
-  int count = 0;
-
-  for(HCPoint* p1 : m_points)
+  if(isClosed())
   {
-    for(HCPoint* p2 : m_points)
+    int count = 0;
+
+    for(HCPoint* p1 : m_points)
     {
-      if(p1 != p2 && p1->compare(p2))
+      for(HCPoint* p2 : m_points)
       {
-        count++;
+        if(p1 != p2 && p1->compare(p2))
+        {
+          count++;
+        }
       }
     }
-  }
 
-  if(count > 1)
-  {
-    return false;
+    if(count > 1)
+    {
+      return false;
+    }
+    else
+    {
+      return true;
+    }
   }
   else
   {
-    return true;
+    return false;
   }
 }
 
@@ -136,6 +141,8 @@ void HCLineString::enable3D()
   {
     p->setGeometryFlag(GeometryFlag::HasZ,true);
   }
+
+  HCGeometry::setGeometryFlag(GeometryFlag::HasZ,true);
 }
 
 void HCLineString::disable3D()
@@ -144,6 +151,8 @@ void HCLineString::disable3D()
   {
     p->setGeometryFlag(GeometryFlag::HasZ,false);
   }
+
+  HCGeometry::setGeometryFlag(GeometryFlag::HasZ,false);
 }
 
 void HCLineString::enableM()
@@ -152,6 +161,8 @@ void HCLineString::enableM()
   {
     p->setGeometryFlag(GeometryFlag::HasM,true);
   }
+
+  HCGeometry::setGeometryFlag(GeometryFlag::HasM,true);
 }
 
 void HCLineString::disableM()
@@ -160,6 +171,8 @@ void HCLineString::disableM()
   {
     p->setGeometryFlag(GeometryFlag::HasM,false);
   }
+
+  HCGeometry::setGeometryFlag(GeometryFlag::HasM,false);
 }
 
 QList<HCPoint*> HCLineString::points() const
@@ -169,16 +182,95 @@ QList<HCPoint*> HCLineString::points() const
 
 void HCLineString::addPoint(HCPoint *point)
 {
-  if(point)
-  {
-    point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
-    point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
-  }
-
+  assert(point != nullptr);
+  point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
+  point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
   m_points.append(point);
+  setIsEmpty(m_points.length() == 0);
 }
 
 bool HCLineString::removePoint(HCPoint *point)
 {
-  return m_points.removeAll(point);
+  bool removed = m_points.removeAll(point);
+  setIsEmpty(m_points.length() == 0);
+
+  return removed;
+}
+
+void HCLineString::setGeometryFlag(GeometryFlag flag, bool on)
+{
+  for(HCPoint* point : m_points)
+  {
+    point->setGeometryFlag(flag,on);
+  }
+
+  HCGeometry::setGeometryFlag(flag,on);
+}
+
+HCLine* HCLineString::toLine(QObject *parent) const
+{
+  assert(m_points.length() == 2);
+
+  HCLine* line = new HCLine(parent);
+  line->setP1(m_points[0]->clone(line));
+  line->setP2(m_points[1]->clone(line));
+  return line;
+
+}
+
+HCLinearRing* HCLineString::toLinearRing(QObject *parent) const
+{
+  assert(isClosed() && isSimple());
+
+  HCLinearRing* linearRing = new HCLinearRing(parent);
+
+  for(int i = 0 ; i < m_points.length() ; i++)
+  {
+    HCPoint* point = m_points[i]->clone(linearRing);
+    linearRing->addPoint(point);
+  }
+
+  return linearRing;
+}
+
+double HCLineString::area() const
+{
+  double outArea = 0;
+
+  if(m_points.length() > 2)
+  {
+    for(int i=1; i < m_points.length(); i++)
+    {
+      HCPoint * p1 = m_points[i-1];
+      HCPoint * p2 = m_points[i];
+
+      outArea +=  (p1->x()*p2->y()) - (p2->x()*p1->y());
+    }
+    outArea = outArea * 2.0;
+  }
+
+  return outArea;
+}
+
+bool HCLineString::isClockWise() const
+{
+  if(area() < 0)
+  {
+    return false;
+  }
+
+  return true;
+}
+
+void HCLineString::flip()
+{
+  QList<HCPoint*> flipped;
+
+  if(m_points.length() > 1)
+  {
+    for(int i = m_points.length() - 1 ; i > - 1 ; i--)
+    {
+      flipped.append(m_points[i]);
+    }
+  }
 }

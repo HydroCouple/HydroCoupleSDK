@@ -4,6 +4,9 @@
 #include "core/description.h"
 #include "hydrocouplespatial.h"
 
+#include <map>
+#include <string>
+
 class OGRSpatialReference;
 
 class SpatialReferenceSystem : public Description,
@@ -18,6 +21,8 @@ class SpatialReferenceSystem : public Description,
     Q_PROPERTY(QString WellKnownText READ srText WRITE setSrText NOTIFY propertyChanged)
 
   public:
+
+    SpatialReferenceSystem(QObject* parent = nullptr);
 
     SpatialReferenceSystem(const QString& caption, const QString& srText , QObject* parent = nullptr);
 
@@ -35,14 +40,18 @@ class SpatialReferenceSystem : public Description,
 
     void setSrText(const QString& srtext);
 
+    static std::string findEPSGWkt(int authSRID, bool& found);
+
   signals:
 
     void propertyChanged(const QString& propertyName) override;
 
   private:
-
     OGRSpatialReference* m_srs;
+    static const std::map<int,std::string> m_EPGSAuthorityWkts;
 };
+
+
 
 #endif // SPATIALREFERENCESYSTEM_H
 

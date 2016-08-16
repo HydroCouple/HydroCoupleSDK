@@ -2,6 +2,9 @@
 #include "spatial/geometry.h"
 #include "spatial/spatialreferencesystem.h"
 #include "spatial/geometryfactory.h"
+
+#include "hydrocoupleexceptions.h"
+
 #include <QFlags>
 
 using namespace HydroCouple;
@@ -10,22 +13,29 @@ using namespace HydroCouple::Spatial;
 HCGeometry::HCGeometry(QObject *parent)
   :Identity(QUuid::createUuid().toString(),parent),
     m_index(-1),
-    m_coordinateDimension(0)
+    m_isEmpty(true),
+    m_dataLength(0),
+    m_data(nullptr)
 {
-
   m_srs = new SpatialReferenceSystem("Default SRS" , "EPSG" , 4326 , this);
 }
 
 HCGeometry::HCGeometry(const QString &id, QObject *parent)
   :Identity(id,parent),
     m_index(-1),
-    m_coordinateDimension(0)
+    m_isEmpty(true),
+    m_dataLength(0),
+    m_data(nullptr)
 {
   m_srs = new SpatialReferenceSystem("Default SRS" , "EPSG" , 4326 , this);
 }
 
 HCGeometry::~HCGeometry()
 {
+  if(m_data)
+  {
+    delete[] m_data;
+  }
 }
 
 unsigned int HCGeometry::index() const
@@ -40,7 +50,12 @@ void HCGeometry::setIndex(unsigned int index)
 
 int HCGeometry::coordinateDimension() const
 {
-  return m_coordinateDimension;
+  if(isEmpty())
+    return 0;
+  else if(m_geomFlags.testFlag(GeometryFlag::HasZ))
+    return 3;
+  else
+    return 2;
 }
 
 HydroCouple::Spatial::GeometryType HCGeometry::geometryType() const
@@ -73,7 +88,7 @@ QString HCGeometry::wkt() const
 {
   char* wktCharText = nullptr;
   OGRGeometry* geometry = GeometryFactory::exportToOGRGeometry(this);
-  geometry->exportToWkt(&wktCharText);
+  geometry->exportToWkt(&wktCharText,wkbVariantIso);
   QString wktString(wktCharText);
 
   delete[] wktCharText;
@@ -81,9 +96,22 @@ QString HCGeometry::wkt() const
   return wktString;
 }
 
+unsigned char* HCGeometry::wkb(int &size) const
+{
+  OGRGeometry* geom = GeometryFactory::exportToOGRGeometry(this);
+  size = geom->WkbSize();
+
+  unsigned char* wkbData = new unsigned char[geom->WkbSize()];
+  geom->exportToWkb(wkbXDR,wkbData,wkbVariantIso);
+
+  delete geom;
+
+  return wkbData;
+}
+
 bool HCGeometry::isEmpty() const
 {
-  return m_geomFlags.testFlag(GeometryFlag::IsEmpty);
+  return m_isEmpty;
   //throw std::logic_error("Missing isEmpty() method for a class");
 }
 
@@ -111,7 +139,7 @@ IGeometry* HCGeometry::boundary() const
   OGRGeometry* geom = GeometryFactory::exportToOGRGeometry(this);
   OGRGeometry* bound = geom->Boundary();
 
-  IGeometry* outBoundGeom = GeometryFactory::exportFromOGRGeometry(bound);
+  IGeometry* outBoundGeom = GeometryFactory::importFromOGRGeometry(bound);
 
   delete geom;
   delete bound;
@@ -237,6 +265,7 @@ double HCGeometry::distance(const IGeometry *geom) const
 
 bool HCGeometry::relate(const IGeometry *geom) const
 {
+  throw NotImplementedException("HCGeometry", "relate");
   return false;
 }
 
@@ -255,7 +284,7 @@ IGeometry* HCGeometry::buffer(double bufferDistance) const
   OGRGeometry* gthis = GeometryFactory::exportToOGRGeometry(this);
   OGRGeometry* outBuffer = gthis->Buffer(bufferDistance,30);
 
-  IGeometry* outBufferG = GeometryFactory::exportFromOGRGeometry(outBuffer);
+  HCGeometry* outBufferG = GeometryFactory::importFromOGRGeometry(outBuffer);
 
   delete gthis;
   delete outBuffer;
@@ -267,7 +296,7 @@ IGeometry* HCGeometry::convexHull() const
 {
   OGRGeometry* gthis = GeometryFactory::exportToOGRGeometry(this);
   OGRGeometry* ogrConvexHull = gthis->ConvexHull();
-  IGeometry* outConvexHull = GeometryFactory::exportFromOGRGeometry(ogrConvexHull);
+  IGeometry* outConvexHull = GeometryFactory::importFromOGRGeometry(ogrConvexHull);
 
   return outConvexHull ;
 }
@@ -281,7 +310,7 @@ IGeometry* HCGeometry::intersection(const IGeometry *geom) const
   delete gthis;
   delete inpGeom;
 
-  IGeometry* outIntersection =GeometryFactory::exportFromOGRGeometry(ogrIntersection);
+  IGeometry* outIntersection =GeometryFactory::importFromOGRGeometry(ogrIntersection);
 
   delete ogrIntersection;
 
@@ -297,7 +326,7 @@ IGeometry* HCGeometry::unionG(const IGeometry *geom) const
   delete gthis;
   delete inpGeom;
 
-  IGeometry* outUnion =GeometryFactory::exportFromOGRGeometry(ogrUnion);
+  IGeometry* outUnion = GeometryFactory::importFromOGRGeometry(ogrUnion);
 
   delete ogrUnion;
 
@@ -313,7 +342,7 @@ IGeometry* HCGeometry::difference(const IGeometry *geom) const
   delete gthis;
   delete inpGeom;
 
-  IGeometry* outDiff =GeometryFactory::exportFromOGRGeometry(ogrDiff);
+  IGeometry* outDiff =GeometryFactory::importFromOGRGeometry(ogrDiff);
 
   delete ogrDiff;
 
@@ -329,24 +358,53 @@ IGeometry* HCGeometry::symmetricDifference(const IGeometry *geom) const
   delete gthis;
   delete inpGeom;
 
-  IGeometry* outSymDiff =GeometryFactory::exportFromOGRGeometry(ogrSymDiff);
+  IGeometry* outSymDiff =GeometryFactory::importFromOGRGeometry(ogrSymDiff);
 
   delete ogrSymDiff;
 
   return outSymDiff;
 }
 
-void HCGeometry::setCoordinateDimension(int dimension)
+HCGeometry::GeometryFlags HCGeometry::geometryFlags() const
 {
-  m_coordinateDimension = dimension;
+  return m_geomFlags;
 }
 
 void HCGeometry::setGeometryFlag(GeometryFlag flag, bool on)
 {
-  m_geomFlags = on ? (m_geomFlags |= flag) : (m_geomFlags &= ~flag);
+  m_geomFlags = on ? m_geomFlags |= flag : m_geomFlags &= ~flag;
 }
 
-HCGeometry::GeometryFlags HCGeometry::geometryFlags() const
+void HCGeometry::initializeData(int length)
 {
-  return m_geomFlags;
+  if(m_data)
+  {
+    delete[] m_data;
+    m_data = nullptr;
+  }
+
+  if(length > 0)
+  {
+    m_data = new double[length];
+  }
+}
+
+int HCGeometry::dataLength() const
+{
+  return m_dataLength;
+}
+
+double* HCGeometry::data() const
+{
+  return m_data;
+}
+
+void HCGeometry::setData(double value, int index)
+{
+  m_data[index] = value;
+}
+
+void HCGeometry::setIsEmpty(bool isEmpty)
+{
+  m_isEmpty = isEmpty;
 }

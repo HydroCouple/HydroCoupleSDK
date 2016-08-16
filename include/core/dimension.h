@@ -35,6 +35,8 @@ class HYDROCOUPLESDK_EXPORT Dimension : public Identity,
 
   public:
 
+    Dimension(const QString& id, QObject* parent = nullptr);
+
     Dimension(const QString& id, const QString& caption, QObject* parent = nullptr);
 
     virtual ~Dimension();

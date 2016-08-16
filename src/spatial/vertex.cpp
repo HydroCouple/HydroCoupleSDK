@@ -1,5 +1,8 @@
 #include "stdafx.h"
 #include "spatial/point.h"
+#include "spatial/polyhedralsurface.h"
+
+#include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
@@ -7,37 +10,90 @@ using namespace HydroCouple::Spatial;
 HCVertex::HCVertex(QObject* parent):
   HCPoint(parent),
   m_edge(nullptr),
-  m_dataLength(0),
-  m_data(nullptr)
+  m_polyhedralSurface(nullptr)
 {
 }
+
+HCVertex::HCVertex(HCPolyhedralSurface* parent):
+  HCPoint(parent),
+  m_edge(nullptr),
+  m_polyhedralSurface(parent)
+{
+  assert(parent != nullptr);
+
+  setGeometryFlag(GeometryFlag::HasM , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasM));
+  setGeometryFlag(GeometryFlag::HasZ , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasZ));
+
+  m_polyhedralSurface->addVertex(this);
+}
+
 
 HCVertex::HCVertex(double x, double y, QObject* parent):
   HCPoint(x,y,parent),
   m_edge(nullptr),
-  m_dataLength(0),
-  m_data(nullptr)
+  m_polyhedralSurface(nullptr)
 {
+}
+
+HCVertex::HCVertex(double x, double y, HCPolyhedralSurface* parent):
+  HCPoint(x,y,parent),
+  m_edge(nullptr),
+  m_polyhedralSurface(parent)
+{
+  assert(parent != nullptr);
+
+  setGeometryFlag(GeometryFlag::HasM , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasM));
+  setGeometryFlag(GeometryFlag::HasZ , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasZ));
+
+  m_polyhedralSurface->addVertex(this);
 }
 
 HCVertex::HCVertex(double x, double y, double z, QObject* parent):
   HCPoint(x,y,z,parent),
   m_edge(nullptr),
-  m_dataLength(0),
-  m_data(nullptr)
+  m_polyhedralSurface(nullptr)
 {
+}
+
+HCVertex::HCVertex(double x, double y, double z, HCPolyhedralSurface* parent):
+  HCPoint(x,y,z,parent),
+  m_edge(nullptr),
+  m_polyhedralSurface(parent)
+{
+  assert(parent != nullptr);
+
+  setGeometryFlag(GeometryFlag::HasM , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasM));
+  setGeometryFlag(GeometryFlag::HasZ , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasZ));
+
+  m_polyhedralSurface->addVertex(this);
 }
 
 HCVertex::HCVertex(double x, double y, double z, double m, QObject* parent):
   HCPoint(x,y,z,m,parent),
   m_edge(nullptr),
-  m_dataLength(0),
-  m_data(nullptr)
+  m_polyhedralSurface(nullptr)
 {
+}
+
+HCVertex::HCVertex(double x, double y, double z, double m, HCPolyhedralSurface* parent):
+  HCPoint(x,y,z,m,parent),
+  m_edge(nullptr),
+  m_polyhedralSurface(parent)
+{
+  assert(parent != nullptr);
+
+  setGeometryFlag(GeometryFlag::HasM , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasM));
+  setGeometryFlag(GeometryFlag::HasZ , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasZ));
+
+  m_polyhedralSurface->addVertex(this);
 }
 
 HCVertex::~HCVertex()
 {
+  if(m_polyhedralSurface)
+  {
+    m_polyhedralSurface->removeVertex(this);
+  }
 }
 
 IEdge* HCVertex::edge() const
@@ -47,10 +103,7 @@ IEdge* HCVertex::edge() const
 
 void HCVertex::addEdge(IEdge *edge)
 {
-  if(edge && edge->orig() == this)
-  {
-    m_edge = edge;
-  }
+  m_edge = edge;
 }
 
 void HCVertex::removeEdge(IEdge *edge)
@@ -59,26 +112,4 @@ void HCVertex::removeEdge(IEdge *edge)
   m_edge = next!= edge ? next : nullptr;
 }
 
-void HCVertex::initializeData(int length)
-{
-  if(m_data)
-  {
-    delete[] m_data;
-    m_data = nullptr;
-  }
 
-  if(length > 0)
-  {
-    m_data = new double[length];
-  }
-}
-
-int HCVertex::dataLength() const
-{
-   return m_dataLength;
-}
-
-double* HCVertex::data() const
-{
-  return m_data;
-}

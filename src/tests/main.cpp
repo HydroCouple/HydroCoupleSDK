@@ -1,19 +1,27 @@
 #include "stdafx.h"
+#include "componentdataitemtest.h"
+#include "geometrytest.h"
+#include "polyhedralsurfacetest.h"
+
 #include <QtTest>
-#include "valuesettest.h"
 
 int main(int argc, char** argv)
 {
 
    int status = 0;
    {
-       ValueSetTest valueSetTest;
-       status |= QTest::qExec(&valueSetTest, argc, argv);
+       ComponentDataItemTest componentDataItemTest;
+       status |= QTest::qExec(&componentDataItemTest, argc, argv);
    }
 
    {
-     // TestClassB tc;
-   //   status |= QTest::qExec(&tc, argc, argv);
+      GeometryTest geomTest;
+      status |= QTest::qExec(&geomTest, argc, argv);
+   }
+
+   {
+     PolyhedralSurfaceTest polyhedralSurfaceTest;
+     status |= QTest::qExec(&polyhedralSurfaceTest,argc,argv);
    }
 
    return status;

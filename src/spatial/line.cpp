@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "spatial/point.h"
 #include "spatial/linestring.h"
+#include <assert.h>
+
 
 HCLine::HCLine(QObject *parent)
   :HCLineString(parent)
@@ -27,32 +29,33 @@ bool HCLine::isValid() const
 
 void HCLine::addPoint(HCPoint* point)
 {
-   throw std::logic_error("Cannot append point. Use set point instead");
+  throw std::logic_error("Cannot append point " + point->id().toStdString() + ". Use set point instead");
 }
 
 bool HCLine::removePoint(HCPoint *point)
 {
-  throw std::logic_error("This is a line and must have two points");
+  throw std::logic_error("Cannot remove point " + point->id().toStdString() + ". Use set point instead");
 }
 
 void HCLine::setP1(HCPoint* point)
 {
-   m_points[0] = point;
-   
-   if(point)
-   {
-     point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
-     point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
-   }
+  assert(point != nullptr);
+
+  m_points[0] = point;
+
+  point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
+  point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
+  setIsEmpty(false);
 }
 
 void HCLine::setP2(HCPoint *point)
 {
+  assert(point != nullptr);
+
   m_points[1] = point;
   
-  if(point)
-  {
-    point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
-    point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
-  }
+  point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
+  point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
+  setIsEmpty(false);
+
 }

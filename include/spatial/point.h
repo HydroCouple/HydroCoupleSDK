@@ -3,6 +3,9 @@
 
 #include "geometry.h"
 
+class HCVertex;
+class HCPolyhedralSurface;
+
 class HYDROCOUPLESDK_EXPORT HCPoint: public HCGeometry,
     public virtual HydroCouple::Spatial::IPoint
 {
@@ -41,30 +44,50 @@ class HYDROCOUPLESDK_EXPORT HCPoint: public HCGeometry,
 
     void setM(double m);
 
+    void enable3D() override;
+
+    void disable3D() override;
+
+    void enableM() override;
+
+    void disableM() override;
+
     int dimension() const override;
 
     HydroCouple::Spatial::GeometryType geometryType() const override;
 
     HydroCouple::Spatial::IGeometry* envelope() const override;
 
-    unsigned char* wkb(int &size) const override;
-
     bool compare(const HydroCouple::Spatial::IPoint *point) const;
 
-    double dist(const HydroCouple::Spatial::IPoint *point) const;
+    virtual HCPoint* clone(QObject* parent = nullptr) const;
 
-  protected:
+    virtual HCVertex* cloneToVertex(QObject* parent = nullptr) const;
 
     void setGeometryFlag(HCGeometry::GeometryFlag flag, bool on) override;
+
+    static double dist(const HCPoint *p1, const HCPoint* p2);
+
+    static HCPoint* crossProduct(const HCPoint* p1, const HCPoint* p2);
+
+    static double dotProduct(const HCPoint* p1,const HCPoint* p2);
+
+    static unsigned int getNextId();
+
+    static void resetId();
 
   private:
     double m_x , m_y, m_z, m_m;
     bool m_isEmpty;
+    static unsigned int m_nextId;
 };
 
 class HYDROCOUPLESDK_EXPORT HCVertex : public HCPoint,
     public virtual HydroCouple::Spatial::IVertex
 {
+    friend class HCPolyhedralSurface;
+    friend class HCTIN;
+
     Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IVertex)
 
@@ -72,11 +95,19 @@ class HYDROCOUPLESDK_EXPORT HCVertex : public HCPoint,
 
     HCVertex(QObject* parent = nullptr);
 
+    HCVertex(HCPolyhedralSurface* parentPolyhSurface);
+
     HCVertex(double x, double y, QObject* parent = nullptr);
+
+    HCVertex(double x, double y, HCPolyhedralSurface* parentPolyhSurface);
 
     HCVertex(double x, double y, double z, QObject* parent = nullptr);
 
+    HCVertex(double x, double y, double z, HCPolyhedralSurface* parentPolyhSurface);
+
     HCVertex(double x, double y, double z, double m, QObject* parent = nullptr);
+
+    HCVertex(double x, double y, double z, double m, HCPolyhedralSurface* parentPolyhSurface);
 
     virtual ~HCVertex();
 
@@ -86,16 +117,9 @@ class HYDROCOUPLESDK_EXPORT HCVertex : public HCPoint,
 
     void removeEdge(HydroCouple::Spatial::IEdge *edge) ;
 
-    void initializeData(int length);
-
-    int dataLength() const override;
-
-    double* data() const override;
-
   private:
     HydroCouple::Spatial::IEdge* m_edge;
-    int m_dataLength;
-    double* m_data;
+    HCPolyhedralSurface* m_polyhedralSurface;
 };
 
 Q_DECLARE_METATYPE(HCPoint*)

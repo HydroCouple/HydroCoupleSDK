@@ -3,7 +3,6 @@
 
 #include "hydrocouplespatial.h"
 #include "core/identity.h"
-#include "ogrsf_frmts.h"
 
 class SpatialReferenceSystem;
 
@@ -18,10 +17,9 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
 
     enum GeometryFlag
     {
-      Node = 0x00,
-      IsEmpty = 0x01,
-      HasZ = 0x02,
-      HasM = 0x04
+      None = 0x00,
+      HasZ = 0x01,
+      HasM = 0x02
     };
 
     Q_ENUM(GeometryFlag)
@@ -45,13 +43,23 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
 
     QString wkt() const override;
 
+    unsigned char* wkb(int &size) const override;
+
     bool isEmpty() const override;
 
     bool isSimple() const override;
 
     bool is3D() const override;
 
+    virtual void enable3D() = 0;
+
+    virtual void disable3D() = 0;
+
     bool isMeasured() const override;
+
+    virtual void enableM() = 0;
+
+    virtual void disableM() = 0;
 
     HydroCouple::Spatial::IGeometry* boundary() const override;
 
@@ -93,15 +101,25 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
 
     GeometryFlags geometryFlags() const;
 
-  protected:
-
     virtual void setGeometryFlag(GeometryFlag flag, bool on = true);
 
-    virtual void setCoordinateDimension(int dimension);
+    virtual void initializeData(int length);
+
+    int dataLength() const ;
+
+    double* data() const ;
+
+    void setData(double value, int index);
+
+  protected:
+
+    virtual void setIsEmpty(bool isEmpty);
 
   private:
     unsigned int m_index;
-    int m_coordinateDimension;
+    bool m_isEmpty;
+    int m_dataLength;
+    double* m_data;
     HydroCouple::Spatial::GeometryType m_geometryType;
     SpatialReferenceSystem *m_srs;
     GeometryFlags m_geomFlags;

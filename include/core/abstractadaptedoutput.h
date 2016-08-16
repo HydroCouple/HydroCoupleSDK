@@ -90,7 +90,7 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
 
   signals:
 
-    void propertyChanged(const QString& propertyName);
+    void propertyChanged(const QString& propertyName) override;
 
     void itemChanged(const QSharedPointer<HydroCouple::IExchangeItemChangeEventArgs>& statusChangedEvent) override;
 

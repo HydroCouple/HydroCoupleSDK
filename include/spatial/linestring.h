@@ -4,11 +4,17 @@
 #include "geometry.h"
 
 class HCPoint;
+class HCLine;
+class HCLinearRing;
+class HCEdge;
 
 class HYDROCOUPLESDK_EXPORT HCLineString: public HCGeometry,
     public virtual HydroCouple::Spatial::ICurve,
     public virtual HydroCouple::Spatial::ILineString
 {
+    friend class HCPolygon;
+    friend class HCTriangle;
+
     Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::ICurve
                  HydroCouple::Spatial::ILineString)
@@ -25,8 +31,6 @@ class HYDROCOUPLESDK_EXPORT HCLineString: public HCGeometry,
 
     HydroCouple::Spatial::IGeometry* envelope() const override;
 
-    unsigned char* wkb(int &size) const override;
-
     double length() const override;
 
     HydroCouple::Spatial::IPoint* startPoint() const override;
@@ -41,19 +45,31 @@ class HYDROCOUPLESDK_EXPORT HCLineString: public HCGeometry,
 
     HydroCouple::Spatial::IPoint* point(int index) const override;
 
-    virtual void enable3D();
+    void enable3D() override;
 
-    virtual void disable3D();
+    virtual void disable3D() override;
 
-    virtual void enableM();
+    virtual void enableM() override;
 
-    virtual void disableM();
+    virtual void disableM() override;
 
     QList<HCPoint*> points() const;
 
     virtual void addPoint(HCPoint *point);
 
     virtual bool removePoint(HCPoint *point);
+
+    void setGeometryFlag(GeometryFlag flag, bool on = true) override;
+
+    HCLine* toLine(QObject* parent = nullptr) const;
+
+    HCLinearRing* toLinearRing(QObject* parent = nullptr) const;
+
+    double area() const;
+
+    bool isClockWise() const;
+
+    void flip();
 
   protected:
 
