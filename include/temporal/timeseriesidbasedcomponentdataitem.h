@@ -8,12 +8,12 @@ namespace SDKTemporal
 }
 
 #include "hydrocoupletemporal.h"
-#include "core/componentdataitem2d.h"
+#include "core/exchangeitems2d.h"
 #include "core/abstractcomponentdataitem.h"
 
 
 template<class T>
-class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem : public ComponentDataItem2D<T>
+class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem: public ComponentDataItem2D<T>
 {
 
   public:
@@ -68,75 +68,6 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem : public Componen
     SDKTemporal::TimeSpan* m_timeSpan;
 };
 
-//==============================================================================================================================
-
-class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItemDouble : public AbstractComponentDataItem,
-    public TimeSeriesIdBasedComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeIdBasedComponentDataItem
-{
-    Q_OBJECT
-    Q_INTERFACES(HydroCouple::Temporal::ITimeIdBasedComponentDataItem)
-
-    Q_PROPERTY(QStringList Identifiers READ identifiers)
-    Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
-    Q_PROPERTY(QList<HydroCouple::Temporal::ITime*> Times READ times)
-    Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeSpan READ timeSpan)
-    Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
-
-  public:
-
-    TimeSeriesIdBasedComponentDataItemDouble (const QString& id,
-                                              const QStringList& identifiers,
-                                              Dimension* identifierDimension,
-                                              const QList<SDKTemporal::Time*>& times,
-                                              Dimension* timeDimension,
-                                              ValueDefinition* valueDefinition,
-                                              AbstractModelComponent* modelComponent);
-
-    virtual ~TimeSeriesIdBasedComponentDataItemDouble();
-
-    QStringList identifiers() const override;
-
-    HydroCouple::IDimension* identifierDimension() const override;
-
-    QList<HydroCouple::Temporal::ITime*> times() const override;
-
-    HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
-
-    HydroCouple::IDimension* timeDimension() const override;
-
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
-
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int timeIndex, int idIndex, QVariant &data) const override;
-
-    void getValues(int timeIndex, int idIndex, int timeStride, int idStride, QVariant data[]) const override;
-
-    void getValues(int timeIndex, int idIndex, int timeStride, int idStride, void *data) const override;
-
-    void setValue(int timeIndex, int idIndex, const QVariant &data) override;
-
-    void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const QVariant data[]) override;
-
-    void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const void *data) override;
-
-  private:
-    Dimension *m_identifierDimension, *m_timeDimension;
-
-};
-
-Q_DECLARE_METATYPE(TimeSeriesIdBasedComponentDataItemDouble*)
 
 #endif // TIMESERIESIDBASEDCOMPONENTDATAITEM_H
 

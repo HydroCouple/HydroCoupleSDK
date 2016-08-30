@@ -1,31 +1,37 @@
 #ifndef EDGE
 #define EDGE
 
-#include "linestring.h"
+#include "geometry.h"
+
+#include <QMutex>
 
 //class HCEdge;
 class HCVertex;
 class HCPolygon;
+class QuadEdge;
+class HCPolyhedralSurface;
+class HCTIN;
 
-class HYDROCOUPLESDK_EXPORT HCEdge : public HCLine,
+class HYDROCOUPLESDK_EXPORT HCEdge final : public Identity,
     public virtual HydroCouple::Spatial::IEdge
 {
 
     friend class QuadEdge;
     friend class HCPolyhedralSurface;
     friend class HCTIN;
+    friend class HCPolygon;
 
     Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IEdge)
 
-  public:
-//  private:
+    //  public:
+  private:
 
     HCEdge();
 
     virtual ~HCEdge();
 
-    static HCEdge *createEdge(QObject *parent);
+    static HCEdge *createEdge(HCPolyhedralSurface *parent);
 
     static void deleteEdge(HCEdge *edge);
 
@@ -33,49 +39,101 @@ class HYDROCOUPLESDK_EXPORT HCEdge : public HCLine,
 
     static void splice(HCEdge *a, HCEdge *b);
 
-    void setIndex(unsigned int index) override;
+    unsigned int index() const override;
+
+    void setIndex(unsigned int index);
+
+    HCGeometry::GeometryFlags geometryFlags() const;
+
+    bool is3D() const;
+
+    bool isMeasured() const;
+
+    HCVertex *point(int index);
 
     HydroCouple::Spatial::IVertex *orig() override;
 
+    HCVertex *origInternal() ;
+
     void setOrig(HCVertex *origin);
 
-    HydroCouple::Spatial::IVertex *dest() override;
+    HydroCouple::Spatial::IVertex *dest()  override;
+
+    HCVertex *destInternal() ;
 
     void setDest(HCVertex *destination);
 
     virtual HydroCouple::Spatial::IPolygon *left() override;
 
+    HCPolygon *leftInternal() ;
+
     void setLeft(HCPolygon *left);
 
     virtual HydroCouple::Spatial::IPolygon *right()  override;
 
+    HCPolygon *rightInternal() ;
+
     void setRight(HCPolygon *right);
 
-    HydroCouple::Spatial::IPolygon *face() override;
+    HydroCouple::Spatial::IPolygon *face()  override;
 
-    HydroCouple::Spatial::IEdge *rot()  override;
+    HCPolygon *faceInternal()  ;
 
-    HydroCouple::Spatial::IEdge *invRot() override;
+    HydroCouple::Spatial::IEdge *rot()   override;
 
-    HydroCouple::Spatial::IEdge *sym() override;
+    HCEdge *rotInternal() ;
 
-    HydroCouple::Spatial::IEdge *origNext() override;
+    HydroCouple::Spatial::IEdge *invRot()  override;
 
-    HydroCouple::Spatial::IEdge *origPrev() override;
+    HCEdge *invRotInternal() ;
 
-    HydroCouple::Spatial::IEdge *destNext() override;
+    HydroCouple::Spatial::IEdge *sym()  override;
 
-    HydroCouple::Spatial::IEdge *destPrev() override;
+    HCEdge *symInternal() ;
 
-    HydroCouple::Spatial::IEdge *leftNext() override;
+    HydroCouple::Spatial::IEdge *origNext()  override;
 
-    HydroCouple::Spatial::IEdge *leftPrev() override;
+    HCEdge *origNextInternal()  ;
 
-    HydroCouple::Spatial::IEdge *rightNext() override;
+    HydroCouple::Spatial::IEdge *origPrev()  override;
 
-    HydroCouple::Spatial::IEdge *rightPrev() override;
+    HCEdge *origPrevInternal()  ;
+
+    HydroCouple::Spatial::IEdge *destNext()  override;
+
+    HCEdge *destNextInternal()  ;
+
+    HydroCouple::Spatial::IEdge *destPrev()  override;
+
+    HCEdge *destPrevInternal()  ;
+
+    HydroCouple::Spatial::IEdge *leftNext()  override;
+
+    HCEdge *leftNextInternal()  ;
+
+    HydroCouple::Spatial::IEdge *leftPrev()  override;
+
+    HCEdge *leftPrevInternal()  ;
+
+    HydroCouple::Spatial::IEdge *rightNext()  override;
+
+    HCEdge *rightNextInternal()  ;
+
+    HydroCouple::Spatial::IEdge *rightPrev()  override;
+
+    HCEdge *rightPrevInternal()  ;
+
+    void initializeData(int length, double defaultValue = std::numeric_limits<double>::quiet_NaN());
 
     static unsigned int getNextId();
+
+  private:
+    void setGeometryFlag(HCGeometry::GeometryFlag flag, bool on = true);
+
+  public:
+    double* data;
+    int dataLength;
+
 
   private:
 
@@ -99,13 +157,19 @@ class HYDROCOUPLESDK_EXPORT HCEdge : public HCLine,
       *Null if not dual.
      */
     HCPolygon *m_face;
+
+    QuadEdge *m_quadeEdge;
+    HCGeometry::GeometryFlags m_geomFlags;
+
 };
 
 class QuadEdge
 {
   public:
 
-    QuadEdge(QObject *parent);
+    QuadEdge(HCPolyhedralSurface *parent);
+
+    virtual ~QuadEdge(){}
 
     HCEdge m_edges[4];
 };

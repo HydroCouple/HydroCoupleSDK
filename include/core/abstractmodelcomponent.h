@@ -24,7 +24,8 @@
 
 #include "identity.h"
 #include <QMutex>
-
+//#include <QFileInfo>
+#include <QDir>
 
 class ModelComponentInfo;
 class AbstractOutput;
@@ -124,6 +125,9 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
        */
     QList<HydroCouple::IAdaptedOutputFactory*> adaptedOutputFactories() const override;
 
+
+    QFileInfo getRelativeFilePath(const QString &filePath) const;
+
   signals:
 
     /*!
@@ -201,6 +205,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     QHash<QString,AbstractOutput*> m_outputs;
     QHash<QString,AbstractAdaptedOutputFactory*> m_adaptedOutputFactories;
     QHash<QString,AbstractArgument*> m_arguments;
+    QList<AbstractArgument*> m_argumentsInsertionOrdered;
     ModelComponentInfo *m_modelComponentInfo;
     AbstractModelComponent *m_parentModelComponent;
 

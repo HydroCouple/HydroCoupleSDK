@@ -3,6 +3,7 @@
 
 #include "hydrocouplespatial.h"
 #include "core/identity.h"
+#include <gdal/ogrsf_frmts.h>
 
 class SpatialReferenceSystem;
 
@@ -41,9 +42,11 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
 
     HydroCouple::Spatial::ISpatialReferenceSystem* spatialReferenceSystem() const override;
 
-    QString wkt() const override;
+    SpatialReferenceSystem *spatialReferenceSystemInternal() const;
 
-    unsigned char* wkb(int &size) const override;
+    QString getWKT() const override;
+
+    unsigned char* getWKB(int &size) const override;
 
     bool isEmpty() const override;
 
@@ -103,23 +106,23 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
 
     virtual void setGeometryFlag(GeometryFlag flag, bool on = true);
 
-    virtual void initializeData(int length);
+    virtual void initializeData(int length, double defaultValue = std::numeric_limits<double>::quiet_NaN());
 
-    int dataLength() const ;
+    static QString geometryTypeToString(HydroCouple::Spatial::GeometryType type);
 
-    double* data() const ;
-
-    void setData(double value, int index);
+    static OGRwkbGeometryType toOGRDataType(HydroCouple::Spatial::GeometryType type);
 
   protected:
 
     virtual void setIsEmpty(bool isEmpty);
 
+  public:
+    double* data;
+    int dataLength;
+
   private:
     unsigned int m_index;
     bool m_isEmpty;
-    int m_dataLength;
-    double* m_data;
     HydroCouple::Spatial::GeometryType m_geometryType;
     SpatialReferenceSystem *m_srs;
     GeometryFlags m_geomFlags;

@@ -29,7 +29,8 @@
 /*!
  * \brief The ModelComponentInfo class.
  */
-class HYDROCOUPLESDK_EXPORT ModelComponentInfo : public ComponentInfo, public virtual HydroCouple::IModelComponentInfo
+class HYDROCOUPLESDK_EXPORT ModelComponentInfo : public ComponentInfo,
+    public virtual HydroCouple::IModelComponentInfo
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IModelComponentInfo)

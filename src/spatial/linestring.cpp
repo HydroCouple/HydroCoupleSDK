@@ -183,15 +183,17 @@ QList<HCPoint*> HCLineString::points() const
 void HCLineString::addPoint(HCPoint *point)
 {
   assert(point != nullptr);
-  point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
-  point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
+
+  assert(point->geometryFlags().testFlag(GeometryFlag::HasZ) == this->is3D());
+  assert(point->geometryFlags().testFlag(GeometryFlag::HasM) == this->isMeasured());
+
   m_points.append(point);
   setIsEmpty(m_points.length() == 0);
 }
 
 bool HCLineString::removePoint(HCPoint *point)
 {
-  bool removed = m_points.removeAll(point);
+  bool removed = m_points.removeOne(point);
   setIsEmpty(m_points.length() == 0);
 
   return removed;
@@ -199,9 +201,12 @@ bool HCLineString::removePoint(HCPoint *point)
 
 void HCLineString::setGeometryFlag(GeometryFlag flag, bool on)
 {
-  for(HCPoint* point : m_points)
+  for(HCPoint *point : m_points)
   {
-    point->setGeometryFlag(flag,on);
+    if(point)
+    {
+      point->setGeometryFlag(flag,on);
+    }
   }
 
   HCGeometry::setGeometryFlag(flag,on);

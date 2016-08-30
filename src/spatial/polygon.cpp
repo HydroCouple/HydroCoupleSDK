@@ -20,6 +20,10 @@ HCPolygon::HCPolygon(HCPolyhedralSurface *parent)
     m_polyhedralSurface(parent)
 {
   m_exteriorRing = new HCLineString(this);
+
+  setGeometryFlag(GeometryFlag::HasM , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasM));
+  setGeometryFlag(GeometryFlag::HasZ , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasZ));
+
   m_polyhedralSurface->addPatch(this);
   setIndex(HCPolygon::getNextId());
 }
@@ -37,45 +41,17 @@ HCPolygon::~HCPolygon()
 {
   if(m_polyhedralSurface)
   {
-    HCEdge* edge = m_edge;
-
-    QList<HCVertex*> vertices;
-    QList<HCEdge*> edgesToDelete;
-
-    if(edge != nullptr)
+    if(m_edge)
     {
+      HCEdge *edge = m_edge;
+
       do
       {
-        if(edge->left() == this)
-        {
-          if(edge->right() == nullptr)
-          {
-            vertices.append(dynamic_cast<HCVertex*>(edge->orig()));
-            edgesToDelete.append(edge);
-          }
-          else
-          {
-            edge->setLeft(nullptr);
-          }
-        }
+        edge->setLeft(nullptr);
+        edge = edge->leftNextInternal();
 
-        edge =  dynamic_cast<HCEdge*>(edge->leftNext());
+      }while (edge != m_edge);
 
-      }while(edge != m_edge);
-
-      for(HCEdge* temp : edgesToDelete)
-      {
-        HCPolyhedralSurface::printEdge(temp);
-        HCEdge::deleteEdge(temp);
-      }
-
-      for(HCVertex *vertex : vertices)
-      {
-        if(vertex->edge() == nullptr)
-        {
-          delete vertex;
-        }
-      }
     }
 
     m_polyhedralSurface->removePatch(this);
@@ -178,11 +154,13 @@ IMultiCurve *HCPolygon::boundaryMultiCurve() const
 
 ILineString *HCPolygon::exteriorRing() const
 {
+  reCreateOuterLineString();
   return m_exteriorRing;
 }
 
 HCLineString *HCPolygon::exteriorRingInternal() const
 {
+  reCreateOuterLineString();
   return m_exteriorRing;
 }
 
@@ -196,9 +174,17 @@ ILineString *HCPolygon::interiorRing(int index) const
   return m_interiorRings[index];
 }
 
+QList<HCLineString*> HCPolygon::interiorRingsInternal() const
+{
+  return m_interiorRings;
+}
+
 bool HCPolygon::addInteriorRing(HCLineString* interiorRing)
 {
   assert(interiorRing->isClosed());
+
+  assert(interiorRing->geometryFlags().testFlag(GeometryFlag::HasZ) == this->is3D());
+  assert(interiorRing->geometryFlags().testFlag(GeometryFlag::HasM) == this->isMeasured());
 
   if(!m_interiorRings.contains(interiorRing))
   {
@@ -210,12 +196,46 @@ bool HCPolygon::addInteriorRing(HCLineString* interiorRing)
 
 bool HCPolygon::removeInteriorRing(HCLineString* interiorRing)
 {
-  return m_interiorRings.removeAll(interiorRing);
+  return m_interiorRings.removeOne(interiorRing);
 }
 
 HydroCouple::Spatial::IEdge* HCPolygon::edge() const
 {
   return m_edge;
+}
+
+HCEdge *HCPolygon::edgeInternal() const
+{
+  return m_edge;
+}
+
+HCEdge *HCPolygon::getEdge(int index) const
+{
+  HCEdge* edge = m_edge;
+
+  int i = 0;
+
+  do
+  {
+    if(i == index)
+    {
+      return edge;
+    }
+
+    edge = edge->leftNextInternal();
+    i++;
+
+  }while(edge != m_edge);
+
+  return nullptr;
+}
+
+void HCPolygon::moveCurrentEdgeToNext()
+{
+  if(m_edge != nullptr)
+  {
+    m_edge = m_edge->leftNextInternal();
+  }
 }
 
 HydroCouple::Spatial::IPolyhedralSurface* HCPolygon::polyhydralSurface() const
@@ -240,7 +260,7 @@ void HCPolygon::enable3D()
   for(HCLineString *lstrng : m_interiorRings)
     lstrng->enable3D();
 
-  setGeometryFlag(GeometryFlag::HasZ , true);
+  HCGeometry::setGeometryFlag(GeometryFlag::HasZ , true);
 }
 
 void HCPolygon::disable3D()
@@ -250,7 +270,7 @@ void HCPolygon::disable3D()
   for(HCLineString *lstrng : m_interiorRings)
     lstrng->disable3D();
 
-  setGeometryFlag(GeometryFlag::HasZ , false);
+  HCGeometry::setGeometryFlag(GeometryFlag::HasZ , false);
 }
 
 void HCPolygon::enableM()
@@ -260,7 +280,7 @@ void HCPolygon::enableM()
   for(HCLineString *lstrng : m_interiorRings)
     lstrng->enableM();
 
-  setGeometryFlag(GeometryFlag::HasM , true);
+  HCGeometry::setGeometryFlag(GeometryFlag::HasM , true);
 }
 
 void HCPolygon::disableM()
@@ -270,7 +290,7 @@ void HCPolygon::disableM()
   for(HCLineString *lstrng : m_interiorRings)
     lstrng->disableM();
 
-  setGeometryFlag(GeometryFlag::HasM , false);
+  HCGeometry::setGeometryFlag(GeometryFlag::HasM , false);
 }
 
 void HCPolygon::setGeometryFlag(GeometryFlag flag, bool on)
@@ -280,7 +300,7 @@ void HCPolygon::setGeometryFlag(GeometryFlag flag, bool on)
   for(HCLineString *lstrng : m_interiorRings)
     lstrng->setGeometryFlag(flag,on);
 
-  setGeometryFlag(flag, on);
+  HCGeometry::setGeometryFlag(flag, on);
 }
 
 unsigned int HCPolygon::getNextId()
@@ -294,7 +314,6 @@ void HCPolygon::addEdge(HCEdge *edge)
 {
   assert(edge != nullptr);
   m_edge = edge;
-  reCreateOuterLineString();
 }
 
 void HCPolygon::removeEdge(HCEdge *edge)
@@ -305,34 +324,35 @@ void HCPolygon::removeEdge(HCEdge *edge)
   // use null if this is the only edge
   // assumes that the edge hasn't been actually removed yet
 
-  HCEdge *next = dynamic_cast<HCEdge*>(edge->leftNext());
+  HCEdge *next = edge->leftNextInternal();
   m_edge = next != edge ? next : nullptr;
 
   //  edge->setLeft(nullptr);
 
-  reCreateOuterLineString();
 }
 
-void HCPolygon::reCreateOuterLineString()
+void HCPolygon::reCreateOuterLineString() const
 {
-  m_exteriorRing->m_points.clear();
-
-  IEdge* start = m_edge;
-
-  if(start)
+  if(m_polyhedralSurface && m_edge)
   {
-    assert(start->orig());
+    m_exteriorRing->m_points.clear();
 
-    m_exteriorRing->m_points.append(dynamic_cast<HCVertex*>(start->orig()));
-    do
+    HCEdge* start = m_edge;
+
+    if(start)
     {
-      start = start->leftNext();
+      assert(start->origInternal());
 
-      assert(start->orig());
+      m_exteriorRing->m_points.append(start->origInternal());
+      do
+      {
+        start = start->leftNextInternal();
 
-      m_exteriorRing->m_points.append(dynamic_cast<HCVertex*>(start->orig()));
+        assert(start->origInternal());
 
-    }while(start != m_edge);
+        m_exteriorRing->m_points.append(start->origInternal());
 
+      }while(start != m_edge);
+    }
   }
 }

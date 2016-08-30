@@ -22,7 +22,7 @@
 #define ARGUMENT1D_H
 
 #include "abstractargument.h"
-#include "componentdataitem1d.h"
+#include "exchangeitems1d.h"
 #include <QFileInfo>
 
 class HYDROCOUPLESDK_EXPORT Argument1DInt : public AbstractArgument,
@@ -55,6 +55,8 @@ class HYDROCOUPLESDK_EXPORT Argument1DInt : public AbstractArgument,
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+    bool writeToFile() const override;
 
     QString toString() const override;
 
@@ -97,6 +99,8 @@ class HYDROCOUPLESDK_EXPORT Argument1DDouble : public AbstractArgument,
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
 
+    bool writeToFile() const override;
+
     QString toString() const override;
 
     bool readValues(const QString &value, bool isFile = false) override;
@@ -138,6 +142,8 @@ class HYDROCOUPLESDK_EXPORT Argument1DString : public AbstractArgument,
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+    bool writeToFile() const override;
 
     QString toString() const override;
 

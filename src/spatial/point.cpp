@@ -2,6 +2,8 @@
 #include "spatial/point.h"
 #include "spatial/geometryfactory.h"
 
+#include <math.h>
+
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
 

@@ -68,20 +68,6 @@ class PolyhedralSurfaceTest : public QObject
       tedge =  surface->createVertexEdge(v7,v6,poly);
       tedge =  surface->createVertexEdge(v6,v2,poly);
 
-      //4
-      poly = new HCPolygon (surface);
-      tedge =  surface->createVertexEdge(v4,v5,poly);
-      tedge =  surface->createVertexEdge(v5,v9,poly);
-      tedge =  surface->createVertexEdge(v9,v8,poly);
-      tedge =  surface->createVertexEdge(v8,v4,poly);
-
-      //5
-      poly = new HCPolygon (surface);
-      tedge =   surface->createVertexEdge(v5,v6,poly);
-      tedge =   surface->createVertexEdge(v6,v10,poly);
-      tedge =   surface->createVertexEdge(v10,v9,poly);
-      tedge =   surface->createVertexEdge(v9,v5,poly);
-
       //6
       poly = new HCPolygon (surface);
       tedge =   surface->createVertexEdge(v6,v7,poly);
@@ -103,12 +89,28 @@ class PolyhedralSurfaceTest : public QObject
       tedge =   surface->createVertexEdge(v14,v13,poly);
       tedge =   surface->createVertexEdge(v13,v9,poly);
 
+
       //9
       poly = new HCPolygon (surface);
       tedge =   surface->createVertexEdge(v10,v11,poly);
       tedge =   surface->createVertexEdge(v11,v15,poly);
       tedge =   surface->createVertexEdge(v15,v14,poly);
       tedge =   surface->createVertexEdge(v14,v10,poly);
+
+
+      //5
+      poly = new HCPolygon (surface);
+      tedge =   surface->createVertexEdge(v5,v6,poly);
+      tedge =   surface->createVertexEdge(v6,v10,poly);
+      tedge =   surface->createVertexEdge(v10,v9,poly);
+      tedge =   surface->createVertexEdge(v9,v5,poly);
+
+      //4
+      poly = new HCPolygon (surface);
+      tedge =  surface->createVertexEdge(v4,v5,poly);
+      tedge =  surface->createVertexEdge(v5,v9,poly);
+      tedge =  surface->createVertexEdge(v9,v8,poly);
+      tedge =  surface->createVertexEdge(v8,v4,poly);
 
 
       qDebug() << "\n\n";
@@ -123,7 +125,7 @@ class PolyhedralSurfaceTest : public QObject
 
         for(HCPolygon *polygon : surface->patches())
         {
-          QString wkt = polygon->wkt();
+          QString wkt = polygon->getWKT();
           stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
@@ -263,10 +265,10 @@ class PolyhedralSurfaceTest : public QObject
       tedge =   surface->createVertexEdge(v14,v10,poly);
 
 
-      delete poly3;
-      delete poly5;
-      delete poly7;
-      delete poly8;
+      surface->deletePatch(poly3);
+      surface->deletePatch(poly5);
+      surface->deletePatch(poly7);
+      surface->deletePatch(poly8);
 
       qDebug() << "\n\n";
 
@@ -281,7 +283,7 @@ class PolyhedralSurfaceTest : public QObject
         for(HCPolygon *polygon : surface->patches())
         {
           HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-          QString wkt = polygon->wkt();
+          QString wkt = polygon->getWKT();
           stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
@@ -438,7 +440,7 @@ class PolyhedralSurfaceTest : public QObject
         for(HCPolygon *polygon : surface->patches())
         {
           HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-          QString wkt = polygon->wkt();
+          QString wkt = polygon->getWKT();
           stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
@@ -590,7 +592,7 @@ class PolyhedralSurfaceTest : public QObject
         for(HCPolygon *polygon : surface->patches())
         {
           HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-          QString wkt = polygon->wkt();
+          QString wkt = polygon->getWKT();
           stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
@@ -630,6 +632,228 @@ class PolyhedralSurfaceTest : public QObject
       }
 
       system("ogr2ogr -f KML polyhedralsurface_face_edge.kml polyhedralsurface_face_edge.vrt -dsco NameField=HGID");
+      system("./converttokml.sh");
+
+      delete surface;
+    }
+
+    void testHardDeleteFaceEdge()
+    {
+      HCPolyhedralSurface* surface = new HCPolyhedralSurface(this);
+
+      HCPoint::resetId();
+      HCPoint::getNextId();
+
+      HCVertex *v0 = new HCVertex(-114.5,39.5,surface);
+      HCVertex *v1 = new HCVertex(-114.0,39.5,surface);
+      HCVertex *v4 = new HCVertex(-114.5,40.0,surface);
+      HCVertex *v5 = new HCVertex(-114.0,40.0,surface);
+      HCVertex *vmid = new HCVertex(-114.25,39.75,surface);
+
+      //1
+      HCPolygon *poly = new HCPolygon (surface);
+      surface->createVertexEdge(v0,v1,poly);
+      HCEdge* e2 = surface->createVertexEdge(v1,vmid,poly);
+      HCEdge* e1 = surface->createVertexEdge(vmid,v0,poly);
+
+      //2
+      poly = new HCPolygon (surface);
+      surface->createVertexEdge(v1,v5,poly);
+      HCEdge* e3 = surface->createVertexEdge(v5,vmid,poly);
+      surface->createVertexEdge(vmid,v1,poly);
+
+      //3
+      poly = new HCPolygon (surface);
+      surface->createVertexEdge(v5,v4,poly);
+      HCEdge* e4 = surface->createVertexEdge(v4,vmid,poly);
+      surface->createVertexEdge(vmid,v5,poly);
+
+
+      //3
+      poly = new HCPolygon (surface);
+      surface->createVertexEdge(v4,v0,poly);
+      surface->createVertexEdge(v0,vmid,poly);
+      surface->createVertexEdge(vmid,v4,poly);
+
+
+      //io polyhedralsurface_hardface
+      {
+        QFile file("polyhedralsurface_hardface.csv");
+
+        if(file.open(QIODevice::WriteOnly))
+        {
+          QTextStream stream(&file);
+
+          stream << "HGID,ShapeWKT" << endl;
+
+          for(HCPolygon *polygon : surface->patches())
+          {
+            HCPolyhedralSurface::printAllLeftNext(polygon->edge());
+            QString wkt = polygon->getWKT();
+            stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+          }
+
+          file.close();
+        }
+
+
+        QFile fileVRT("polyhedralsurface_hardface.vrt");
+        if(fileVRT.open(QIODevice::WriteOnly))
+        {
+          QXmlStreamWriter writer(&fileVRT);
+          writer.setAutoFormatting(true);
+
+          writer.writeStartDocument();
+          {
+            writer.writeStartElement("OGRVRTDataSource");
+            {
+              writer.writeStartElement("OGRVRTLayer");
+              {
+                writer.writeAttribute("name","polyhedralsurface_hardface");
+                writer.writeTextElement("SrcDataSource","polyhedralsurface_hardface.csv");
+                writer.writeTextElement("GeometryType","wkbPolygon");
+
+                writer.writeStartElement("GeometryField");
+                {
+                  writer.writeAttribute("encoding","WKT");
+                  writer.writeAttribute("field","ShapeWKT");
+                }
+                writer.writeEndElement();
+              }
+              writer.writeEndElement();
+            }
+            writer.writeEndElement();
+          }
+          writer.writeEndDocument();
+
+          fileVRT.close();
+        }
+
+        system("ogr2ogr -f KML polyhedralsurface_hardface.kml polyhedralsurface_hardface.vrt -dsco NameField=HGID");
+      }
+
+//      surface->deleteFaceEdge(e2);
+//      surface->deleteFaceEdge(e3);
+//      surface->deleteFaceEdge(e4);
+
+      while (vmid->edgeInternal())
+      {
+         surface->deleteFaceEdge(vmid->edgeInternal());
+      }
+
+      //io polyhedralsurface_hardface_lbo
+      {
+        QFile file("polyhedralsurface_hardface_lbo.csv");
+
+        if(file.open(QIODevice::WriteOnly))
+        {
+          QTextStream stream(&file);
+
+          stream << "HGID,ShapeWKT" << endl;
+
+          for(HCPolygon *polygon : surface->patches())
+          {
+            HCPolyhedralSurface::printAllLeftNext(polygon->edge());
+            QString wkt = polygon->getWKT();
+            stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+          }
+
+          file.close();
+        }
+
+
+        QFile fileVRT("polyhedralsurface_hardface_lbo.vrt");
+        if(fileVRT.open(QIODevice::WriteOnly))
+        {
+          QXmlStreamWriter writer(&fileVRT);
+          writer.setAutoFormatting(true);
+
+          writer.writeStartDocument();
+          {
+            writer.writeStartElement("OGRVRTDataSource");
+            {
+              writer.writeStartElement("OGRVRTLayer");
+              {
+                writer.writeAttribute("name","polyhedralsurface_hardface_lbo");
+                writer.writeTextElement("SrcDataSource","polyhedralsurface_hardface_lbo.csv");
+                writer.writeTextElement("GeometryType","wkbPolygon");
+
+                writer.writeStartElement("GeometryField");
+                {
+                  writer.writeAttribute("encoding","WKT");
+                  writer.writeAttribute("field","ShapeWKT");
+                }
+                writer.writeEndElement();
+              }
+              writer.writeEndElement();
+            }
+            writer.writeEndElement();
+          }
+          writer.writeEndDocument();
+
+          fileVRT.close();
+        }
+
+        system("ogr2ogr -f KML polyhedralsurface_hardface_lbo.kml polyhedralsurface_hardface_lbo.vrt -dsco NameField=HGID");
+      }
+
+//      surface->deleteFaceEdge(e1);
+
+      //io polyhedralsurface_hardface_l
+      {
+        QFile file("polyhedralsurface_hardface_l.csv");
+
+        if(file.open(QIODevice::WriteOnly))
+        {
+          QTextStream stream(&file);
+
+          stream << "HGID,ShapeWKT" << endl;
+
+          for(HCPolygon *polygon : surface->patches())
+          {
+            HCPolyhedralSurface::printAllLeftNext(polygon->edge());
+            QString wkt = polygon->getWKT();
+            stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+          }
+
+          file.close();
+        }
+
+
+        QFile fileVRT("polyhedralsurface_hardface_l.vrt");
+        if(fileVRT.open(QIODevice::WriteOnly))
+        {
+          QXmlStreamWriter writer(&fileVRT);
+          writer.setAutoFormatting(true);
+
+          writer.writeStartDocument();
+          {
+            writer.writeStartElement("OGRVRTDataSource");
+            {
+              writer.writeStartElement("OGRVRTLayer");
+              {
+                writer.writeAttribute("name","polyhedralsurface_hardface_l");
+                writer.writeTextElement("SrcDataSource","polyhedralsurface_hardface_l.csv");
+                writer.writeTextElement("GeometryType","wkbPolygon");
+
+                writer.writeStartElement("GeometryField");
+                {
+                  writer.writeAttribute("encoding","WKT");
+                  writer.writeAttribute("field","ShapeWKT");
+                }
+                writer.writeEndElement();
+              }
+              writer.writeEndElement();
+            }
+            writer.writeEndElement();
+          }
+          writer.writeEndDocument();
+
+          fileVRT.close();
+        }
+
+        system("ogr2ogr -f KML polyhedralsurface_hardface_l.kml polyhedralsurface_hardface_l.vrt -dsco NameField=HGID");
+      }
 
       delete surface;
     }

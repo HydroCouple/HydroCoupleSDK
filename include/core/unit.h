@@ -8,7 +8,8 @@ class UnitDimensions;
 /*!
  * \brief The Unit class
  */
-class HYDROCOUPLESDK_EXPORT Unit : public Description , public virtual HydroCouple::IUnit
+class HYDROCOUPLESDK_EXPORT Unit : public Description,
+    public virtual HydroCouple::IUnit
 {
       Q_OBJECT
       Q_INTERFACES(HydroCouple::IUnit)

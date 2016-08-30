@@ -39,23 +39,27 @@ bool HCLine::removePoint(HCPoint *point)
 
 void HCLine::setP1(HCPoint* point)
 {
-  assert(point != nullptr);
 
   m_points[0] = point;
 
-  point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
-  point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
-  setIsEmpty(false);
+  if(point)
+  {
+    point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
+    point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
+
+    setIsEmpty(false);
+  }
 }
 
 void HCLine::setP2(HCPoint *point)
 {
-  assert(point != nullptr);
-
   m_points[1] = point;
   
-  point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
-  point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
-  setIsEmpty(false);
+  if(point)
+  {
+    point->setGeometryFlag(GeometryFlag::HasZ , this->is3D());
+    point->setGeometryFlag(GeometryFlag::HasM , this->isMeasured());
+    setIsEmpty(false);
+  }
 
 }

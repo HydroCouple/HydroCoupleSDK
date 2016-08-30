@@ -1,3 +1,23 @@
+/*!
+ *  \file    AbstractAdaptedOutputFactoryComponentInfo.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  AbstractAdaptedOutputFactoryComponentInfo.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  AbstractAdaptedOutputFactoryComponentInfo.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef ABSTRACTOUTPUT_H
 #define ABSTRACTOUTPUT_H
 
@@ -39,6 +59,8 @@ class HYDROCOUPLE_EXPORT AbstractOutput : public AbstractExchangeItem,
     void addAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOutputs) override;
 
     bool removeAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOutput) override;
+
+    void update(HydroCouple::IInput *querySpecifier) override;
 
   signals:
 

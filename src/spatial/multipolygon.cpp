@@ -17,6 +17,27 @@ HCMultiPolygon::~HCMultiPolygon()
 {
 }
 
+HydroCouple::Spatial::GeometryType HCMultiPolygon::geometryType() const
+{
+  if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
+     geometryFlags().testFlag(GeometryFlag::HasM))
+  {
+    return GeometryType::MultiPolygonZM;
+  }
+  else if(geometryFlags().testFlag(GeometryFlag::HasZ))
+  {
+    return GeometryType::MultiPolygonZ;
+  }
+  else if(geometryFlags().testFlag(GeometryFlag::HasM))
+  {
+    return GeometryType::MultiPolygonM;
+  }
+  else
+  {
+    return GeometryType::MultiPolygon;
+  }
+}
+
 double HCMultiPolygon::area() const
 {
   double area = 0;
@@ -57,42 +78,6 @@ void HCMultiPolygon::addPolygon(HCPolygon *polygon)
 
 bool HCMultiPolygon::removePolygon(HCPolygon *polygon)
 {
-  return m_polygons.removeAll(polygon) && removeGeometry(polygon);
+  return m_polygons.removeOne(polygon) && removeGeometry(polygon);
 }
 
-
-void HCMultiPolygon::enable3D()
-{
-  for(HCPolygon* polygon : m_polygons)
-  {
-    polygon->enable3D();
-  }
-  setGeometryFlag(GeometryFlag::HasZ , true);
-}
-
-void HCMultiPolygon::disable3D()
-{
-  for(HCPolygon* polygon : m_polygons)
-  {
-    polygon->disable3D();
-  }
-  setGeometryFlag(GeometryFlag::HasZ , false);
-}
-
-void HCMultiPolygon::enableM()
-{
-  for(HCPolygon* polygon : m_polygons)
-  {
-    polygon->enableM();
-  }
-  setGeometryFlag(GeometryFlag::HasM , true);
-}
-
-void HCMultiPolygon::disableM()
-{
-  for(HCPolygon* polygon : m_polygons)
-  {
-    polygon->disableM();
-  }
-  setGeometryFlag(GeometryFlag::HasM , false);
-}

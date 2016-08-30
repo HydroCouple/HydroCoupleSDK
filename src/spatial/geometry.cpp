@@ -4,6 +4,7 @@
 #include "spatial/geometryfactory.h"
 
 #include "hydrocoupleexceptions.h"
+#include <gdal/ogrsf_frmts.h>
 
 #include <QFlags>
 
@@ -14,8 +15,9 @@ HCGeometry::HCGeometry(QObject *parent)
   :Identity(QUuid::createUuid().toString(),parent),
     m_index(-1),
     m_isEmpty(true),
-    m_dataLength(0),
-    m_data(nullptr)
+    dataLength(0),
+    data(nullptr),
+    m_geomFlags(GeometryFlag::None)
 {
   m_srs = new SpatialReferenceSystem("Default SRS" , "EPSG" , 4326 , this);
 }
@@ -24,17 +26,18 @@ HCGeometry::HCGeometry(const QString &id, QObject *parent)
   :Identity(id,parent),
     m_index(-1),
     m_isEmpty(true),
-    m_dataLength(0),
-    m_data(nullptr)
+    dataLength(0),
+    data(nullptr),
+    m_geomFlags(GeometryFlag::None)
 {
   m_srs = new SpatialReferenceSystem("Default SRS" , "EPSG" , 4326 , this);
 }
 
 HCGeometry::~HCGeometry()
 {
-  if(m_data)
+  if(data)
   {
-    delete[] m_data;
+    delete[] data;
   }
 }
 
@@ -84,7 +87,12 @@ ISpatialReferenceSystem* HCGeometry::spatialReferenceSystem() const
   return m_srs;
 }
 
-QString HCGeometry::wkt() const
+SpatialReferenceSystem *HCGeometry::spatialReferenceSystemInternal() const
+{
+  return m_srs;
+}
+
+QString HCGeometry::getWKT() const
 {
   char* wktCharText = nullptr;
   OGRGeometry* geometry = GeometryFactory::exportToOGRGeometry(this);
@@ -96,7 +104,7 @@ QString HCGeometry::wkt() const
   return wktString;
 }
 
-unsigned char* HCGeometry::wkb(int &size) const
+unsigned char* HCGeometry::getWKB(int &size) const
 {
   OGRGeometry* geom = GeometryFactory::exportToOGRGeometry(this);
   size = geom->WkbSize();
@@ -375,36 +383,584 @@ void HCGeometry::setGeometryFlag(GeometryFlag flag, bool on)
   m_geomFlags = on ? m_geomFlags |= flag : m_geomFlags &= ~flag;
 }
 
-void HCGeometry::initializeData(int length)
+void HCGeometry::initializeData(int length, double defaultValue)
 {
-  if(m_data)
+  dataLength = length;
+
+  if(data)
   {
-    delete[] m_data;
-    m_data = nullptr;
+    delete[] data;
+    data = nullptr;
   }
 
   if(length > 0)
   {
-    m_data = new double[length];
+    data = new double[length];
+
+    for(int i = 0; i< length; i++)
+    {
+      data[i] = defaultValue;
+    }
   }
-}
-
-int HCGeometry::dataLength() const
-{
-  return m_dataLength;
-}
-
-double* HCGeometry::data() const
-{
-  return m_data;
-}
-
-void HCGeometry::setData(double value, int index)
-{
-  m_data[index] = value;
 }
 
 void HCGeometry::setIsEmpty(bool isEmpty)
 {
   m_isEmpty = isEmpty;
+}
+
+QString HCGeometry::geometryTypeToString(GeometryType type)
+{
+  switch (type)
+  {
+    case GeometryType::Geometry:
+      return "Geometry";
+      break;
+    case GeometryType::Point:
+      return "Point";
+
+      break;
+    case GeometryType::LineString:
+      return "LineString";
+
+      break;
+    case GeometryType::Polygon:
+      return "Polygon";
+
+      break;
+    case GeometryType::MultiPoint:
+      return "MultiPoint";
+
+      break;
+    case GeometryType::MultiLineString:
+      return "MultiLineString";
+
+      break;
+    case GeometryType::MultiPolygon:
+      return "MultiPolygon";
+
+      break;
+    case GeometryType::GeometryCollection:
+      return "GeometryCollection";
+
+      break;
+    case GeometryType::CircularString:
+      return "CircularString";
+
+      break;
+    case GeometryType::CompoundCurve:
+      return "CompoundCurve";
+
+      break;
+    case GeometryType::CurvePolygon:
+      return "CurvePolygon";
+
+      break;
+    case GeometryType::MultiCurve:
+      return "MultiCurve";
+
+      break;
+    case GeometryType::MultiSurface:
+      return "MultiSurface";
+
+      break;
+    case GeometryType::Curve:
+      return "Curve";
+
+      break;
+    case GeometryType::Surface:
+      return "Surface";
+
+      break;
+    case GeometryType::PolyhedralSurface:
+      return "PolyhedralSurface";
+
+      break;
+    case GeometryType::TIN:
+      return "TIN";
+
+      break;
+    case GeometryType::GeometryZ:
+      return "GeometryZ";
+
+      break;
+    case GeometryType::PointZ:
+      return "PointZ";
+
+      break;
+    case GeometryType::LineStringZ:
+      return "LineStringZ";
+
+      break;
+    case GeometryType::PolygonZ:
+      return "PolygonZ";
+
+      break;
+    case GeometryType::MultiPointZ:
+      return "MultiPointZ";
+
+      break;
+    case GeometryType::MultiLineStringZ:
+      return "MultiLineStringZ";
+
+      break;
+    case GeometryType::MultiPolygonZ:
+      return "MultiPolygonZ";
+
+      break;
+    case GeometryType::GeometryCollectionZ:
+      return "GeometryCollectionZ";
+
+      break;
+    case GeometryType::CircularStringZ:
+      return "CircularStringZ";
+
+      break;
+    case GeometryType::CompoundCurveZ:
+      return "CompoundCurveZ";
+
+      break;
+    case GeometryType::CurvePolygonZ:
+      return "CurvePolygonZ";
+
+      break;
+    case GeometryType::MultiCurveZ:
+      return "MultiCurveZ";
+
+      break;
+    case GeometryType::MultiSurfaceZ:
+      return "MultiSurfaceZ";
+
+      break;
+    case GeometryType::CurveZ:
+      return "CurveZ";
+
+      break;
+    case GeometryType::SurfaceZ:
+      return "SurfaceZ";
+
+      break;
+    case GeometryType::PolyhedralSurfaceZ:
+      return "PolyhedralSurfaceZ";
+
+      break;
+    case GeometryType::TINZ:
+      return "TINZ";
+
+      break;
+    case GeometryType::GeometryM :
+      return "GeometryM";
+
+      break;
+    case GeometryType::PointM:
+      return "PointM";
+
+      break;
+    case GeometryType::LineStringM:
+      return "LineStringM";
+
+      break;
+    case GeometryType::PolygonM:
+      return "PolygonM";
+
+      break;
+    case GeometryType::MultiPointM :
+      return "MultiPointM";
+
+      break;
+    case GeometryType::MultiLineStringM:
+      return "MultiLineStringM";
+
+      break;
+    case GeometryType::MultiPolygonM :
+      return "MultiPolygonM";
+
+      break;
+    case GeometryType::GeometryCollectionM :
+      return "GeometryCollectionM";
+
+      break;
+    case GeometryType::CircularStringM:
+      return "CircularStringM";
+
+      break;
+    case GeometryType::CompoundCurveM:
+      return "CompoundCurveM";
+
+      break;
+    case GeometryType::CurvePolygonM:
+      return "CurvePolygonM";
+
+      break;
+    case GeometryType::MultiCurveM :
+      return "MultiCurveM";
+
+      break;
+    case GeometryType::MultiSurfaceM :
+      return "MultiSurfaceM";
+
+      break;
+    case GeometryType::CurveM :
+      return "CurveM";
+
+      break;
+    case GeometryType::SurfaceM :
+      return "SurfaceM";
+
+      break;
+    case GeometryType::PolyhedralSurfaceM:
+      return "PolyhedralSurfaceM";
+
+      break;
+    case GeometryType::TINM :
+      return "TINM";
+
+      break;
+    case GeometryType::GeometryZM :
+      return "GeometryZM";
+
+      break;
+    case GeometryType::PointZM :
+      return "PointZM";
+
+      break;
+    case GeometryType::LineStringZM:
+      return "LineStringZM";
+
+      break;
+    case GeometryType::PolygonZM :
+      return "PolygonZM";
+
+      break;
+    case GeometryType::MultiPointZM :
+      return "MultiPointZM";
+
+      break;
+    case GeometryType::MultiLineStringZM :
+      return "MultiLineStringZM";
+
+      break;
+    case GeometryType::MultiPolygonZM:
+      return "MultiPolygonZM";
+
+      break;
+    case GeometryType::GeometryCollectionZM:
+      return "GeometryCollectionZM";
+
+      break;
+    case GeometryType::CircularStringZM:
+      return "CircularStringZM";
+
+      break;
+    case GeometryType::CompoundCurveZM:
+      return "CompoundCurveZM";
+
+      break;
+    case GeometryType::CurvePolygonZM:
+      return "CurvePolygonZM";
+
+      break;
+    case GeometryType::MultiCurveZM:
+      return "MultiCurveZM";
+
+      break;
+    case GeometryType::MultiSurfaceZM:
+      return "MultiSurfaceZM";
+
+      break;
+    case GeometryType::CurveZM:
+      return "CurveZM";
+
+      break;
+    case GeometryType::SurfaceZM:
+      return "SurfaceZM";
+
+      break;
+    case GeometryType::PolyhedralSurfaceZM:
+      return "PolyhedralSurfaceZM";
+
+      break;
+    case GeometryType::TINZM:
+      return "TINZM";
+
+      break;
+  }
+}
+
+
+OGRwkbGeometryType HCGeometry::toOGRDataType(GeometryType type)
+{
+  switch (type)
+  {
+    case GeometryType::Geometry:
+      return  wkbUnknown;
+      break;
+    case GeometryType::Point:
+      return wkbPoint;
+      break;
+    case GeometryType::LineString:
+      return wkbLineString;
+
+      break;
+    case GeometryType::Polygon:
+      return wkbPolygon;
+
+      break;
+    case GeometryType::MultiPoint:
+      return wkbMultiPoint;
+
+      break;
+    case GeometryType::MultiLineString:
+      return wkbMultiLineString;
+
+      break;
+    case GeometryType::MultiPolygon:
+      return wkbMultiPolygon;
+
+      break;
+    case GeometryType::GeometryCollection:
+      return wkbGeometryCollection;
+
+      break;
+    case GeometryType::CircularString:
+      return wkbCircularString;
+
+      break;
+    case GeometryType::CompoundCurve:
+      return wkbCompoundCurve;
+
+      break;
+    case GeometryType::CurvePolygon:
+      return wkbCurvePolygon;
+
+      break;
+    case GeometryType::MultiCurve:
+      return wkbMultiCurve;
+
+      break;
+    case GeometryType::MultiSurface:
+      return wkbMultiSurface;
+
+      break;
+    case GeometryType::Curve:
+      return wkbCurve;
+
+      break;
+    case GeometryType::Surface:
+      return wkbSurface;
+
+      break;
+    case GeometryType::PolyhedralSurface:
+      return wkbPolyhedralSurface;
+
+      break;
+    case GeometryType::TIN:
+      return wkbTIN;
+
+      break;
+    case GeometryType::GeometryZ:
+      return wkbUnknown;
+
+      break;
+    case GeometryType::PointZ:
+      return wkbPoint25D;
+
+      break;
+    case GeometryType::LineStringZ:
+      return wkbLineString25D;
+
+      break;
+    case GeometryType::PolygonZ:
+      return wkbPolygon25D;
+
+      break;
+    case GeometryType::MultiPointZ:
+      return wkbMultiPoint25D;
+
+      break;
+    case GeometryType::MultiLineStringZ:
+      return wkbMultiLineString25D;
+
+      break;
+    case GeometryType::MultiPolygonZ:
+      return wkbMultiPolygon25D;
+
+      break;
+    case GeometryType::GeometryCollectionZ:
+      return wkbGeometryCollection25D;
+
+      break;
+    case GeometryType::CircularStringZ:
+      return wkbCircularStringZ;
+
+      break;
+    case GeometryType::CompoundCurveZ:
+      return wkbCompoundCurveZ;
+
+      break;
+    case GeometryType::CurvePolygonZ:
+      return wkbCurvePolygonZ;
+
+      break;
+    case GeometryType::MultiCurveZ:
+      return wkbMultiCurveZ;
+
+      break;
+    case GeometryType::MultiSurfaceZ:
+      return wkbMultiSurfaceZ;
+
+      break;
+    case GeometryType::CurveZ:
+      return wkbCurveZ;
+
+      break;
+    case GeometryType::SurfaceZ:
+      return wkbSurfaceZ;
+
+      break;
+    case GeometryType::PolyhedralSurfaceZ:
+      return wkbPolyhedralSurfaceZ;
+
+      break;
+    case GeometryType::TINZ:
+      return wkbTINZ;
+
+      break;
+    case GeometryType::GeometryM :
+      return wkbUnknown;
+
+      break;
+    case GeometryType::PointM:
+      return wkbPointM;
+
+      break;
+    case GeometryType::LineStringM:
+      return wkbLineStringM;
+
+      break;
+    case GeometryType::PolygonM:
+      return wkbPolygonM;
+
+      break;
+    case GeometryType::MultiPointM :
+      return wkbMultiPointM;
+
+      break;
+    case GeometryType::MultiLineStringM:
+      return wkbMultiLineStringM;
+
+      break;
+    case GeometryType::MultiPolygonM :
+      return wkbMultiPolygonM;
+
+      break;
+    case GeometryType::GeometryCollectionM :
+      return wkbGeometryCollectionM;
+
+      break;
+    case GeometryType::CircularStringM:
+      return wkbCircularStringM;
+
+      break;
+    case GeometryType::CompoundCurveM:
+      return wkbCompoundCurveM;
+
+      break;
+    case GeometryType::CurvePolygonM:
+      return wkbCurvePolygonM;
+
+      break;
+    case GeometryType::MultiCurveM :
+      return wkbMultiCurveM;
+
+      break;
+    case GeometryType::MultiSurfaceM :
+      return wkbMultiSurfaceM;
+
+      break;
+    case GeometryType::CurveM :
+      return wkbCurveM;
+
+      break;
+    case GeometryType::SurfaceM :
+      return wkbSurfaceM;
+
+      break;
+    case GeometryType::PolyhedralSurfaceM:
+      return wkbPolyhedralSurfaceM;
+
+      break;
+    case GeometryType::TINM :
+      return wkbTINM;
+
+      break;
+    case GeometryType::GeometryZM :
+      return wkbUnknown;
+
+      break;
+    case GeometryType::PointZM :
+      return wkbPointZM;
+
+      break;
+    case GeometryType::LineStringZM:
+      return wkbLineStringZM;
+
+      break;
+    case GeometryType::PolygonZM :
+      return wkbPolygonZM;
+
+      break;
+    case GeometryType::MultiPointZM :
+      return wkbMultiPointZM;
+
+      break;
+    case GeometryType::MultiLineStringZM :
+      return wkbMultiLineStringZM;
+
+      break;
+    case GeometryType::MultiPolygonZM:
+      return wkbMultiPolygonZM;
+
+      break;
+    case GeometryType::GeometryCollectionZM:
+      return wkbGeometryCollectionZM;
+
+      break;
+    case GeometryType::CircularStringZM:
+      return wkbCircularStringZM;
+
+      break;
+    case GeometryType::CompoundCurveZM:
+      return wkbCompoundCurveZM;
+
+      break;
+    case GeometryType::CurvePolygonZM:
+      return wkbCurvePolygonZM;
+
+      break;
+    case GeometryType::MultiCurveZM:
+      return wkbMultiCurveZM;
+
+      break;
+    case GeometryType::MultiSurfaceZM:
+      return wkbMultiSurfaceZM;
+
+      break;
+    case GeometryType::CurveZM:
+      return wkbCurveZM;
+
+      break;
+    case GeometryType::SurfaceZM:
+      return wkbSurfaceZM;
+
+      break;
+    case GeometryType::PolyhedralSurfaceZM:
+      return wkbPolyhedralSurfaceZM;
+
+      break;
+    case GeometryType::TINZM:
+      return wkbTINZM;
+
+      break;
+  }
 }

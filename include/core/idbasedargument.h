@@ -2,7 +2,7 @@
 #define IDBASEDARGUMENT_H
 
 #include "abstractargument.h"
-#include "idbasedcomponentdataitem.h"
+#include "idbasedexchangeitems.h"
 #include <QFileInfo>
 
 class AbstractArgument;
@@ -60,6 +60,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentInt : public AbstractArgument,
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+    bool writeToFile() const override;
 
     QString toString() const override;
 
@@ -132,6 +134,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentDouble : public AbstractArgument,
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
 
+    bool writeToFile() const override;
+
     QString toString() const override;
 
     bool readValues(const QString &value, bool isFile = false) override;
@@ -201,6 +205,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentQString : public AbstractArgument,
     void readData(QXmlStreamReader &reader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+    bool writeToFile() const override;
 
     QString toString() const override;
 

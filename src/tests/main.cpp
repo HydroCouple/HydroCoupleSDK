@@ -2,27 +2,34 @@
 #include "componentdataitemtest.h"
 #include "geometrytest.h"
 #include "polyhedralsurfacetest.h"
+#include "hydrocouplevis.h"
 
+#include <QtWidgets/QApplication>
 #include <QtTest>
 
 int main(int argc, char** argv)
 {
 
-   int status = 0;
-   {
-       ComponentDataItemTest componentDataItemTest;
-       status |= QTest::qExec(&componentDataItemTest, argc, argv);
-   }
+  QApplication a(argc, argv);
 
-   {
-      GeometryTest geomTest;
-      status |= QTest::qExec(&geomTest, argc, argv);
-   }
+  HydroCoupleVis * instance = HydroCoupleVis::getInstance();
+  instance->show();
 
-   {
-     PolyhedralSurfaceTest polyhedralSurfaceTest;
-     status |= QTest::qExec(&polyhedralSurfaceTest,argc,argv);
-   }
+  int status = 0;
+  {
+    ComponentDataItemTest componentDataItemTest;
+    status |= QTest::qExec(&componentDataItemTest, argc, argv);
+  }
 
-   return status;
+  {
+    GeometryTest geomTest;
+    status |= QTest::qExec(&geomTest, argc, argv);
+  }
+
+  {
+    PolyhedralSurfaceTest polyhedralSurfaceTest;
+    status |= QTest::qExec(&polyhedralSurfaceTest,argc,argv);
+  }
+
+  return status;
 }

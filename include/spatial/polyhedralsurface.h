@@ -2,8 +2,10 @@
 #define POLYHEDRALSURFACE_H
 
 #include "geometry.h"
+#include <QVector>
 
 class HCPolygon;
+class HCTriangle;
 class HCVertex;
 class HCEdge;
 
@@ -25,6 +27,8 @@ class HCPolyhedralSurface : public HCGeometry,
 
     int dimension() const override;
 
+    HydroCouple::Spatial::GeometryType geometryType() const override;
+
     HydroCouple::Spatial::IGeometry* envelope() const override;
 
     double area() const override;
@@ -39,13 +43,13 @@ class HCPolyhedralSurface : public HCGeometry,
 
     HydroCouple::Spatial::IPolygon *patch(int index) const override;
 
-    QList<HCPolygon*> patches() const;
+    QVector<HCPolygon*> patches() const;
 
     int vertexCount() const override;
 
     HydroCouple::Spatial::IVertex *vertex(int index) override;
 
-    QList<HCVertex*> vertices() const;
+    QVector<HCVertex*> vertices() const;
 
     HydroCouple::Spatial::IMultiPolygon *boundingPolygons(const HydroCouple::Spatial::IPolygon *polygon) const override;
 
@@ -59,9 +63,9 @@ class HCPolyhedralSurface : public HCGeometry,
 
     void disableM() override;
 
-    virtual HCEdge *createVertexEdge(HCVertex *vertex, HCVertex *destination, HCPolygon *left , HCPolygon *right);
+    HCEdge *createVertexEdge(HCVertex *vertex, HCVertex *destination, HCPolygon *left , HCPolygon *right);
 
-    virtual HCEdge *createVertexEdge(HCVertex *origin, HCVertex *destination, HCPolygon *face);
+    HCEdge *createVertexEdge(HCVertex *origin, HCVertex *destination, HCPolygon *face);
 
     void deleteVertexEdge(HCEdge *edge);
 
@@ -69,9 +73,11 @@ class HCPolyhedralSurface : public HCGeometry,
 
     void deleteFaceEdge(HCEdge *edge);
 
-    HCEdge *findDuplicateEdge(HCEdge *edge);
+    void deletePatch(HCPolygon *polygon);
 
-    HCEdge *findEdge(HCVertex *origin, HCVertex *destination);
+    HCEdge *findDuplicateEdge(HCEdge *edge) const;
+
+    HCEdge *findEdge(HCVertex *origin, HCVertex *destination) const;
 
     static void printEdge(HydroCouple::Spatial::IEdge *edge);
 
@@ -107,7 +113,7 @@ class HCPolyhedralSurface : public HCGeometry,
      * <- the edge in the same face orbit as _edge_ with origin vertex _org_;
      *    null if not found
      */
-    static HCEdge *getOrbitOrg(HCEdge *edge, HCVertex *org);
+    static HCEdge *getOrbitOrg(HCEdge *edge, HCVertex *org) ;
 
     /*
      * Set the origin of the vertex orbit of a given edge to a given vertex.
@@ -130,6 +136,8 @@ class HCPolyhedralSurface : public HCGeometry,
      */
     static HCEdge *getOrbitLeft(HCEdge *edge, HCPolygon *left);
 
+    static HCEdge *getClosestOrbitLeftNull(HCVertex* origin, HCVertex *destination);
+
     /*!
      * \brief getOrbitRight
      * \param edge
@@ -148,8 +156,8 @@ class HCPolyhedralSurface : public HCGeometry,
     static void setOrbitLeft(HCEdge *edge, HCPolygon *left);
 
   protected:
-    QList<HCPolygon*> m_patches;
-    QList<HCVertex*> m_vertices;
+    QVector<HCPolygon*> m_patches;
+    QVector<HCVertex*> m_vertices;
 
 };
 
@@ -159,13 +167,22 @@ class HCTIN : public HCPolyhedralSurface,
     Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::ITIN)
 
+
+
   public:
+
 
     HCTIN(QObject *parent);
 
     virtual ~HCTIN();
 
+    HydroCouple::Spatial::GeometryType geometryType() const override;
+
     HydroCouple::Spatial::ITriangle *patch(int index) const override;
+
+    HCEdge *createFaceEdge(HCPolygon *patch, HCVertex *orig, HCVertex *dest) override;
+
+    HCTriangle* createTriangle(HCVertex *v1, HCVertex *v2, HCVertex *v3);
 
 };
 

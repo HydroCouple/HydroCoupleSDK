@@ -4,6 +4,7 @@
 #include "spatial/point.h"
 #include "spatial/edge.h"
 
+#include <math.h>
 #include <assert.h>
 #include <qdebug.h>
 
@@ -16,19 +17,73 @@ HCPolyhedralSurface::HCPolyhedralSurface(QObject *parent):
 
 HCPolyhedralSurface::~HCPolyhedralSurface()
 {
-  while (m_patches.length())
+  //fast delete all elements
+
+  QSet<HCEdge*> edges;
+
+  for(HCPolygon *polygon : m_patches)
   {
-    printAllLeftNext(m_patches[0]->edge());
-    delete m_patches[0];
+    if(polygon->edge())
+    {
+      HCEdge *edge = polygon->edgeInternal();
+
+      do
+      {
+        if(!edges.contains(edge->symInternal()))
+        {
+          edges.insert(edge);
+        }
+
+        edge = edge->leftNextInternal();
+
+      }while (edge != polygon->edge());
+    }
+
+    polygon->m_edge = nullptr;
+    polygon->m_polyhedralSurface = nullptr;
+
+    delete polygon;
   }
 
-  while (m_vertices.length())
+  m_patches.clear();
+
+
+  for(QSet<HCEdge*>::iterator  it = edges.begin() ;
+      it != edges.end() ; it++)
   {
-    delete m_vertices[0]  ;
+    delete (*it)->m_quadeEdge;
+  }
+
+  for(int i = 0 ; i < m_vertices.length() ; i++)
+  {
+    HCVertex* vertex = m_vertices[i];
+    vertex->m_polyhedralSurface = nullptr;
+    delete vertex;
   }
 
   m_vertices.clear();
 
+}
+
+HydroCouple::Spatial::GeometryType HCPolyhedralSurface::geometryType() const
+{
+  if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
+     geometryFlags().testFlag(GeometryFlag::HasM))
+  {
+    return GeometryType::PolyhedralSurfaceZM;
+  }
+  else if(geometryFlags().testFlag(GeometryFlag::HasZ))
+  {
+    return GeometryType::PolyhedralSurfaceZ;
+  }
+  else if(geometryFlags().testFlag(GeometryFlag::HasM))
+  {
+    return GeometryType::PolyhedralSurfaceM;
+  }
+  else
+  {
+    return GeometryType::PolyhedralSurface;
+  }
 }
 
 int HCPolyhedralSurface::dimension() const
@@ -78,7 +133,7 @@ IPolygon* HCPolyhedralSurface::patch(int index) const
   return m_patches[index];
 }
 
-QList<HCPolygon*> HCPolyhedralSurface::patches() const
+QVector<HCPolygon*> HCPolyhedralSurface::patches() const
 {
   return m_patches;
 }
@@ -93,7 +148,7 @@ IVertex *HCPolyhedralSurface::vertex(int index)
   return m_vertices[index];
 }
 
-QList<HCVertex*> HCPolyhedralSurface::vertices() const
+QVector<HCVertex*> HCPolyhedralSurface::vertices() const
 {
   return m_vertices;
 }
@@ -165,7 +220,7 @@ HCEdge *HCPolyhedralSurface::createVertexEdge(HCVertex *vertex, HCVertex *destin
   // locate the edges to the right of each of the faces in the orbit of the
   // vertex
 
-  HCEdge *edge  = dynamic_cast<HCEdge*>(vertex->edge());
+  HCEdge *edge  = vertex->edgeInternal();
   HCEdge *edge1 = getOrbitLeft(edge, right);
   HCEdge *edge2 = getOrbitLeft(edge, left);
 
@@ -185,7 +240,7 @@ HCEdge *HCPolyhedralSurface::createVertexEdge(HCVertex *vertex, HCVertex *destin
 
   // create a new edge and rotate it to make a clockwise loop
 
-  HCEdge *edgeNew = dynamic_cast<HCEdge*>(HCEdge::createEdge(this)->rot());
+  HCEdge *edgeNew = HCEdge::createEdge(this)->rotInternal();
 
   // connect the origin (and destination) of the new edge to _vertex_ so that
   // the left face of the edge is _left_
@@ -195,30 +250,25 @@ HCEdge *HCPolyhedralSurface::createVertexEdge(HCVertex *vertex, HCVertex *destin
   // split the origin and destination of the loop so that the right face of the
   // edge is now _right_
   // this results in a non-loop edge dividing _left_ from _right_
-  HCEdge::splice(edge1, dynamic_cast<HCEdge*>(edgeNew->sym()));
+  HCEdge::splice(edge1, edgeNew->symInternal());
 
   // initialize the secondary attributes of the new edge
-  edgeNew->setOrig(dynamic_cast<HCVertex*>(edge1->orig()));
+  edgeNew->setOrig(edge1->origInternal());
 
   // all edges leaving the destination orbit of the new edge now have the new
   // vertex as their vertex of origin
-  setOrbitOrg(dynamic_cast<HCEdge*>(edgeNew->sym()), destination);
+  setOrbitOrg(edgeNew->symInternal(), destination);
 
   // initialize the secondary attributes of the new edge
-  edgeNew->setLeft(dynamic_cast<HCPolygon*>(edge2->left()));
-  edgeNew->setRight(dynamic_cast<HCPolygon*>(edge1->left()));
+  edgeNew->setLeft(edge2->leftInternal());
+  edgeNew->setRight(edge1->leftInternal());
 
   return edgeNew;
 }
 
 HCEdge *HCPolyhedralSurface::createVertexEdge(HCVertex *origin, HCVertex *destination, HCPolygon *face)
 {
-  assert(origin != nullptr);
-  assert(destination != nullptr);
-  assert(face != nullptr);
 
-  HCEdge *originSpliceEdge = nullptr;
-  HCEdge *destinationSpliceEdge = nullptr;
   HCEdge *newEdge = nullptr;
 
   if((newEdge = findEdge(origin,destination)) != nullptr)
@@ -229,22 +279,26 @@ HCEdge *HCPolyhedralSurface::createVertexEdge(HCVertex *origin, HCVertex *destin
   {
     newEdge = HCEdge::createEdge(this);
 
-    if(origin->edge())
+    if(origin->edgeInternal())
     {
-      originSpliceEdge = getOrbitLeft(dynamic_cast<HCEdge*>(origin->edge()),nullptr);
-      HCEdge::splice(originSpliceEdge,newEdge);
+      HCEdge* originSpliceEge = getClosestOrbitLeftNull(origin, destination);
+      HCEdge::splice(originSpliceEge,newEdge);
     }
 
-    if(destination->edge())
+    HCEdge *destinationSpliceEdge = nullptr;
+
+    if(destination->edgeInternal())
     {
-      //check for unclosed polygon
-      destinationSpliceEdge = getOrbitLeft(dynamic_cast<HCEdge*>(destination->edge()),nullptr);
-
       //check for closure
-      if(destinationSpliceEdge == nullptr)
-        destinationSpliceEdge = getOrbitLeft(dynamic_cast<HCEdge*>(destination->edge()),face);
+       destinationSpliceEdge = getOrbitLeft(destination->edgeInternal(),face);
 
-      HCEdge::splice(destinationSpliceEdge,dynamic_cast<HCEdge*>(newEdge->sym()));
+      if(destinationSpliceEdge == nullptr)
+      {
+        //check for unclosed polygon
+        destinationSpliceEdge = getClosestOrbitLeftNull(destination, origin);
+      }
+
+      HCEdge::splice(destinationSpliceEdge,newEdge->symInternal());
     }
 
     newEdge->setOrig(origin);
@@ -261,29 +315,29 @@ void HCPolyhedralSurface::deleteVertexEdge(HCEdge *edge)
   assert(edge != nullptr);
 
   // locate _edge1_ and _edge2_ as in _makeVertexEdge_
-  HCEdge *edge1 = dynamic_cast<HCEdge*>(edge->origPrev());
-  HCEdge *edge2 = dynamic_cast<HCEdge*>(edge->leftNext());
+  HCEdge *edge1 = edge->origPrevInternal();
+  HCEdge *edge2 = edge->leftNextInternal();
 
   // use _edge1_ for _edge2_ if the destination vertex is isolated
   if (edge2 == edge->sym())
     edge2 = edge1;
 
   // inverse of _makeVertexEdge_
-  HCEdge::splice(edge1, dynamic_cast<HCEdge*>(edge->sym()));
+  HCEdge::splice(edge1, edge->symInternal());
   HCEdge::splice(edge2, edge);
 
   // all edges leaving the destination orbit of the deleted edge now have its
   // origin vertex as their vertex of origin
-  setOrbitOrg(edge2, dynamic_cast<HCVertex*>(edge1->orig()));
+  setOrbitOrg(edge2, edge1->origInternal());
 
   // don't use the deleted edge as a reference edge any more
-  dynamic_cast<HCVertex*>(edge1->orig())->addEdge(edge1);
-  dynamic_cast<HCPolygon*>(edge1->left())->addEdge(edge1);
-  dynamic_cast<HCPolygon*>(edge2->left())->addEdge(edge2);
+  edge1->origInternal()->addEdge(edge1);
+  edge1->leftInternal()->addEdge(edge1);
+  edge2->leftInternal()->addEdge(edge2);
 
   // reclaim the vertex and the edge
 
-  IVertex *dest = edge->dest();
+  HCVertex *dest = edge->destInternal();
   HCEdge::deleteEdge(edge);
   delete dest;
 
@@ -297,7 +351,7 @@ HCEdge *HCPolyhedralSurface::createFaceEdge(HCPolygon *face, HCVertex *org, HCVe
 
   // locate the edges leaving each of the vertices in the orbit of the face
 
-  HCEdge *edge  = dynamic_cast<HCEdge*>(face->edge());
+  HCEdge *edge  = face->edgeInternal();
   HCEdge *edge1 = getOrbitOrg(edge, org);
   HCEdge *edge2 = getOrbitOrg(edge, dest);
 
@@ -326,7 +380,7 @@ HCEdge *HCPolyhedralSurface::createFaceEdge(HCPolygon *face, HCVertex *org, HCVe
   // connect the destination of the new edge to the origin of _edge2_
   // both faces of the edge are now _face_
 
-  HCEdge::splice(edge2, dynamic_cast<HCEdge*>(edgeNew->sym()));
+  HCEdge::splice(edge2, edgeNew->symInternal());
 
   // connect the origin of the new edge to _edge1_
   // _face_ is split in half along the new edge, with the new face introduced
@@ -336,14 +390,14 @@ HCEdge *HCPolyhedralSurface::createFaceEdge(HCPolygon *face, HCVertex *org, HCVe
 
   // initialize the secondary attributes of the new edge
 
-  edgeNew->setOrig(dynamic_cast<HCVertex*>(edge1->orig()));
-  edgeNew->setDest(dynamic_cast<HCVertex*>(edge2->orig()));
-  edgeNew->setLeft(dynamic_cast<HCPolygon*>(edge2->left()));
+  edgeNew->setOrig(edge1->origInternal());
+  edgeNew->setDest(edge2->origInternal());
+  edgeNew->setLeft(edge2->leftInternal());
 
   // all edges in the right orbit of the new edge (i.e. the left orbit of its
   // Sym) now have the new face as their left face
 
-  setOrbitLeft(dynamic_cast<HCEdge*>(edgeNew->sym()), faceNew);
+  setOrbitLeft(edgeNew->symInternal(), faceNew);
 
   return edgeNew;
 }
@@ -353,9 +407,14 @@ void HCPolyhedralSurface::deleteFaceEdge(HCEdge *edge)
   assert(edge!=0);
 
   // locate _edge1_ and _edge2_ as in _makeFaceEdge_
+  if(edge->leftInternal() == edge->rightInternal())
+  {
+    HCEdge::deleteEdge(edge);
+    return  ;
+  }
 
-  HCEdge *edge1 = dynamic_cast<HCEdge*>(edge->origPrev());
-  HCEdge *edge2 = dynamic_cast<HCEdge*>(edge->leftNext());
+  HCEdge *edge1 = edge->origPrevInternal();
+  HCEdge *edge2 = edge->leftNextInternal();
 
   // use _edge2_ for _edge1_ if the right face is inside a loop
 
@@ -364,28 +423,75 @@ void HCPolyhedralSurface::deleteFaceEdge(HCEdge *edge)
 
   // inverse of _makeFaceEdge_
 
-  HCEdge::splice(edge2, dynamic_cast<HCEdge*>(edge->sym()));
+  HCEdge::splice(edge2, edge->symInternal());
   HCEdge::splice(edge1, edge);
 
   // all edges in the right orbit of the deleted edge now have its left face
   // as their left face
 
-  setOrbitLeft(edge1, dynamic_cast<HCPolygon*>(edge2->left()));
+  setOrbitLeft(edge1, edge2->leftInternal());
 
   // don't use the deleted edge as a reference edge any more
 
-  dynamic_cast<HCVertex*>(edge1->orig())->addEdge(edge1);
-  dynamic_cast<HCVertex*>(edge2->orig())->addEdge(edge2);
-  dynamic_cast<HCPolygon*>(edge2->left())->addEdge(edge2);
+  edge1->origInternal()->addEdge(edge1);
+  edge2->origInternal()->addEdge(edge2);
+  edge2->leftInternal()->addEdge(edge2);
 
   // reclaim the face and the edge
-  HCPolygon *polygon = dynamic_cast<HCPolygon*>(edge->right());
+  HCPolygon *polygon = edge->rightInternal();
   polygon->m_edge = nullptr;
-  delete edge->right();
+
+  deletePatch(edge->rightInternal());
+
+  //avoid trying to remove and wreaking havoc
+  edge->setOrig(nullptr);
+  edge->setDest(nullptr);
+
   HCEdge::deleteEdge(edge);
 }
 
-HCEdge *HCPolyhedralSurface::findDuplicateEdge(HCEdge *edge)
+void HCPolyhedralSurface::deletePatch(HCPolygon *polygon)
+{
+  if(polygon->m_edge != nullptr)
+  {
+    HCEdge* edge = polygon->m_edge;
+    QList<HCVertex*> vertices;
+    QList<HCEdge*> edgesToDelete;
+
+    do
+    {
+      if(edge->right() == nullptr)
+      {
+        vertices.append(edge->origInternal());
+        edgesToDelete.append(edge);
+      }
+      else
+      {
+        edge->setLeft(nullptr);
+      }
+
+      edge =  edge->leftNextInternal();
+
+    }while(edge != polygon->m_edge);
+
+    for(HCEdge* temp : edgesToDelete)
+    {
+      HCEdge::deleteEdge(temp);
+    }
+
+    for(HCVertex *vertex : vertices)
+    {
+      if(vertex->edge() == nullptr)
+      {
+        delete vertex;
+      }
+    }
+  }
+
+  delete polygon;
+}
+
+HCEdge *HCPolyhedralSurface::findDuplicateEdge(HCEdge *edge) const
 {
   HCEdge* currentEdge = edge;
 
@@ -396,16 +502,17 @@ HCEdge *HCPolyhedralSurface::findDuplicateEdge(HCEdge *edge)
       return currentEdge;
     }
 
-    currentEdge = dynamic_cast<HCEdge*>(currentEdge->origNext());
+    currentEdge = currentEdge->origNextInternal();
 
   }while(currentEdge != edge);
 
   return nullptr;
 }
 
-HCEdge *HCPolyhedralSurface::findEdge(HCVertex *origin, HCVertex *destination)
+HCEdge *HCPolyhedralSurface::findEdge(HCVertex *origin, HCVertex *destination) const
 {
-  HCEdge* currentEdge = dynamic_cast<HCEdge*>(origin->edge());
+  HCEdge *currentEdge = origin->edgeInternal();
+  HCEdge *oEdge = currentEdge;
 
   if(currentEdge)
   {
@@ -416,9 +523,9 @@ HCEdge *HCPolyhedralSurface::findEdge(HCVertex *origin, HCVertex *destination)
         return currentEdge;
       }
 
-      currentEdge = dynamic_cast<HCEdge*>(currentEdge->origNext());
+      currentEdge = currentEdge->origNextInternal();
 
-    }while(currentEdge != origin->edge());
+    }while(currentEdge != oEdge);
   }
 
   return nullptr;
@@ -427,35 +534,31 @@ HCEdge *HCPolyhedralSurface::findEdge(HCVertex *origin, HCVertex *destination)
 void HCPolyhedralSurface::addPatch(HCPolygon *patch)
 {
   m_patches.append(patch);
+
+  assert(patch->geometryFlags().testFlag(GeometryFlag::HasZ) == is3D());
+  assert(patch->geometryFlags().testFlag(GeometryFlag::HasM) == isMeasured());
+
   patch->setIndex(m_patches.length() - 1);
 }
 
 bool HCPolyhedralSurface::removePatch(HCPolygon *patch)
 {
-  for(int i = patch->index()+1 ; i < m_patches.length() ; i++)
-  {
-    HCPolygon *poly = m_patches[i];
-    poly->setIndex(poly->index() -1);
-  }
-
-  return m_patches.removeAll(patch);
+  return m_patches.removeOne(patch);
 }
 
 void HCPolyhedralSurface::addVertex(HCVertex *vertex)
 {
   m_vertices.append(vertex);
+
+  assert(vertex->geometryFlags().testFlag(GeometryFlag::HasZ) == is3D());
+  assert(vertex->geometryFlags().testFlag(GeometryFlag::HasM) == isMeasured());
+
   vertex->setIndex(m_vertices.length() - 1);
 }
 
 bool HCPolyhedralSurface::removeVertex(HCVertex *vertex)
 {
-  for(int i = vertex->index()+1 ; i < m_vertices.length() ; i++)
-  {
-    HCVertex *vert = m_vertices[i];
-    vert->setIndex(vert->index() -1);
-  }
-
-  return m_vertices.removeAll(vertex);
+  return m_vertices.removeOne(vertex);
 }
 
 HCEdge *HCPolyhedralSurface::getOrbitOrg(HCEdge *edge, HCVertex *org)
@@ -473,7 +576,7 @@ HCEdge *HCPolyhedralSurface::getOrbitOrg(HCEdge *edge, HCVertex *org)
     if (scan->orig() == org)
       return scan;
 
-    scan = dynamic_cast<HCEdge*>(scan->leftNext());
+    scan = scan->leftNextInternal();
   }
   while (scan != edge);
 
@@ -493,7 +596,7 @@ void HCPolyhedralSurface::setOrbitOrg(HCEdge *edge, HCVertex *org)
   do
   {
     scan->setOrig(org);
-    scan = dynamic_cast<HCEdge*>(scan->origNext());
+    scan = scan->origNextInternal();
   }
   while (scan != edge);
 }
@@ -513,11 +616,56 @@ HCEdge *HCPolyhedralSurface::getOrbitLeft(HCEdge *edge, HCPolygon *left)
     if (scan->left()==left)
       return scan;
 
-    scan = dynamic_cast<HCEdge*>(scan->origNext());
+    scan = scan->origNextInternal();
   }
   while (scan!=edge);
 
   return nullptr;
+}
+
+HCEdge* HCPolyhedralSurface::getClosestOrbitLeftNull(HCVertex *origin, HCVertex *destination)
+{
+  //  assert(origin!=0);
+  //  assert(destination!=0);
+
+  HCEdge *closestEdge = nullptr;
+
+  double o_x = origin->x();
+  double o_y = origin->y();
+
+  double x1 = destination->x() - o_x;
+  double y1 = destination->y() - o_y;
+
+  HCEdge *scan = origin->edgeInternal();
+  HCEdge *oEdge = scan;
+
+  //start with large number
+  double small = 1000.0;
+
+  do
+  {
+    if (scan->left() == nullptr)
+    {
+      double x2 = scan->dest()->x() - o_x;
+      double y2 = scan->dest()->y() - o_y;
+
+      double angle2 =  atan2(x2*y1-y2*x1,x2*x1+y2*y1);
+
+      if(angle2 < 0 )
+        angle2 = angle2 + 2* M_PI;
+
+      if(angle2 < small)
+      {
+        small = angle2;
+        closestEdge = scan;
+      }
+    }
+
+    scan = scan->origNextInternal();
+  }
+  while (scan != oEdge);
+
+  return closestEdge;
 }
 
 HCEdge *HCPolyhedralSurface::getOrbitRight(HCEdge *edge, HCPolygon *right)
@@ -535,7 +683,7 @@ HCEdge *HCPolyhedralSurface::getOrbitRight(HCEdge *edge, HCPolygon *right)
     if (scan->right() == right)
       return scan;
 
-    scan = dynamic_cast<HCEdge*>(scan->origNext());
+    scan = scan->origNextInternal();
   }
   while (scan!=edge);
 
@@ -556,7 +704,7 @@ void HCPolyhedralSurface::setOrbitLeft(HCEdge *edge, HCPolygon *left)
   {
     scan->setLeft(left);
 
-    scan = dynamic_cast<HCEdge*>(scan->leftNext());
+    scan = scan->leftNextInternal();
   }
   while (scan != edge);
 }
@@ -615,17 +763,17 @@ void HCPolyhedralSurface::initializeEdgeData(int length)
 {
   for(HCPolygon *polygon : m_patches)
   {
-    HCEdge *edge = dynamic_cast<HCEdge*>(polygon->edge());
+    HCEdge *edge = polygon->edgeInternal();
 
     if(edge)
     {
       do
       {
-        if(edge->dataLength() != length)
+        if(edge->dataLength != length)
         {
           edge->initializeData(length);
         }
-        edge = dynamic_cast<HCEdge*>(edge->leftNext());
+        edge = edge->leftNextInternal();
 
       }while (edge != polygon->edge());
     }

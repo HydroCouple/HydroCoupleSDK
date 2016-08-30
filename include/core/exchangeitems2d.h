@@ -18,42 +18,42 @@
  *  \warning
  */
 
-#ifndef COMPONENTDATAITEM3D_H
-#define COMPONENTDATAITEM3D_H
+#ifndef COMPONENTDATAITEM2D_H
+#define COMPONENTDATAITEM2D_H
 
-#include "abstractcomponentdataitem.h"
+#include "abstractinput.h"
 
 class Dimension;
 class ValueDefinition;
 
 /*!
- * \brief The ComponentDataItem3D class
+ * \brief The ComponentDataItem2D class
  */
 template<class T>
-class HYDROCOUPLESDK_EXPORT ComponentDataItem3D
+class HYDROCOUPLESDK_EXPORT ComponentDataItem2D
 {
 
   public:
 
-    ComponentDataItem3D(int iLength, int jLength, int kLength, const T& defaultValue);
+    ComponentDataItem2D(int iLength, int jLength, const T& defaultValue);
 
-    virtual ~ComponentDataItem3D();
+    virtual ~ComponentDataItem2D();
 
-    void getValueT(int dimensionIndexes[], QVariant & data) const;
+    void getValueT(int dimensionIndexes[], QVariant &data) const ;
 
-    void getValuesT(int dimensionIndexes[], int stride[],  QVariant data[]) const;
+    void getValuesT(int dimensionIndexes[], int stride[],  QVariant data[]) const ;
 
-    void getValuesT(int dimensionIndexes[], int stride[],  void *data) const;
+    void getValuesT(int dimensionIndexes[], int stride[],  void *data) const ;
 
-    void setValueT(int dimensionIndexes[], const QVariant &data);
+    void setValueT(int dimensionIndexes[], const QVariant &data) ;
 
-    void setValuesT(int dimensionIndexes[], int stride[], const QVariant data[]);
+    void setValuesT(int dimensionIndexes[], int stride[], const QVariant data[]) ;
 
-    void setValuesT(int dimensionIndexes[], int stride[], const void *data);
+    void setValuesT(int dimensionIndexes[], int stride[], const void *data) ;
 
     virtual void resetDataArray();
 
-    virtual void resetDataArray(int iLength, int jLength, int kLength);
+    virtual void resetDataArray(int iLength, int jLength);
 
     T defaultValue() const;
 
@@ -63,46 +63,40 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3D
 
     int iLength() const;
 
-    void setILength(int ilength);
+    void setILength(int iLength);
 
     int jLength() const;
 
-    void setJLength(int jlength);
-
-    int kLength() const;
-
-    void setKLength(int klength);
+    void setJLength(int jLength);
 
   private:
 
-    void createData();
+    void createData();//= 0;
 
-    void deleteData();
+    void deleteData(); //=0;
 
   private:
-    int m_iLength, m_jLength, m_kLength;
+    int m_iLength, m_jLength;
     T m_defaultValue;
-    T*** m_data;
+    T** m_data;
 };
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem3DInt: public AbstractComponentDataItem,
-    public ComponentDataItem3D<int>
+class HYDROCOUPLESDK_EXPORT Input2DInt: public AbstractInput,
+    public ComponentDataItem2D<int>
 {
-
     Q_OBJECT
-
 
   public:
 
-    ComponentDataItem3DInt(const QString& id,
-                           Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
-                           int iLength, int jLength, int kLength,
-                           ValueDefinition *valueDefinition,
-                           AbstractModelComponent* parentModelComponent);
+    Input2DInt(const QString& id,
+               Dimension* iDimension, Dimension* jDimension,
+               int iLength, int jLength,
+               ValueDefinition* valueDefinition,
+               AbstractModelComponent* modelComponent);
 
-    virtual ~ComponentDataItem3DInt();
+    virtual ~Input2DInt();
 
     int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
@@ -122,21 +116,20 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3DInt: public AbstractComponentData
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem3DDouble: public AbstractComponentDataItem,
-    public ComponentDataItem3D<double>
+class HYDROCOUPLESDK_EXPORT Input2DDouble: public AbstractInput,
+    public ComponentDataItem2D<double>
 {
-
     Q_OBJECT
 
   public:
 
-    ComponentDataItem3DDouble(const QString &id,
-                              Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
-                              int iLength, int jLength, int kLength,
-                              ValueDefinition *valueDefinition,
-                              AbstractModelComponent* parentModelComponent);
+    Input2DDouble(const QString& id,
+                  Dimension* iDimension, Dimension* jDimension,
+                  int iDimensionLength, int jDimensionLength,
+                  ValueDefinition* valueDefinition,
+                  AbstractModelComponent* modelComponent);
 
-    virtual ~ComponentDataItem3DDouble();
+    virtual ~Input2DDouble();
 
     int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
@@ -156,20 +149,20 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3DDouble: public AbstractComponentD
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem3DString: public AbstractComponentDataItem,
-    public ComponentDataItem3D<QString>
+class HYDROCOUPLESDK_EXPORT Input2DString: public AbstractInput,
+    public ComponentDataItem2D<QString>
 {
     Q_OBJECT
 
   public:
 
-    ComponentDataItem3DString(const QString &id,
-                              Dimension* iDimension, Dimension* jDimension, Dimension* kDimension,
-                              int iLength, int jLength, int kLength,
-                              ValueDefinition *valueDefinition,
-                              AbstractModelComponent* parentModelComponent);
+    Input2DString(const QString& id,
+                  Dimension* iDimension, Dimension* jDimension,
+                  int iDimensionLength, int jDimensionLength,
+                  ValueDefinition* valueDefinition,
+                  AbstractModelComponent* modelComponent);
 
-    virtual ~ComponentDataItem3DString();
+    virtual ~Input2DString();
 
     int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
@@ -187,9 +180,9 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem3DString: public AbstractComponentD
 
 };
 
-Q_DECLARE_METATYPE(ComponentDataItem3DInt*)
-Q_DECLARE_METATYPE(ComponentDataItem3DDouble*)
-Q_DECLARE_METATYPE(ComponentDataItem3DString*)
+Q_DECLARE_METATYPE(Input2DInt*)
+Q_DECLARE_METATYPE(Input2DDouble*)
+Q_DECLARE_METATYPE(Input2DString*)
 
-#endif // COMPONENTDATAITEM3D_H
+#endif // COMPONENTDATAITEM2D_H
 

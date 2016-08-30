@@ -14,89 +14,96 @@
  *  \date 2014-2016
  *  \pre
  *  \bug
- *  \todo
+ *  \todo finish writing corresponding outputs.
  *  \warning
  */
 
-#ifndef COMPONENTDATAITEM2D_H
-#define COMPONENTDATAITEM2D_H
+#ifndef EXCHANGEITEMS1D_H
+#define EXCHANGEITEMS1D_H
 
-#include "abstractcomponentdataitem.h"
-
-class Dimension;
-class ValueDefinition;
+#include  "abstractinput.h"
 
 /*!
- * \brief The ComponentDataItem2D class
+ * \brief The ComponentDataItem1D class
  */
 template<class T>
-class HYDROCOUPLESDK_EXPORT ComponentDataItem2D
+class HYDROCOUPLESDK_EXPORT ComponentDataItem1D
 {
 
   public:
 
-    ComponentDataItem2D(int iLength, int jLength, const T& defaultValue);
+    ComponentDataItem1D(int length, const T& defaultValue);
 
-    virtual ~ComponentDataItem2D();
+    virtual ~ComponentDataItem1D();
 
     void getValueT(int dimensionIndexes[], QVariant &data) const ;
 
+    void getValueT(int dimensionIndex, QVariant &data) const ;
+
     void getValuesT(int dimensionIndexes[], int stride[],  QVariant data[]) const ;
+
+    void getValuesT(int dimensionIndexes, int stride,  QVariant data[]) const ;
 
     void getValuesT(int dimensionIndexes[], int stride[],  void *data) const ;
 
-    void setValueT(int dimensionIndexes[], const QVariant &data) ;
+    void getValuesT(int dimensionIndex, int stride,  void *data) const ;
 
-    void setValuesT(int dimensionIndexes[], int stride[], const QVariant data[]) ;
+    void setValueT(int dimensionIndexes[], const QVariant &data);
 
-    void setValuesT(int dimensionIndexes[], int stride[], const void *data) ;
+    void setValueT(int dimensionIndex, const QVariant &data);
+
+    void setValuesT(int dimensionIndexes[], int stride[], const QVariant data[]);
+
+    void setValuesT(int dimensionIndex, int stride, const QVariant data[]);
+
+    void setValuesT(int dimensionIndexes[], int stride[], const void *data);
+
+    void setValuesT(int dimensionIndex, int stride, const void *data) ;
 
     virtual void resetDataArray();
 
-    virtual void resetDataArray(int iLength, int jLength);
+    virtual void resetDataArray(int length);
 
     T defaultValue() const;
+
+    T &operator[](int index);
 
   protected:
 
     void setDefaultValue(const T& defaultValue);
 
-    int iLength() const;
+    int length() const;
 
-    void setILength(int iLength);
-
-    int jLength() const;
-
-    void setJLength(int jLength);
+    void setLength(int length);
 
   private:
 
-    void createData();//= 0;
+    void createData();
 
-    void deleteData(); //=0;
+    void deleteData();
 
   private:
-    int m_iLength, m_jLength;
+    int m_length;
     T m_defaultValue;
-    T** m_data;
+    T* m_data;
 };
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem2DInt: public AbstractComponentDataItem,
-    public virtual ComponentDataItem2D<int>
+class HYDROCOUPLESDK_EXPORT Input1DInt: public AbstractInput,
+    public ComponentDataItem1D<int>
 {
     Q_OBJECT
 
   public:
 
-    ComponentDataItem2DInt(const QString& id,
-                           Dimension* iDimension, Dimension* jDimension,
-                           int iLength, int jLength,
-                           ValueDefinition* valueDefinition,
-                           AbstractModelComponent* modelComponent);
+    Input1DInt(const QString& id,
+               Dimension* dimension,
+               int length,
+               ValueDefinition *valueDefinition,
+               AbstractModelComponent* modelComponent);
 
-    virtual ~ComponentDataItem2DInt();
+    virtual ~Input1DInt();
 
     int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
@@ -112,24 +119,28 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2DInt: public AbstractComponentData
 
     void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
+    void readData(QXmlStreamReader &xmlReader) override;
+
+    void writeData(QXmlStreamWriter &xmlWriter) override;
 };
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem2DDouble: public AbstractComponentDataItem,
-    public virtual ComponentDataItem2D<double>
+
+class HYDROCOUPLESDK_EXPORT Input1DDouble: public AbstractInput,
+    public ComponentDataItem1D<double>
 {
     Q_OBJECT
 
   public:
 
-    ComponentDataItem2DDouble(const QString& id,
-                              Dimension* iDimension, Dimension* jDimension,
-                              int iDimensionLength, int jDimensionLength,
-                              ValueDefinition* valueDefinition,
-                              AbstractModelComponent* modelComponent);
+    Input1DDouble(const QString& id,
+                  Dimension* dimension,
+                  int length,
+                  ValueDefinition* valueDefinition,
+                  AbstractModelComponent *modelComponent);
 
-    virtual ~ComponentDataItem2DDouble();
+    virtual ~Input1DDouble();
 
     int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
@@ -145,24 +156,28 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2DDouble: public AbstractComponentD
 
     void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
+    void readData(QXmlStreamReader &xmlReader) override;
+
+    void writeData(QXmlStreamWriter &xmlWriter) override;
+
 };
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT ComponentDataItem2DString: public AbstractComponentDataItem,
-    public virtual ComponentDataItem2D<QString>
+class HYDROCOUPLESDK_EXPORT Input1DString: public AbstractInput,
+    public ComponentDataItem1D<QString>
 {
     Q_OBJECT
 
   public:
 
-    ComponentDataItem2DString(const QString& id,
-                              Dimension* iDimension, Dimension* jDimension,
-                              int iDimensionLength, int jDimensionLength,
-                              ValueDefinition* valueDefinition,
-                              AbstractModelComponent* modelComponent);
+    Input1DString(const QString &id,
+                  Dimension* dimension,
+                  int length,
+                  ValueDefinition* valueDefinition,
+                  AbstractModelComponent* modelComponent);
 
-    virtual ~ComponentDataItem2DString();
+    virtual ~Input1DString();
 
     int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
 
@@ -178,11 +193,15 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2DString: public AbstractComponentD
 
     void setValues(int dimensionIndexes[], int stride[], const void *data) override;
 
+    void readData(QXmlStreamReader &xmlReader) override;
+
+    void writeData(QXmlStreamWriter &xmlWriter) override;
+
 };
 
-Q_DECLARE_METATYPE(ComponentDataItem2DInt*)
-Q_DECLARE_METATYPE(ComponentDataItem2DDouble*)
-Q_DECLARE_METATYPE(ComponentDataItem2DString*)
+Q_DECLARE_METATYPE(Input1DInt*)
+Q_DECLARE_METATYPE(Input1DDouble*)
+Q_DECLARE_METATYPE(Input1DString*)
 
-#endif // COMPONENTDATAITEM2D_H
+#endif // EXCHANGEITEMS1D_H
 

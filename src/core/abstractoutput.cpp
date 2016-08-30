@@ -69,3 +69,12 @@ bool AbstractOutput::removeAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOut
    return happened;
 }
 
+void AbstractOutput::update(IInput *querySpecifier)
+{
+  while(modelComponent()->status() != HydroCouple::Done &&
+        modelComponent()->status() != HydroCouple::Failed &&
+        modelComponent()->status() != HydroCouple::Finished)
+  {
+    modelComponent()->update();
+  }
+}

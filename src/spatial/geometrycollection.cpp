@@ -35,6 +35,16 @@ HydroCouple::Spatial::GeometryType HCGeometryCollection::geometryType() const
   }
 }
 
+int HCGeometryCollection::dimension() const
+{
+
+}
+
+IGeometry *HCGeometryCollection::envelope() const
+{
+  return nullptr;
+}
+
 int HCGeometryCollection::geometryCount() const
 {
   return m_geometries.length();
@@ -46,12 +56,13 @@ IGeometry* HCGeometryCollection::geometry(int index) const
   return m_geometries[index];
 }
 
-void HCGeometryCollection::initializeData(int length)
+void HCGeometryCollection::initializeData(int length, double defaultValue)
 {
   for(HCGeometry *geometry : m_geometries)
   {
-    geometry->initializeData(length);
+    geometry->initializeData(length,defaultValue);
   }
+
   initializeData(length);
 }
 
@@ -69,10 +80,49 @@ void HCGeometryCollection::addGeometry(HCGeometry *geometry)
   {
     geometry->setIndex(m_geometries.length());
     m_geometries.append(geometry);
+    emit propertyChanged("Geometries");
   }
 }
 
 bool HCGeometryCollection::removeGeometry(HCGeometry *geometry)
 {
-  return m_geometries.removeAll(geometry);
+  emit propertyChanged("Geometries");
+  return m_geometries.removeOne(geometry);
+}
+
+
+void HCGeometryCollection::enable3D()
+{
+  for(HCGeometry* geom : geometries())
+  {
+    geom->setGeometryFlag(GeometryFlag::HasZ , true);
+  }
+  setGeometryFlag(GeometryFlag::HasZ , true);
+}
+
+void HCGeometryCollection::disable3D()
+{
+  for(HCGeometry* geom : geometries())
+  {
+    geom->setGeometryFlag(GeometryFlag::HasZ , false);
+  }
+  setGeometryFlag(GeometryFlag::HasZ , false);
+}
+
+void HCGeometryCollection::enableM()
+{
+  for(HCGeometry* geom : geometries())
+  {
+    geom->setGeometryFlag(GeometryFlag::HasM , true);
+  }
+  setGeometryFlag(GeometryFlag::HasM , true);
+}
+
+void HCGeometryCollection::disableM()
+{
+  for(HCGeometry* geom : geometries())
+  {
+    geom->setGeometryFlag(GeometryFlag::HasM , false);
+  }
+  setGeometryFlag(GeometryFlag::HasM , false);
 }

@@ -5,6 +5,7 @@
 
 class HCVertex;
 class HCPolyhedralSurface;
+class HCEdge;
 
 class HYDROCOUPLESDK_EXPORT HCPoint: public HCGeometry,
     public virtual HydroCouple::Spatial::IPoint
@@ -113,13 +114,20 @@ class HYDROCOUPLESDK_EXPORT HCVertex : public HCPoint,
 
     HydroCouple::Spatial::IEdge* edge() const override;
 
-    void addEdge(HydroCouple::Spatial::IEdge *edge) ;
+    HCEdge* edgeInternal() const ;
 
-    void removeEdge(HydroCouple::Spatial::IEdge *edge) ;
+    void addEdge(HCEdge *edge) ;
+
+    void removeEdge(HCEdge *edge) ;
+
+    int getMarker() const;
+
+    void setMarker(int marker);
 
   private:
-    HydroCouple::Spatial::IEdge* m_edge;
+    HCEdge* m_edge;
     HCPolyhedralSurface* m_polyhedralSurface;
+    int m_marker;
 };
 
 Q_DECLARE_METATYPE(HCPoint*)

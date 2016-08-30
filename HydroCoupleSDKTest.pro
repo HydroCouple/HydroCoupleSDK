@@ -4,11 +4,11 @@
 #
 #-------------------------------------------------
 
-QT       += testlib gui
+QT       += testlib widgets gui opengl
 
 TARGET = hydrocouplesdktest
 
-CONFIG   += console
+#CONFIG   += console
 CONFIG   -= app_bundle
 
 TEMPLATE = app
@@ -17,12 +17,14 @@ PRECOMPILED_HEADER += ./include/stdafx.h
 
 INCLUDEPATH += ./include \
                ./include/tests \
-               ../HydroCouple/include
+               ../HydroCouple/include \
+               ../HydroCoupleVis/include \
+               ../HydroCoupleVis/build/debug/.ui
 
 HEADERS += ./include/stdafx.h \
            ./include/tests/componentdataitemtest.h \
-    include/tests/geometrytest.h \
-    include/tests/polyhedralsurfacetest.h
+           ./include/tests/geometrytest.h \
+           ./include/tests/polyhedralsurfacetest.h
 
 SOURCES += \
            ./src/tests/main.cpp
@@ -37,10 +39,8 @@ win32 {
 }
 
 linux{
-
 INCLUDEPATH += /usr/include/gdal
 LIBS += -L/usr/lib/ogdi -lgdal
-
 }
 
 CONFIG(debug, debug|release) {
@@ -51,6 +51,7 @@ CONFIG(debug, debug|release) {
    UI_DIR = $$DESTDIR/.ui
 
    LIBS += -L./build/debug -lHydroCoupleSDK
+   LIBS += -L./../HydroCoupleVis/build/debug -lHydroCoupleVis
 }
 
 CONFIG(release, debug|release) {
@@ -62,4 +63,5 @@ CONFIG(release, debug|release) {
     UI_DIR = $$RELEASE_EXTRAS/.ui
 
    LIBS += -L./lib -lHydroCoupleSDK
+   LIBS += -L./../HydroCoupleVis/lib -lHydroCoupleVis
 }

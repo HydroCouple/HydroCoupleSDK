@@ -11,7 +11,8 @@ class Unit;
 /*!
  * \brief The ValueDefinition class
  */
-class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description , public virtual HydroCouple::IValueDefinition
+class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description,
+    public virtual HydroCouple::IValueDefinition
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IValueDefinition)
@@ -61,7 +62,8 @@ class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description , public virtua
 /*!
  * \brief The Quality class
  */
-class HYDROCOUPLESDK_EXPORT Quality : public ValueDefinition , public virtual HydroCouple::IQuality
+class HYDROCOUPLESDK_EXPORT Quality : public ValueDefinition,
+    public virtual HydroCouple::IQuality
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IQuality)
@@ -103,7 +105,8 @@ class HYDROCOUPLESDK_EXPORT Quality : public ValueDefinition , public virtual Hy
 /*!
  * \brief The Quantity class
  */
-class HYDROCOUPLESDK_EXPORT Quantity : public ValueDefinition , public virtual HydroCouple::IQuantity
+class HYDROCOUPLESDK_EXPORT Quantity : public ValueDefinition,
+    public virtual HydroCouple::IQuantity
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IQuantity)

@@ -80,41 +80,5 @@ void HCMultiLineString::addLineString(HCLineString *lineString)
 
 bool HCMultiLineString::removeLineString(HCLineString *lineString)
 {
-  return m_lineStrings.removeAll(lineString) && removeGeometry(lineString);
-}
-
-void HCMultiLineString::enable3D()
-{
-  for(HCLineString* lineString : m_lineStrings)
-  {
-    lineString->enable3D();
-  }
-  setGeometryFlag(GeometryFlag::HasZ , true);
-}
-
-void HCMultiLineString::disable3D()
-{
-  for(HCLineString* lineString : m_lineStrings)
-  {
-    lineString->disable3D();
-  }
-  setGeometryFlag(GeometryFlag::HasZ , false);
-}
-
-void HCMultiLineString::enableM()
-{
-  for(HCLineString* lineString : m_lineStrings)
-  {
-    lineString->enableM();
-  }
-  setGeometryFlag(GeometryFlag::HasM , true);
-}
-
-void HCMultiLineString::disableM()
-{
-  for(HCLineString* lineString : m_lineStrings)
-  {
-    lineString->disableM();
-  }
-  setGeometryFlag(GeometryFlag::HasM , false);
+  return m_lineStrings.removeOne(lineString) && removeGeometry(lineString);
 }

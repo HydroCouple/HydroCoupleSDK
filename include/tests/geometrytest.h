@@ -5,7 +5,11 @@
 #include "spatial/point.h"
 #include "spatial/geometryfactory.h"
 #include "spatial/spatialreferencesystem.h"
+#include "spatial/linestring.h"
 
+#include "hydrocouplevis.h"
+
+#include <gdal/ogrsf_frmts.h>
 #include <QtTest/QtTest>
 #include <random>
 
@@ -67,7 +71,7 @@ class GeometryTest : public QObject
       {
         HCPoint* point = new HCPoint(5.068,896.566);
 
-        QString wktData =  point->wkt();
+        QString wktData =  point->getWKT();
         HydroCouple::Spatial::IGeometry* outGeom1 = GeometryFactory::importFromWkt(wktData);
         QVERIFY(outGeom1->geometryType() == HydroCouple::Spatial::Point);
         QCOMPARE(dynamic_cast<IPoint*>(outGeom1)->x() , point->x());
@@ -77,7 +81,7 @@ class GeometryTest : public QObject
 
 
         point->setM(2.55);
-        wktData =  point->wkt();
+        wktData =  point->getWKT();
         HydroCouple::Spatial::IGeometry* outGeom2 = GeometryFactory::importFromWkt(wktData);
         QVERIFY(outGeom2->geometryType() == HydroCouple::Spatial::PointM);
         QCOMPARE(dynamic_cast<IPoint*>(outGeom2)->x() , point->x());
@@ -87,7 +91,7 @@ class GeometryTest : public QObject
         point->setGeometryFlag(HCGeometry::HasM,false);
 
         point->setZ(50.25);
-        wktData =  point->wkt();
+        wktData =  point->getWKT();
         HydroCouple::Spatial::IGeometry* outGeom3 = GeometryFactory::importFromWkt(wktData);
         QVERIFY(outGeom3->geometryType() == HydroCouple::Spatial::PointZ);
         QCOMPARE(dynamic_cast<IPoint*>(outGeom3)->x() , point->x());
@@ -97,7 +101,7 @@ class GeometryTest : public QObject
 
         point->setM(2.55);
         point->setZ(50.25);
-        wktData =  point->wkt();
+        wktData =  point->getWKT();
         HydroCouple::Spatial::IGeometry* outGeom4 = GeometryFactory::importFromWkt(wktData);
         QVERIFY(outGeom4->geometryType() == HydroCouple::Spatial::PointZM);
         QCOMPARE(dynamic_cast<IPoint*>(outGeom4)->x() , point->x());
@@ -120,7 +124,7 @@ class GeometryTest : public QObject
         HCPoint* point = new HCPoint(5.068,896.566);
 
         int size = 0;
-        unsigned char* wktData =  point->wkb(size);
+        unsigned char* wktData =  point->getWKB(size);
         HydroCouple::Spatial::IGeometry* outGeom1 = GeometryFactory::importFromWkb(wktData,size);
         QVERIFY(outGeom1->geometryType() == HydroCouple::Spatial::Point);
         delete[] wktData;
@@ -131,7 +135,7 @@ class GeometryTest : public QObject
 
 
         point->setM(2.55);
-        wktData =  point->wkb(size);
+        wktData =  point->getWKB(size);
         HydroCouple::Spatial::IGeometry* outGeom2 = GeometryFactory::importFromWkb(wktData,size);
         QVERIFY(outGeom2->geometryType() == HydroCouple::Spatial::PointM);
         delete[] wktData;
@@ -142,7 +146,7 @@ class GeometryTest : public QObject
         point->setGeometryFlag(HCGeometry::HasM,false);
 
         point->setZ(50.25);
-        wktData =  point->wkb(size);
+        wktData =  point->getWKB(size);
         HydroCouple::Spatial::IGeometry* outGeom3 = GeometryFactory::importFromWkb(wktData,size);
         QVERIFY(outGeom3->geometryType() == HydroCouple::Spatial::PointZ);
         delete[] wktData;
@@ -153,7 +157,7 @@ class GeometryTest : public QObject
 
         point->setM(2.55);
         point->setZ(50.25);
-        wktData =  point->wkb(size);
+        wktData =  point->getWKB(size);
         HydroCouple::Spatial::IGeometry* outGeom4 = GeometryFactory::importFromWkb(wktData,size);
         QVERIFY(outGeom4->geometryType() == HydroCouple::Spatial::PointZM);
         QCOMPARE(dynamic_cast<IPoint*>(outGeom4)->x() , point->x());
@@ -178,11 +182,16 @@ class GeometryTest : public QObject
         std::uniform_real_distribution<float> uniRandNum(0,10000000.00);
 
         HCLineString* lineString = new HCLineString();
+        lineString->enable3D();
 
         for(int i = 0 ; i < 1000 ; i++)
         {
           lineString->addPoint(new HCPoint(uniRandNum(gen) , uniRandNum(gen) , uniRandNum(gen),lineString));
         }
+
+        HydroCoupleVis::getInstance()->addGeometry(lineString);
+        HydroCoupleVis::getInstance()->show();
+
 
         QCOMPARE(lineString->geometryType() , HydroCouple::Spatial::LineString);
 
@@ -214,7 +223,7 @@ class GeometryTest : public QObject
           lineString->addPoint(new HCPoint(uniRandNum(gen), uniRandNum(gen), lineString));
         }
 
-        QString wktData =  lineString->wkt();
+        QString wktData =  lineString->getWKT();
         HydroCouple::Spatial::IGeometry* outGeom1 = GeometryFactory::importFromWkt(wktData);
         QVERIFY(outGeom1->geometryType() == HydroCouple::Spatial::LineString);
         ILineString* outLineString1 = dynamic_cast<ILineString*>(outGeom1);
@@ -238,7 +247,7 @@ class GeometryTest : public QObject
           lineString->points()[i]->setZ(uniRandNum(gen));
         }
 
-        wktData =  lineString->wkt();
+        wktData =  lineString->getWKT();
         HydroCouple::Spatial::IGeometry* outGeom2 = GeometryFactory::importFromWkt(wktData);
         ILineString* outLineString2 = dynamic_cast<ILineString*>(outGeom2);
 
@@ -272,7 +281,7 @@ class GeometryTest : public QObject
         }
 
         int size = 0;
-        unsigned char* wktData = lineString->wkb(size);
+        unsigned char* wktData = lineString->getWKB(size);
         HydroCouple::Spatial::IGeometry* outGeom1 = GeometryFactory::importFromWkb(wktData,size);
         QVERIFY(outGeom1->geometryType() == HydroCouple::Spatial::LineString);
         ILineString* outLineString1 = dynamic_cast<ILineString*>(outGeom1);
@@ -297,7 +306,7 @@ class GeometryTest : public QObject
           lineString->points()[i]->setZ(uniRandNum(gen));
         }
 
-        wktData =  lineString->wkb(size);
+        wktData =  lineString->getWKB(size);
         HydroCouple::Spatial::IGeometry* outGeom2 = GeometryFactory::importFromWkb(wktData,size);
         ILineString* outLineString2 = dynamic_cast<ILineString*>(outGeom2);
         delete[] wktData;

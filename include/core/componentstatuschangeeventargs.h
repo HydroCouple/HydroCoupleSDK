@@ -31,8 +31,8 @@ class AbstractModelComponent;
 /*!
  * \brief The ComponentStatusChangeEventArgs class.
  */
-class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs :
-    public QObject, public virtual HydroCouple::IComponentStatusChangeEventArgs
+class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject,
+    public virtual HydroCouple::IComponentStatusChangeEventArgs
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IComponentStatusChangeEventArgs)

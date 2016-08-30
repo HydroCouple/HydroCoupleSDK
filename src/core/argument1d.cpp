@@ -2,6 +2,8 @@
 #include "core/argument1d.h"
 #include "core/dimension.h"
 #include "core/valuedefinition.h"
+#include "core/abstractmodelcomponent.h"
+
 #include <QFile>
 #include <assert.h>
 
@@ -185,7 +187,7 @@ void Argument1DInt::writeData(QXmlStreamWriter &xmlWriter)
   xmlWriter.writeEndElement();
 }
 
-QString Argument1DInt::toString() const
+bool Argument1DInt::writeToFile() const
 {
   if(currentArgumentIOType() == HydroCouple::File)
   {
@@ -244,67 +246,84 @@ QString Argument1DInt::toString() const
 
       file.close();
 
-      return m_inputFile.absoluteFilePath();
+      return true;
     }
   }
 
-  QString data;
-  QXmlStreamWriter xmlWriter(&data);
-  xmlWriter.setAutoFormatting(true);
+  return false;
+}
 
-  xmlWriter.writeStartDocument();
+QString Argument1DInt::toString() const
+{
+  if(currentArgumentIOType() == HydroCouple::File)
   {
-    xmlWriter.writeStartElement("Argument1D");
+    return  QFileInfo(modelComponent()->componentInfo()->libraryFilePath()).absoluteDir().relativeFilePath(m_inputFile.absoluteFilePath());
+  }
+  else
+  {
+    QString data;
+    QXmlStreamWriter xmlWriter(&data);
+    xmlWriter.setAutoFormatting(true);
+
+    xmlWriter.writeStartDocument();
     {
-      xmlWriter.writeAttribute("Id" , id());
-      xmlWriter.writeAttribute("Caption" , caption());
-      xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
-
-      //write value definition;
-      valueDefinitionInternal()->writeData(xmlWriter);
-
-      xmlWriter.writeStartElement("Dimensions");
+      xmlWriter.writeStartElement("Argument1D");
       {
-        xmlWriter.writeStartElement("Dimension");
+        xmlWriter.writeAttribute("Id" , id());
+        xmlWriter.writeAttribute("Caption" , caption());
+        xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
+
+        for(const QString& comment : comments())
         {
-          xmlWriter.writeAttribute("Id" , m_dimension->id());
-          xmlWriter.writeAttribute("Caption" , m_dimension->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(length()));
+          xmlWriter.writeComment(comment);
+        }
+
+        //write value definition;
+        valueDefinitionInternal()->writeData(xmlWriter);
+
+        xmlWriter.writeStartElement("Dimensions");
+        {
+          xmlWriter.writeStartElement("Dimension");
+          {
+            xmlWriter.writeAttribute("Id" , m_dimension->id());
+            xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(length()));
+          }
+          xmlWriter.writeEndElement();
+        }
+        xmlWriter.writeEndElement();
+
+        xmlWriter.writeStartElement("Values");
+        {
+          int ind[1] = {0};
+          int str[1] = {length()};
+          int values[length()];
+          getValues(ind,str,values);
+
+          for(int i = 0 ; i < length() ; i++)
+          {
+            xmlWriter.writeStartElement("Value");
+            {
+              xmlWriter.writeCharacters(QString::number(values[i]));
+            }
+            xmlWriter.writeEndElement();
+          }
         }
         xmlWriter.writeEndElement();
       }
       xmlWriter.writeEndElement();
-
-      xmlWriter.writeStartElement("Values");
-      {
-        int ind[1] = {0};
-        int str[1] = {length()};
-        int values[length()];
-        getValues(ind,str,values);
-
-        for(int i = 0 ; i < length() ; i++)
-        {
-          xmlWriter.writeStartElement("Value");
-          {
-            xmlWriter.writeCharacters(QString::number(values[i]));
-          }
-          xmlWriter.writeEndElement();
-        }
-      }
-      xmlWriter.writeEndElement();
     }
-    xmlWriter.writeEndElement();
-  }
-  xmlWriter.writeEndDocument();
+    xmlWriter.writeEndDocument();
 
-  return data;
+    return data;
+  }
 }
 
 bool Argument1DInt::readValues(const QString &value, bool isFile)
 {
   if(isFile)
   {
-    m_inputFile = QFileInfo(value);
+    m_inputFile = modelComponentInternal()->getRelativeFilePath(value);
 
     if(m_inputFile.exists())
     {
@@ -558,7 +577,7 @@ void Argument1DDouble::writeData(QXmlStreamWriter &xmlWriter)
   xmlWriter.writeEndElement();
 }
 
-QString Argument1DDouble::toString() const
+bool Argument1DDouble::writeToFile() const
 {
   if(currentArgumentIOType() == HydroCouple::File)
   {
@@ -617,72 +636,84 @@ QString Argument1DDouble::toString() const
 
       file.close();
 
-      return m_inputFile.absoluteFilePath();
+      return false;
     }
   }
 
-  QString data;
-  QXmlStreamWriter xmlWriter(&data);
-  xmlWriter.setAutoFormatting(true);
+  return false;
+}
 
-  xmlWriter.writeStartDocument();
+QString Argument1DDouble::toString() const
+{
+  if(currentArgumentIOType() == HydroCouple::File)
   {
-    xmlWriter.writeStartElement("Argument1D");
+     return   QFileInfo(modelComponent()->componentInfo()->libraryFilePath()).absoluteDir().relativeFilePath(m_inputFile.absoluteFilePath());
+  }
+  else
+  {
+    QString data;
+    QXmlStreamWriter xmlWriter(&data);
+    xmlWriter.setAutoFormatting(true);
+
+    xmlWriter.writeStartDocument();
     {
-      xmlWriter.writeAttribute("Id" , id());
-      xmlWriter.writeAttribute("Caption" , caption());
-      xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
-
-      for(const QString& comment : comments())
+      xmlWriter.writeStartElement("Argument1D");
       {
-        xmlWriter.writeComment(comment);
-      }
+        xmlWriter.writeAttribute("Id" , id());
+        xmlWriter.writeAttribute("Caption" , caption());
+        xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
-      //write value definition;
-      valueDefinitionInternal()->writeData(xmlWriter);
-
-      xmlWriter.writeStartElement("Dimensions");
-      {
-        xmlWriter.writeStartElement("Dimension");
+        for(const QString& comment : comments())
         {
-          xmlWriter.writeAttribute("Id" , m_dimension->id());
-          xmlWriter.writeAttribute("Caption" , m_dimension->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(length()));
+          xmlWriter.writeComment(comment);
+        }
+
+        //write value definition;
+        valueDefinitionInternal()->writeData(xmlWriter);
+
+        xmlWriter.writeStartElement("Dimensions");
+        {
+          xmlWriter.writeStartElement("Dimension");
+          {
+            xmlWriter.writeAttribute("Id" , m_dimension->id());
+            xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(length()));
+          }
+          xmlWriter.writeEndElement();
+        }
+        xmlWriter.writeEndElement();
+
+        xmlWriter.writeStartElement("Values");
+        {
+          int ind[1] = {0};
+          int str[1] = {length()};
+          double values[length()];
+          getValues(ind,str,values);
+
+          for(int i = 0 ; i < length() ; i++)
+          {
+            xmlWriter.writeStartElement("Value");
+            {
+              xmlWriter.writeCharacters(QString::number(values[i]));
+            }
+            xmlWriter.writeEndElement();
+          }
         }
         xmlWriter.writeEndElement();
       }
       xmlWriter.writeEndElement();
-
-      xmlWriter.writeStartElement("Values");
-      {
-        int ind[1] = {0};
-        int str[1] = {length()};
-        double values[length()];
-        getValues(ind,str,values);
-
-        for(int i = 0 ; i < length() ; i++)
-        {
-          xmlWriter.writeStartElement("Value");
-          {
-            xmlWriter.writeCharacters(QString::number(values[i]));
-          }
-          xmlWriter.writeEndElement();
-        }
-      }
-      xmlWriter.writeEndElement();
     }
-    xmlWriter.writeEndElement();
-  }
-  xmlWriter.writeEndDocument();
+    xmlWriter.writeEndDocument();
 
-  return data;
+    return data;
+  }
 }
 
 bool Argument1DDouble::readValues(const QString &value, bool isFile)
 {
   if(isFile)
   {
-    m_inputFile = QFileInfo(value);
+    m_inputFile = modelComponentInternal()->getRelativeFilePath(value);
 
     if(m_inputFile.exists())
     {
@@ -937,7 +968,7 @@ void Argument1DString::writeData(QXmlStreamWriter &xmlWriter)
   xmlWriter.writeEndElement();
 }
 
-QString Argument1DString::toString() const
+bool Argument1DString::writeToFile() const
 {
   if(currentArgumentIOType() == HydroCouple::File)
   {
@@ -998,67 +1029,79 @@ QString Argument1DString::toString() const
 
       file.close();
 
-      return m_inputFile.absoluteFilePath();
+      return false;
     }
   }
 
-  QString data;
-  QXmlStreamWriter xmlWriter(&data);
-  xmlWriter.setAutoFormatting(true);
+  return false;
+}
 
-  xmlWriter.writeStartDocument();
+QString Argument1DString::toString() const
+{
+  if(currentArgumentIOType() == HydroCouple::File)
   {
-    xmlWriter.writeStartElement("Argument1D");
+     return   QFileInfo(modelComponent()->componentInfo()->libraryFilePath()).absoluteDir().relativeFilePath(m_inputFile.absoluteFilePath());
+  }
+  else
+  {
+    QString data;
+    QXmlStreamWriter xmlWriter(&data);
+    xmlWriter.setAutoFormatting(true);
+
+    xmlWriter.writeStartDocument();
     {
-      xmlWriter.writeAttribute("Id" , id());
-      xmlWriter.writeAttribute("Caption" , caption());
-      xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
-
-      for(const QString& comment : comments())
+      xmlWriter.writeStartElement("Argument1D");
       {
-        xmlWriter.writeComment(comment);
-      }
+        xmlWriter.writeAttribute("Id" , id());
+        xmlWriter.writeAttribute("Caption" , caption());
+        xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
 
-      //write value definition;
-      valueDefinitionInternal()->writeData(xmlWriter);
-
-      xmlWriter.writeStartElement("Dimensions");
-      {
-        xmlWriter.writeStartElement("Dimension");
+        for(const QString& comment : comments())
         {
-          xmlWriter.writeAttribute("Id" , m_dimension->id());
-          xmlWriter.writeAttribute("Caption" , m_dimension->caption());
-          xmlWriter.writeAttribute("Length" , QString::number(length()));
+          xmlWriter.writeComment(comment);
+        }
+
+        //write value definition;
+        valueDefinitionInternal()->writeData(xmlWriter);
+
+        xmlWriter.writeStartElement("Dimensions");
+        {
+          xmlWriter.writeStartElement("Dimension");
+          {
+            xmlWriter.writeAttribute("Id" , m_dimension->id());
+            xmlWriter.writeAttribute("Caption" , m_dimension->caption());
+            xmlWriter.writeAttribute("Length" , QString::number(length()));
+          }
+          xmlWriter.writeEndElement();
+        }
+        xmlWriter.writeEndElement();
+
+        xmlWriter.writeStartElement("Values");
+        {
+          int ind[1] = {0};
+          int str[1] = {length()};
+          QString *values = new QString[length()];
+          getValues(ind,str,values);
+
+          for(int i = 0 ; i < length() ; i++)
+          {
+            xmlWriter.writeStartElement("Value");
+            {
+              xmlWriter.writeCharacters(values[i]);
+            }
+            xmlWriter.writeEndElement();
+          }
+
+          delete [] values;
         }
         xmlWriter.writeEndElement();
       }
       xmlWriter.writeEndElement();
-
-      xmlWriter.writeStartElement("Values");
-      {
-        int ind[1] = {0};
-        int str[1] = {length()};
-        QString *values = new QString[length()];
-        getValues(ind,str,values);
-
-        for(int i = 0 ; i < length() ; i++)
-        {
-          xmlWriter.writeStartElement("Value");
-          {
-            xmlWriter.writeCharacters(values[i]);
-          }
-          xmlWriter.writeEndElement();
-        }
-
-        delete [] values;
-      }
-      xmlWriter.writeEndElement();
     }
-    xmlWriter.writeEndElement();
-  }
-  xmlWriter.writeEndDocument();
+    xmlWriter.writeEndDocument();
 
-  return data;
+    return data;
+  }
 }
 
 bool Argument1DString::readValues(const QString &value, bool isFile)
@@ -1139,6 +1182,4 @@ bool Argument1DString::readValues(const IComponentDataItem *componentDataItem)
 }
 
 
-template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<int>;
-template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<double>;
-template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<QString>;
+

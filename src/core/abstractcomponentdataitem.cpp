@@ -10,10 +10,10 @@ AbstractComponentDataItem::AbstractComponentDataItem(const QString& id,
                                                      const QList<Dimension*>& dimensions,
                                                      ValueDefinition* valueDefinition,
                                                      AbstractModelComponent *modelComponent)
-   : Identity(id,modelComponent),
-     m_dimensions(dimensions),
-     m_valueDefinition(valueDefinition),
-     m_modelComponent(modelComponent)
+  : Identity(id,modelComponent),
+    m_dimensions(dimensions),
+    m_valueDefinition(valueDefinition),
+    m_modelComponent(modelComponent)
 {
 }
 
@@ -22,10 +22,10 @@ AbstractComponentDataItem::AbstractComponentDataItem(const QString& id,
                                                      const QList<Dimension*>& dimensions,
                                                      ValueDefinition* valueDefinition,
                                                      AbstractModelComponent *modelComponent)
-   : Identity(id,caption,modelComponent),
-     m_dimensions(dimensions),
-     m_valueDefinition(valueDefinition),
-     m_modelComponent(modelComponent)
+  : Identity(id,caption,modelComponent),
+    m_dimensions(dimensions),
+    m_valueDefinition(valueDefinition),
+    m_modelComponent(modelComponent)
 {
 }
 
@@ -35,27 +35,27 @@ AbstractComponentDataItem::~AbstractComponentDataItem()
 
 IModelComponent* AbstractComponentDataItem::modelComponent() const
 {
-   return m_modelComponent;
+  return m_modelComponent;
 }
 
 AbstractModelComponent* AbstractComponentDataItem::modelComponentInternal() const
 {
-   return m_modelComponent;
+  return m_modelComponent;
 }
 
 QList<IDimension*> AbstractComponentDataItem::dimensions() const
 {
-   QList<IDimension*> dimensions;
+  QList<IDimension*> dimensions;
 
-   for(Dimension* dimension : m_dimensions)
-      dimensions.append(dimension);
+  for(Dimension* dimension : m_dimensions)
+    dimensions.append(dimension);
 
-   return dimensions;
+  return dimensions;
 }
 
 IValueDefinition* AbstractComponentDataItem::valueDefinition() const
 {
-   return m_valueDefinition;
+  return m_valueDefinition;
 }
 
 QStringList AbstractComponentDataItem::comments() const
@@ -71,11 +71,8 @@ void AbstractComponentDataItem::setComments(const QStringList &comments)
 
 void AbstractComponentDataItem::addComment(const QString &comment)
 {
-  if(!m_comments.contains(comment, Qt::CaseInsensitive))
-  {
-    m_comments.append(comment);
-    emit propertyChanged("Comments");
-  }
+  m_comments.append(comment);
+  emit propertyChanged("Comments");
 }
 
 void AbstractComponentDataItem::readData(QXmlStreamReader &xmlReader)
@@ -95,6 +92,6 @@ QList<Dimension*> AbstractComponentDataItem::dimensionsInternal() const
 
 ValueDefinition* AbstractComponentDataItem::valueDefinitionInternal() const
 {
-   return m_valueDefinition;
+  return m_valueDefinition;
 }
 

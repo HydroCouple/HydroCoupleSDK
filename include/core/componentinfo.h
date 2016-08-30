@@ -29,7 +29,8 @@
  *
  * \details This interface must not be implemented directly. It must be inherited
  */
-class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity, public virtual HydroCouple::IComponentInfo
+class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity,
+    public virtual HydroCouple::IComponentInfo
 {
     Q_OBJECT
 

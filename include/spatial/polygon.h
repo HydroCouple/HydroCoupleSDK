@@ -24,9 +24,9 @@ class HCPolygon : public HCGeometry,
 
   public:
 
-    HCPolygon(HCPolyhedralSurface *parent);
+    HCPolygon(QObject* parent = nullptr);
 
-    HCPolygon(QObject* parent);
+    HCPolygon(HCPolyhedralSurface *parent);
 
     virtual ~HCPolygon();
 
@@ -52,13 +52,19 @@ class HCPolygon : public HCGeometry,
 
     HydroCouple::Spatial::ILineString* interiorRing(int index) const override;
 
-    QList<HCLineString*> interiorRings() const;
+    QList<HCLineString*> interiorRingsInternal() const;
 
     virtual bool addInteriorRing(HCLineString* interiorRing);
 
     virtual bool removeInteriorRing(HCLineString* interiorRing);
 
     HydroCouple::Spatial::IEdge* edge() const override;
+
+    HCEdge* edgeInternal() const;
+
+    HCEdge *getEdge(int index) const;
+
+    void moveCurrentEdgeToNext();
 
     HydroCouple::Spatial::IPolyhedralSurface* polyhydralSurface() const override;
 
@@ -84,7 +90,7 @@ class HCPolygon : public HCGeometry,
 
     void removeEdge(HCEdge *edge);
 
-    void reCreateOuterLineString();
+    void reCreateOuterLineString() const;
 
   protected:
 
@@ -106,13 +112,11 @@ class HCTriangle : public HCPolygon,
     Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::ITriangle)
 
-  private:
-
-    HCTriangle(HCTIN *tin);
-
   public:
 
     HCTriangle(QObject *parent);
+
+    HCTriangle(HCTIN *tin);
 
     virtual ~HCTriangle();
 
@@ -120,9 +124,15 @@ class HCTriangle : public HCPolygon,
 
     HydroCouple::Spatial::IVertex *p1() const override;
 
+    HCVertex *p1Internal() const;
+
     HydroCouple::Spatial::IVertex *p2() const override;
 
+    HCVertex *p2Internal() const;
+
     HydroCouple::Spatial::IVertex *p3() const override;
+
+    HCVertex *p3Internal() const;
 
   private:
 

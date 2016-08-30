@@ -21,10 +21,14 @@
 #ifndef ABSTRACTADAPTEDOUTPUT_H
 #define ABSTRACTADAPTEDOUTPUT_H
 
-#include "abstractoutput.h"
+#include "hydrocouplesdk.h"
+#include "hydrocouplespatial.h"
+#include "identity.h"
 
 class AbstractAdaptedOutputFactory;
 class AbstractArgument;
+class Dimension;
+class ValueDefinition;
 
 class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
     public virtual HydroCouple::IAdaptedOutput

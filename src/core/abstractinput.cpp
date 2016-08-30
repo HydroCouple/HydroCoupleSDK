@@ -40,11 +40,11 @@ void AbstractInput::setProvider(IOutput *provider)
    emit propertyChanged("Provider");
 }
 
-//bool AbstractInput::canConsume(IOutput *provider, QString &message) const
-//{
-//   message = "";
-//   return true;
-//}
+bool AbstractInput::canConsume(IOutput *provider, QString &message) const
+{
+   message = "";
+   return true;
+}
 
 
 //======================================================================================================================================================================
@@ -89,7 +89,7 @@ void AbstractMultiInput::addProvider(IOutput *provider)
 
 bool AbstractMultiInput::removeProvider(IOutput *provider)
 {
-   if(m_providers.removeAll(provider))
+   if(m_providers.removeOne(provider))
    {
       emit propertyChanged("Providers");
       return true;

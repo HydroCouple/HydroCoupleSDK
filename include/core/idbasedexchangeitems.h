@@ -2,10 +2,11 @@
 #define IDBASEDCOMPONENTDATAITEM_H
 
 #include "abstractcomponentdataitem.h"
-#include "componentdataitem1d.h"
+#include "exchangeitems1d.h"
 
 template<class T>
-class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem : public ComponentDataItem1D<T>
+class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem :
+    public ComponentDataItem1D<T>
 {
   public:
 
@@ -20,6 +21,8 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem : public ComponentDataItem1
 
     bool removeIdentifier(const QString &identifier, bool resetDataArray = true);
 
+    T &operator[](const QString &id);
+
   protected:
 
     QStringList identifiersInternal() const;
@@ -33,7 +36,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem : public ComponentDataItem1
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemInt : public AbstractComponentDataItem,
+class HYDROCOUPLESDK_EXPORT IdBasedInputInt : public AbstractInput,
     public IdBasedComponentDataItem<int>,
     public virtual HydroCouple::IIdBasedComponentDataItem
 {
@@ -44,13 +47,13 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemInt : public AbstractCompone
 
   public:
 
-    IdBasedComponentDataItemInt(const QString& id,
-                                const QStringList& identifiers,
-                                Dimension *identifierDimension,
-                                ValueDefinition* valueDefinition,
-                                AbstractModelComponent* modelComponent);
+    IdBasedInputInt(const QString& id,
+                    const QStringList& identifiers,
+                    Dimension *identifierDimension,
+                    ValueDefinition* valueDefinition,
+                    AbstractModelComponent* modelComponent);
 
-    virtual ~IdBasedComponentDataItemInt();
+    virtual ~IdBasedInputInt();
 
     QStringList identifiers() const override;
 
@@ -93,7 +96,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemInt : public AbstractCompone
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemDouble : public  AbstractComponentDataItem,
+class HYDROCOUPLESDK_EXPORT IdBasedInputDouble : public AbstractInput,
     public IdBasedComponentDataItem<double>,
     public virtual  HydroCouple::IIdBasedComponentDataItem
 {
@@ -104,13 +107,13 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemDouble : public  AbstractCom
 
   public:
 
-    IdBasedComponentDataItemDouble(const QString& id,
-                                   const QStringList& identifiers,
-                                   Dimension *identifierDimension,
-                                   ValueDefinition* valueDefinition,
-                                   AbstractModelComponent* modelComponent);
+    IdBasedInputDouble(const QString& id,
+                       const QStringList& identifiers,
+                       Dimension *identifierDimension,
+                       ValueDefinition* valueDefinition,
+                       AbstractModelComponent* modelComponent);
 
-    virtual ~IdBasedComponentDataItemDouble();
+    virtual ~IdBasedInputDouble();
 
     QStringList identifiers() const override;
 
@@ -152,9 +155,9 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemDouble : public  AbstractCom
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemString : public AbstractComponentDataItem,
+class HYDROCOUPLESDK_EXPORT IdBasedInputString : public AbstractInput,
     public IdBasedComponentDataItem<QString>,
-    public virtual  HydroCouple::IIdBasedComponentDataItem
+    public virtual HydroCouple::IIdBasedComponentDataItem
 {
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IIdBasedComponentDataItem)
@@ -163,13 +166,13 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemString : public AbstractComp
 
   public:
 
-    IdBasedComponentDataItemString(const QString& id,
-                                   const QStringList& identifiers,
-                                   Dimension *identifierDimension,
-                                   ValueDefinition* valueDefinition,
-                                   AbstractModelComponent* modelComponent);
+    IdBasedInputString(const QString& id,
+                       const QStringList& identifiers,
+                       Dimension *identifierDimension,
+                       ValueDefinition* valueDefinition,
+                       AbstractModelComponent* modelComponent);
 
-    virtual ~IdBasedComponentDataItemString();
+    virtual ~IdBasedInputString();
 
     QStringList identifiers() const override;
 
@@ -209,9 +212,9 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItemString : public AbstractComp
     Dimension* m_identifierDimension;
 };
 
-Q_DECLARE_METATYPE(IdBasedComponentDataItemInt*)
-Q_DECLARE_METATYPE(IdBasedComponentDataItemDouble*)
-Q_DECLARE_METATYPE(IdBasedComponentDataItemString*)
+Q_DECLARE_METATYPE(IdBasedInputInt*)
+Q_DECLARE_METATYPE(IdBasedInputDouble*)
+Q_DECLARE_METATYPE(IdBasedInputString*)
 
 #endif // IDBASEDCOMPONENTDATAITEM_H
 

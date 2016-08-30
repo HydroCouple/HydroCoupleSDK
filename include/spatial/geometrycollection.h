@@ -21,19 +21,33 @@ class HYDROCOUPLESDK_EXPORT HCGeometryCollection : public HCGeometry,
 
     HydroCouple::Spatial::GeometryType geometryType() const override;
 
+    int dimension() const override;
+
+    HydroCouple::Spatial::IGeometry *envelope() const override;
+
     int geometryCount() const override;
 
     HydroCouple::Spatial::IGeometry* geometry(int index) const override;
 
-    void initializeData(int length) override;
-
-  protected:
-
-    QList<HCGeometry*> geometries() const;
+    void initializeData(int length, double defaultValue = std::numeric_limits<double>::quiet_NaN()) override;
 
     void addGeometry(HCGeometry *geometry);
 
     bool removeGeometry(HCGeometry *geometry);
+
+    void enable3D() override;
+
+    void disable3D() override;
+
+    void enableM() override;
+
+    void disableM() override;
+
+  signals:
+    void propertyChanged(const QString& propertyName) override;
+
+  protected:
+    QList<HCGeometry*> geometries() const;
 
   private:
     QList<HCGeometry*> m_geometries;
@@ -59,14 +73,6 @@ class HYDROCOUPLESDK_EXPORT HCMultiPoint : public HCGeometryCollection,
     void addPoint(HCPoint *point);
 
     bool removePoint(HCPoint *point);
-
-    void enable3D() override;
-
-    void disable3D() override;
-
-    void enableM() override;
-
-    void disableM() override;
 };
 
 
@@ -98,14 +104,6 @@ class HYDROCOUPLESDK_EXPORT HCMultiLineString : public HCGeometryCollection,
 
     bool removeLineString(HCLineString *lineString);
 
-    void enable3D() override;
-
-    void disable3D() override;
-
-    void enableM() override;
-
-    void disableM() override;
-
   private:
 
     QList<HCLineString*> m_lineStrings;
@@ -125,6 +123,8 @@ class HCMultiPolygon : public HCGeometryCollection,
 
     virtual ~HCMultiPolygon();
 
+    HydroCouple::Spatial::GeometryType geometryType() const override;
+
     double area() const override;
 
     HydroCouple::Spatial::IPoint* centroid() const override;
@@ -137,15 +137,8 @@ class HCMultiPolygon : public HCGeometryCollection,
 
     bool removePolygon(HCPolygon *polygon);
 
-    void enable3D() override;
-
-    void disable3D() override;
-
-    void enableM() override;
-
-    void disableM() override;
-
    private:
+
     QList<HCPolygon*> m_polygons;
 };
 

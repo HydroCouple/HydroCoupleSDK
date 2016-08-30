@@ -7,6 +7,7 @@ TEMPLATE = lib
 VERSION = 1.0.0.0
 TARGET = HydroCoupleSDK
 QT += core
+QT -= gui
 
 DEFINES += HYDROCOUPLESDK_LIBRARY
 
@@ -31,10 +32,10 @@ HEADERS += ./include/stdafx.h \
            ./include/core/abstractoutput.h \
            ./include/core/abstractinput.h \
            ./include/core/abstractargument.h \
-           ./include/core/componentdataitem1d.h \
-           ./include/core/componentdataitem2d.h \
-           ./include/core/componentdataitem3d.h \
-           ./include/core/idbasedcomponentdataitem.h \
+           ./include/core/exchangeitems1d.h \
+           ./include/core/exchangeitems2d.h \
+           ./include/core/exchangeitems3d.h \
+           ./include/core/idbasedexchangeitems.h \
            ./include/core/exchangeitemchangeeventargs.h \
            ./include/core/abstractexchangeitem.h \
            ./include/core/idbasedargument.h \
@@ -58,8 +59,10 @@ HEADERS += ./include/stdafx.h \
            ./include/spatial/edge.h \
            ./include/spatial/polygon.h \
            ./include/spatial/polyhedralsurface.h \
-    include/hydrocoupleexceptions.h \
-    include/spatial/geometrycomponentdataitem.h
+           ./include/hydrocoupleexceptions.h \
+           ./include/spatial/geometryexchangeitems.h \
+           ./include/spatial/geometryargument.h \
+           ./include/spatial/polyhedralsurfaceexchangeitem.h
 
 SOURCES += ./src/stdafx.cpp \
            ./src/core/description.cpp \
@@ -75,10 +78,10 @@ SOURCES += ./src/stdafx.cpp \
            ./src/core/unitdimensions.cpp \
            ./src/core/abstractinput.cpp \
            ./src/core/abstractoutput.cpp \
-           ./src/core/componentdataitem1d.cpp \
-           ./src/core/componentdataitem2d.cpp \
-           ./src/core/componentdataitem3d.cpp \
-           ./src/core/idbasedcomponentdataitem.cpp \
+           ./src/core/exchangeitems1d.cpp \
+           ./src/core/exchangeitems2d.cpp \
+           ./src/core/exchangeitems3d.cpp \
+           ./src/core/idbasedexchangeitems.cpp \
            ./src/core/abstractargument.cpp \
            ./src/core/abstractexchangeitem.cpp \
            ./src/core/exchangeitemchangeeventargs.cpp \
@@ -108,10 +111,18 @@ SOURCES += ./src/stdafx.cpp \
            ./src/spatial/edge.cpp \
            ./src/spatial/polygon.cpp \
            ./src/spatial/polyhedralsurface.cpp \
-    src/spatial/tin.cpp \
-    src/spatial/triangle.cpp \
-    src/spatial/multipolygon.cpp \
-    src/hydrocoupleexceptions.cpp
+           ./src/spatial/tin.cpp \
+           ./src/spatial/triangle.cpp \
+           ./src/spatial/multipolygon.cpp \
+           ./src/hydrocoupleexceptions.cpp \
+           ./src/spatial/geometryexchangeitems.cpp \
+           ./src/core/componentdataitem1d.cpp \
+           ./src/core/componentdataitem2d.cpp \
+           ./src/core/componentdataitem3d.cpp \
+           ./src/spatial/geometryargument.cpp \
+           ./src/core/idbasedcomponentdataitem.cpp \
+           ./src/spatial/polyhedralsurfaceexchangeitems.cpp \
+           ./src/spatial/tinexchangeitems.cpp
 
 macx{
 INCLUDEPATH += /usr/local/include \

@@ -4,9 +4,9 @@
 #include "core/valuedefinition.h"
 #include "core/dimension.h"
 #include "spatial/point.h"
-#include "core/componentdataitem1d.h"
-#include "core/componentdataitem2d.h"
-#include "core/componentdataitem3d.h"
+#include "core/exchangeitems1d.h"
+#include "core/exchangeitems2d.h"
+#include "core/exchangeitems3d.h"
 
 using namespace HydroCouple;
 
@@ -29,7 +29,7 @@ class ComponentDataItemTest : public QObject
         Quantity* quantity = new Quantity("test", QVariant::Double , unit);
 
         Dimension* dim = new Dimension("EET");
-        ComponentDataItem1DDouble* data1D = new ComponentDataItem1DDouble("test1DDouble",dim,600,quantity,nullptr);
+        Input1DDouble* data1D = new Input1DDouble("test1DDouble",dim,600,quantity,nullptr);
 
         double* inValues= new double[600];
 
@@ -75,7 +75,7 @@ class ComponentDataItemTest : public QObject
         dims.append(new Dimension("dim1"));
         dims.append(new Dimension("dim2"));
 
-        ComponentDataItem2DDouble* data2D = new ComponentDataItem2DDouble("test2DDouble",dims[0],dims[1],500,600,quantity,nullptr);
+        Input2DDouble* data2D = new Input2DDouble("test2DDouble",dims[0],dims[1],500,600,quantity,nullptr);
 
         double* inValues = new double[300000];
 
@@ -128,7 +128,7 @@ class ComponentDataItemTest : public QObject
         dims.append(new Dimension("dim2"));
         dims.append(new Dimension("dim2"));
 
-        ComponentDataItem3DDouble* data3D = new ComponentDataItem3DDouble("test3DDouble",dims[0],dims[1],dims[2],
+        Input3DDouble* data3D = new Input3DDouble("test3DDouble",dims[0],dims[1],dims[2],
             121,132,105,quantity,nullptr);
 
         double* inValues = new double[1677060];

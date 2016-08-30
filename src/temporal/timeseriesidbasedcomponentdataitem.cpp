@@ -161,7 +161,7 @@ void TimeSeriesIdBasedComponentDataItem<T>::addTimes(const QList<SDKTemporal::Ti
 template<class T>
 bool TimeSeriesIdBasedComponentDataItem<T>::removeTime(SDKTemporal::Time* time, bool resetDataArray)
 {
-  if(m_times.removeAll(time))
+  if(m_times.removeOne(time))
   {
     double duration = m_times[0]->dateTime() - m_times[m_times.length() -1]->dateTime();
     m_timeSpan->setDateTime(m_times[0]->qDateTime());
@@ -272,133 +272,6 @@ void TimeSeriesIdBasedComponentDataItem<T>::clearTimes()
 {
   qDeleteAll(m_times);
   m_times.clear();
-}
-
-//==============================================================================================================================
-
-TimeSeriesIdBasedComponentDataItemDouble::TimeSeriesIdBasedComponentDataItemDouble(const QString& id,
-                                                                                   const QStringList& identifiers,
-                                                                                   Dimension* identifierDimension,
-                                                                                   const QList<SDKTemporal::Time *>& times,
-                                                                                   Dimension* timeDimension,
-                                                                                   ValueDefinition* valueDefinition,
-                                                                                   AbstractModelComponent* modelComponent)
-  : AbstractComponentDataItem(id,QList<Dimension*>({identifierDimension,timeDimension}), valueDefinition, modelComponent),
-    TimeSeriesIdBasedComponentDataItem<double>(identifiers,times,valueDefinition->defaultValue().toDouble()),
-    m_identifierDimension(identifierDimension),
-    m_timeDimension(timeDimension)
-{
-}
-
-TimeSeriesIdBasedComponentDataItemDouble::~TimeSeriesIdBasedComponentDataItemDouble()
-{
-}
-
-QStringList TimeSeriesIdBasedComponentDataItemDouble::identifiers() const
-{
-  return TimeSeriesIdBasedComponentDataItem<double>::identifiersInternal();
-}
-
-IDimension* TimeSeriesIdBasedComponentDataItemDouble::identifierDimension() const
-{
-  return m_identifierDimension;
-}
-
-QList<ITime*> TimeSeriesIdBasedComponentDataItemDouble::times() const
-{
-  QList<ITime*> otimes;
-  QList<SDKTemporal::Time*> itimes = TimeSeriesIdBasedComponentDataItem<double>::timesInternal();
-
-  for(SDKTemporal::Time* time : itimes)
-  {
-    otimes.append(time);
-  }
-
-  return otimes;
-}
-
-ITimeSpan* TimeSeriesIdBasedComponentDataItemDouble::timeSpan() const
-{
-  return TimeSeriesIdBasedComponentDataItem<double>::timeSpanInternal();
-}
-
-IDimension* TimeSeriesIdBasedComponentDataItemDouble::timeDimension() const
-{
-  return m_timeDimension;
-}
-
-int TimeSeriesIdBasedComponentDataItemDouble::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
-{
-  assert(dimensionIndexesLength < dimensions().length());
-
-  if(dimensionIndexesLength == 0)
-  {
-    return iLength();
-  }
-  else
-  {
-    return jLength();
-  }
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::getValue(int dimensionIndexes[], QVariant &data) const
-{
-  ComponentDataItem2D<double>::getValueT(dimensionIndexes,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const
-{
-  ComponentDataItem2D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::getValues(int dimensionIndexes[], int stride[],  void *data) const
-{
-  ComponentDataItem2D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::setValue(int dimensionIndexes[], const QVariant &data)
-{
-  ComponentDataItem2D<double>::setValueT(dimensionIndexes,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem2D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem2D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::getValue(int timeIndex, int idIndex, QVariant &data) const
-{
-  TimeSeriesIdBasedComponentDataItem<double>::getValueT(timeIndex,idIndex,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::getValues(int timeIndex, int idIndex, int timeStride, int idStride, QVariant data[]) const
-{
-  TimeSeriesIdBasedComponentDataItem<double>::getValuesT(timeIndex,idIndex,timeStride,idStride,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::getValues(int timeIndex, int idIndex, int timeStride, int idStride, void *data) const
-{
-  TimeSeriesIdBasedComponentDataItem<double>::getValuesT(timeIndex,idIndex,timeStride,idStride,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::setValue(int timeIndex, int idIndex, const QVariant &data)
-{
-  TimeSeriesIdBasedComponentDataItem<double>::setValueT(timeIndex,idIndex,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::setValues(int timeIndex, int idIndex, int timeStride, int idStride, const QVariant data[])
-{
-  TimeSeriesIdBasedComponentDataItem<double>::setValuesT(timeIndex,idIndex,timeStride,idStride,data);
-}
-
-void TimeSeriesIdBasedComponentDataItemDouble::setValues(int timeIndex, int idIndex, int timeStride, int idStride, const void *data)
-{
-  TimeSeriesIdBasedComponentDataItem<double>::setValuesT(timeIndex,idIndex,timeStride,idStride,data);
 }
 
 template class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem<int>;
