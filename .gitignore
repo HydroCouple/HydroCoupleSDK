@@ -235,3 +235,9 @@ Makefile*
 # QtCtreator CMake
 CMakeLists.txt.user
 *.db
+
+.vscode/.browse.VC.db
+
+*.db
+
+.vscode/.browse.VC.db
