@@ -31,6 +31,11 @@ IUnitDimensions* Unit::dimensions() const
    return m_dimensions;
 }
 
+UnitDimensions* Unit::dimensionsInternal() const
+{
+   return m_dimensions;
+}
+
 double Unit::conversionFactorToSI() const
 {
    return m_conversionFactorToSI;
@@ -52,6 +57,24 @@ void Unit::setOffsetToSI(double offsetToSI)
    m_offsetToSI = offsetToSI;
    emit propertyChanged("OffsetToSI");
 }
+
+Unit *Unit::copy(const IUnit *unit, QObject *parent)
+{
+  Unit *oUnit = new Unit(unit->caption(), unit->conversionFactorToSI(),
+                        unit->offsetToSI(), parent);
+
+  oUnit->dimensionsInternal()->setPower(HydroCouple::Length, unit->dimensions()->getPower(HydroCouple::Length));
+  oUnit->dimensionsInternal()->setPower(HydroCouple::Mass, unit->dimensions()->getPower(HydroCouple::Mass));
+  oUnit->dimensionsInternal()->setPower(HydroCouple::Time, unit->dimensions()->getPower(HydroCouple::Time));
+  oUnit->dimensionsInternal()->setPower(HydroCouple::ElectricCurrent, unit->dimensions()->getPower(HydroCouple::ElectricCurrent));
+  oUnit->dimensionsInternal()->setPower(HydroCouple::Temperature, unit->dimensions()->getPower(HydroCouple::Temperature));
+  oUnit->dimensionsInternal()->setPower(HydroCouple::AmountOfSubstance, unit->dimensions()->getPower(HydroCouple::AmountOfSubstance));
+  oUnit->dimensionsInternal()->setPower(HydroCouple::LuminousIntensity, unit->dimensions()->getPower(HydroCouple::LuminousIntensity));
+  oUnit->dimensionsInternal()->setPower(HydroCouple::Currency, unit->dimensions()->getPower(HydroCouple::Currency));
+
+  return oUnit;
+}
+
 
 Unit* Unit::lengthInMeters(QObject *parent)
 {
@@ -116,6 +139,7 @@ Unit* Unit::unitlessCoefficient(QObject *parent)
    Unit* unit = new Unit("Coefficient" , 1.0 , 0.0 , parent);
    return unit;
 }
+
 
 
 

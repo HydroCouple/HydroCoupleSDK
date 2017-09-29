@@ -10,49 +10,62 @@
 
 namespace  SDKTemporal
 {
-  class HYDROCOUPLESDK_EXPORT Time : public QObject,
-      public virtual HydroCouple::Temporal::ITime
+  class HYDROCOUPLESDK_EXPORT DateTime : public QObject,
+      public virtual HydroCouple::Temporal::IDateTime
   {
       Q_OBJECT
       Q_INTERFACES(HydroCouple::IPropertyChanged)
-      Q_INTERFACES(HydroCouple::Temporal::ITime)
-      Q_PROPERTY(QDateTime DateTime READ qDateTime WRITE setDateTime NOTIFY propertyChanged)
+      Q_INTERFACES(HydroCouple::Temporal::IDateTime)
+      Q_PROPERTY(QDateTime DateTime READ dateTime WRITE setDateTime NOTIFY propertyChanged)
 
     public:
 
-      Time(QObject *parent = nullptr);
+      DateTime(QObject *parent = nullptr);
 
-      explicit Time(const QDateTime &dateTime, QObject *parent = nullptr);
+      explicit DateTime(const QDateTime &dateTime, QObject *parent = nullptr);
 
-      explicit Time(double dateTime, QObject *parent = nullptr);
+      explicit DateTime(double dateTime, QObject *parent = nullptr);
 
-      virtual ~Time();
+      virtual ~DateTime();
 
-      double dateTime() const override;
+      double modifiedJulianDay() const override;
 
-      QDateTime qDateTime() const;
+      QDateTime dateTime() const;
 
-      void setDateTime(double dateTime) override;
+      void setModifiedJulianDay(double modifiedJD) override;
 
       void setDateTime(const QDateTime &dateTime);
 
-      static bool compare(Time *time1, Time *time2);
+      static bool compare(DateTime *time1, DateTime *time2);
+
+      static double toJulianDays(const QDateTime &dateTime);
+
+      static double toModifiedJulianDays(const QDateTime &dateTime);
+
+      static QDateTime fromJulianDays(double julianDays);
+
+      static QDateTime fromModifiedJulianDays(double modifiedJulianDays);
+
+      static bool tryParse(const QString &dateTimeString, QDateTime &dateTime);
 
     signals:
+
       void propertyChanged(const QString &propertyName) override;
 
     private:
       QDateTime m_dateTime;
       double m_modifiedJD;
+      static const QList<QString> m_dateTimeFormats;
+
   };
 
-  class HYDROCOUPLESDK_EXPORT TimeSpan : public Time,
+  class HYDROCOUPLESDK_EXPORT TimeSpan : public DateTime,
       public virtual HydroCouple::Temporal::ITimeSpan
   {
       Q_OBJECT
       Q_INTERFACES(HydroCouple::Temporal::ITimeSpan)
       Q_PROPERTY(double Duration READ duration WRITE setDuration NOTIFY propertyChanged)
-      Q_PROPERTY(QDateTime EndTime READ endTime NOTIFY propertyChanged)
+      Q_PROPERTY(QDateTime EndDateTime READ endDateTime NOTIFY propertyChanged)
 
     public:
 
@@ -68,18 +81,20 @@ namespace  SDKTemporal
 
       void setDuration(double duration);
 
-      QDateTime endTime() const;
+      QDateTime endDateTime() const;
 
     signals:
+
       void propertyChanged(const QString& propertyName) override;
 
     private:
+
       double m_duration;
-      QDateTime m_endTime;
+      QDateTime m_endDateTime;
   };
 }
 
-Q_DECLARE_METATYPE(SDKTemporal::Time*)
+Q_DECLARE_METATYPE(SDKTemporal::DateTime*)
 Q_DECLARE_METATYPE(SDKTemporal::TimeSpan*)
 
 #endif // TIMEDATA_H

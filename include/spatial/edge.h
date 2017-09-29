@@ -1,3 +1,23 @@
+/*!
+ *  \file    edge.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  edge.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef EDGE
 #define EDGE
 
@@ -5,14 +25,14 @@
 
 #include <QMutex>
 
-//class HCEdge;
+//class Edge;
 class HCVertex;
 class HCPolygon;
 class QuadEdge;
 class HCPolyhedralSurface;
 class HCTIN;
 
-class HYDROCOUPLESDK_EXPORT HCEdge final : public Identity,
+class HYDROCOUPLESDK_EXPORT Edge final:
     public virtual HydroCouple::Spatial::IEdge
 {
 
@@ -20,24 +40,25 @@ class HYDROCOUPLESDK_EXPORT HCEdge final : public Identity,
     friend class HCPolyhedralSurface;
     friend class HCTIN;
     friend class HCPolygon;
+    friend class HCVertex;
 
-    Q_OBJECT
+//    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IEdge)
 
     //  public:
   private:
 
-    HCEdge();
+    Edge();
 
-    virtual ~HCEdge();
-
-    static HCEdge *createEdge(HCPolyhedralSurface *parent);
-
-    static void deleteEdge(HCEdge *edge);
+    virtual ~Edge();
 
   public:
 
-    static void splice(HCEdge *a, HCEdge *b);
+    static Edge *createEdge(HCPolyhedralSurface *parent);
+
+    static void deleteEdge(Edge *edge);
+
+    static void splice(Edge *a, Edge *b);
 
     unsigned int index() const override;
 
@@ -81,62 +102,63 @@ class HYDROCOUPLESDK_EXPORT HCEdge final : public Identity,
 
     HydroCouple::Spatial::IEdge *rot()   override;
 
-    HCEdge *rotInternal() ;
+    Edge *rotInternal() ;
 
     HydroCouple::Spatial::IEdge *invRot()  override;
 
-    HCEdge *invRotInternal() ;
+    Edge *invRotInternal() ;
 
     HydroCouple::Spatial::IEdge *sym()  override;
 
-    HCEdge *symInternal() ;
+    Edge *symInternal() ;
 
     HydroCouple::Spatial::IEdge *origNext()  override;
 
-    HCEdge *origNextInternal()  ;
+    Edge *origNextInternal()  ;
 
     HydroCouple::Spatial::IEdge *origPrev()  override;
 
-    HCEdge *origPrevInternal()  ;
+    Edge *origPrevInternal()  ;
 
     HydroCouple::Spatial::IEdge *destNext()  override;
 
-    HCEdge *destNextInternal()  ;
+    Edge *destNextInternal()  ;
 
     HydroCouple::Spatial::IEdge *destPrev()  override;
 
-    HCEdge *destPrevInternal()  ;
+    Edge *destPrevInternal()  ;
 
     HydroCouple::Spatial::IEdge *leftNext()  override;
 
-    HCEdge *leftNextInternal()  ;
+    Edge *leftNextInternal()  ;
 
     HydroCouple::Spatial::IEdge *leftPrev()  override;
 
-    HCEdge *leftPrevInternal()  ;
+    Edge *leftPrevInternal()  ;
 
     HydroCouple::Spatial::IEdge *rightNext()  override;
 
-    HCEdge *rightNextInternal()  ;
+    Edge *rightNextInternal()  ;
 
     HydroCouple::Spatial::IEdge *rightPrev()  override;
 
-    HCEdge *rightPrevInternal()  ;
+    Edge *rightPrevInternal()  ;
 
-    void initializeData(int length, double defaultValue = std::numeric_limits<double>::quiet_NaN());
+    double length();
+
+    int marker() const;
+
+    void setMarker(int index) ;
 
     static unsigned int getNextId();
 
   private:
+
     void setGeometryFlag(HCGeometry::GeometryFlag flag, bool on = true);
-
-  public:
-    double* data;
-    int dataLength;
-
 
   private:
 
+    int m_marker;
     unsigned int m_index, m_id;
     static unsigned int m_nextId;
 
@@ -144,7 +166,7 @@ class HYDROCOUPLESDK_EXPORT HCEdge final : public Identity,
       *The next ccw edge around (from) the origin of this edge.
       *Nonnull.
      */
-    HCEdge *m_next;
+    Edge *m_next;
 
     /*
       *The origin vertex of this edge, if prime.
@@ -161,20 +183,13 @@ class HYDROCOUPLESDK_EXPORT HCEdge final : public Identity,
     QuadEdge *m_quadeEdge;
     HCGeometry::GeometryFlags m_geomFlags;
 
+  private:
+
+
 };
 
-class QuadEdge
-{
-  public:
 
-    QuadEdge(HCPolyhedralSurface *parent);
-
-    virtual ~QuadEdge(){}
-
-    HCEdge m_edges[4];
-};
-
-Q_DECLARE_METATYPE(HCEdge*)
+Q_DECLARE_METATYPE(Edge*)
 
 #endif // EDGE
 

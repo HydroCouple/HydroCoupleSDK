@@ -52,11 +52,11 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
 
 
   public:
-    AbstractAdaptedOutput(const QString& id,
-                          const QList<Dimension*>& dimensions,
-                          ValueDefinition* valueDefinition,
-                          HydroCouple::IOutput* adaptee,
-                          AbstractAdaptedOutputFactory* adaptedOutputFactory);
+    AbstractAdaptedOutput(const QString &id,
+                          const QList<Dimension*> &dimensions,
+                          ValueDefinition *valueDefinition,
+                          HydroCouple::IOutput *adaptee,
+                          AbstractAdaptedOutputFactory *adaptedOutputFactory);
 
     HydroCouple::IModelComponent* modelComponent() const override;
 
@@ -66,9 +66,9 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
 
     QStringList comments() const;
 
-    void setComments(const QStringList& comments);
+    void setComments(const QStringList &comments);
 
-    void addComment(const QString& comment);
+    void addComment(const QString &comment);
 
     QList<HydroCouple::IInput*> consumers() const override;
 
@@ -82,7 +82,7 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
 
     bool removeAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOutput) override;
 
-    HydroCouple::IAdaptedOutputFactory* adaptedOutputFactory() const override;
+    HydroCouple::IAdaptedOutputFactory *adaptedOutputFactory() const override;
 
     QList<HydroCouple::IArgument*> arguments() const override;
 
@@ -90,21 +90,25 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
 
     HydroCouple::IInput* input() const ;
 
-    void setInput(HydroCouple::IInput* input);
+    void setInput(HydroCouple::IInput *input);
+
+    virtual void refreshAdaptedOutputs();
+
+    virtual void initializeAdaptedOutputs();
 
   signals:
 
-    void propertyChanged(const QString& propertyName) override;
+    void propertyChanged(const QString &propertyName) override;
 
-    void itemChanged(const QSharedPointer<HydroCouple::IExchangeItemChangeEventArgs>& statusChangedEvent) override;
+    void itemChanged(const QSharedPointer<HydroCouple::IExchangeItemChangeEventArgs> &statusChangedEvent) override;
 
   protected:
 
     QList<Dimension*> dimensionsInternal() const;
 
-    ValueDefinition* valueDefinitionInternal() const;
+    ValueDefinition *valueDefinitionInternal() const;
 
-    AbstractAdaptedOutputFactory* adaptedOutputFactoryInternal() const;
+    AbstractAdaptedOutputFactory *adaptedOutputFactoryInternal() const;
 
     void addArgument(AbstractArgument *argument);
 
@@ -114,11 +118,8 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
 
     QHash<QString,AbstractArgument*> argumentsInternal() const;
 
-    void initializeAdaptedOutputs();
-
-    void refreshAdaptedOutputs();
-
   private:
+
     QList<Dimension*> m_dimensions;
     ValueDefinition* m_valueDefinition;
     QStringList m_comments;

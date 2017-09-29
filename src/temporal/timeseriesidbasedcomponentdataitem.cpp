@@ -11,15 +11,17 @@ using namespace HydroCouple::Temporal;
 using namespace SDKTemporal;
 
 template<class T>
-TimeSeriesIdBasedComponentDataItem<T>::TimeSeriesIdBasedComponentDataItem(const QStringList& identifiers,
-                                                                          const QList<SDKTemporal::Time*>& times,
+TimeSeriesIdBasedComponentDataItem<T>::TimeSeriesIdBasedComponentDataItem(const QString &id,
+                                                                          const QStringList& identifiers,
+                                                                          const QList<SDKTemporal::DateTime *> &times,
                                                                           const T& defaultValue)
-  : ComponentDataItem2D<T>(identifiers.length(),times.length(),defaultValue),
+  : ComponentDataItem2D<T>(id, identifiers.length(),times.length(),defaultValue),
     m_identifiers(identifiers),
     m_times(times)
 {
-  double duration = times[0]->dateTime() - times[times.length() -1]->dateTime();
-  m_timeSpan = new TimeSpan(times[0]->qDateTime(), duration, nullptr);
+  qSort(m_times.begin() , m_times.end() , &DateTime::compare);
+  double duration = times[0]->modifiedJulianDay() - times[times.length() -1]->modifiedJulianDay();
+  m_timeSpan = new TimeSpan(times[0]->dateTime(), duration, nullptr);
 }
 
 template<class T>
@@ -32,18 +34,12 @@ TimeSeriesIdBasedComponentDataItem<T>::~TimeSeriesIdBasedComponentDataItem()
 }
 
 template<class T>
-bool TimeSeriesIdBasedComponentDataItem<T>::addIdentifier(const QString& identifier, bool resetDataArray)
+bool TimeSeriesIdBasedComponentDataItem<T>::addIdentifier(const QString& identifier)
 {
   if(!m_identifiers.contains(identifier))
   {
     m_identifiers.append(identifier);
-    ComponentDataItem2D<T>::setILength(m_identifiers.length());
-
-    if(resetDataArray)
-    {
-      ComponentDataItem2D<T>::resetDataArray();
-    }
-
+    ComponentDataItem2D<T>::resizeDataArrayILength(m_identifiers.length());
     return true;
   }
   else
@@ -53,7 +49,7 @@ bool TimeSeriesIdBasedComponentDataItem<T>::addIdentifier(const QString& identif
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::addIdentifiers(const QList<QString>& identifiers, bool resetDataArray)
+bool TimeSeriesIdBasedComponentDataItem<T>::addIdentifiers(const QList<QString>& identifiers)
 {
   bool added = false;
 
@@ -68,26 +64,22 @@ void TimeSeriesIdBasedComponentDataItem<T>::addIdentifiers(const QList<QString>&
 
   if(added)
   {
-    ComponentDataItem2D<T>::setILength(m_identifiers.length());
-
-    if(resetDataArray)
-    {
-      ComponentDataItem2D<T>::resetDataArray();
-    }
+    ComponentDataItem2D<T>::resizeDataArrayILength(m_identifiers.length());
+    return true;
   }
+
+  return false;
 }
 
 template<class T>
-bool TimeSeriesIdBasedComponentDataItem<T>::removeIdentifier(const QString& identifier, bool resetDataArray)
+bool TimeSeriesIdBasedComponentDataItem<T>::removeIdentifier(const QString& identifier)
 {
-  if(m_identifiers.removeOne(identifier))
-  {
-    ComponentDataItem2D<T>::setILength(m_identifiers.length());
+  int index = m_identifiers.indexOf(identifier);
 
-    if(resetDataArray)
-    {
-      ComponentDataItem2D<T>::resetDataArray();
-    }
+  if(index >= 0)
+  {
+    m_identifiers.removeAt(index);
+    ComponentDataItem2D<T>::removeIItemAt(index);
     return true;
   }
   else
@@ -97,82 +89,66 @@ bool TimeSeriesIdBasedComponentDataItem<T>::removeIdentifier(const QString& iden
 }
 
 template<class T>
-bool TimeSeriesIdBasedComponentDataItem<T>::addTime(SDKTemporal::Time* time, bool resetDataArray)
+bool TimeSeriesIdBasedComponentDataItem<T>::addTime(SDKTemporal::DateTime* time)
 {
-  for(SDKTemporal::Time *time : m_times)
+  if(m_times.length() && time->dateTime() > m_times[m_times.length()]->dateTime())
   {
-    if(time->dateTime() == time->dateTime())
-    {
-      return false;
-    }
+    m_times.append(time);
+    resetTimeSpan();
+    ComponentDataItem2D<T>::resizeDataArrayJLength(m_times.length());
+    return true;
   }
 
-  m_times.append(time);
 
-  qSort(m_times.begin() , m_times.end() , &Time::compare);
-
-  double duration = m_times[0]->dateTime() - m_times[m_times.length() -1]->dateTime();
-  m_timeSpan->setDateTime(m_times[0]->qDateTime());
-  m_timeSpan->setDuration(duration);
-  ComponentDataItem2D<T>::setJLength(m_times.length());
-
-  if(resetDataArray)
-  {
-    ComponentDataItem2D<T>::resetDataArray();
-  }
-
-  return true;
+  return false;
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::addTimes(const QList<SDKTemporal::Time*>& times, bool resetDataArray)
+bool TimeSeriesIdBasedComponentDataItem<T>::addTimes(const QList<DateTime *> &times)
 {
-  for(SDKTemporal::Time* ntime : times)
+  if(times.length() > 1)
   {
-    bool found = false;
-
-    for(SDKTemporal::Time *time : m_times)
+    for(int i = 1 ; i < times.length() ; i++)
     {
-      if(time->dateTime() == ntime->dateTime())
+      if(times[i]->dateTime() < times[i-1]->dateTime())
       {
-        found = true;
+        return false;
       }
     }
 
-    if(!found)
+
+    if(m_times.length())
+    {
+      if(times[0]->dateTime() < m_times[m_times.length() -1]->dateTime())
+      {
+        return false;
+      }
+    }
+
+    for(SDKTemporal::DateTime* ntime : times)
     {
       m_times.append(ntime);
     }
+
+    resetTimeSpan();
+
+    ComponentDataItem2D<T>::resizeDataArrayJLength(m_times.length());
+    return true;
   }
 
-  qSort(m_times.begin() , m_times.end() , &Time::compare);
-
-  double duration = m_times[0]->dateTime() - m_times[m_times.length() -1]->dateTime();
-  m_timeSpan->setDateTime(m_times[0]->qDateTime());
-  m_timeSpan->setDuration(duration);
-  ComponentDataItem2D<T>::setJLength(m_times.length());
-
-  if(resetDataArray)
-  {
-    ComponentDataItem2D<T>::resetDataArray();
-  }
+  return false;
 }
 
 template<class T>
-bool TimeSeriesIdBasedComponentDataItem<T>::removeTime(SDKTemporal::Time* time, bool resetDataArray)
+bool TimeSeriesIdBasedComponentDataItem<T>::removeTime(DateTime *time)
 {
-  if(m_times.removeOne(time))
+  int index = m_times.indexOf(time);
+
+  if(index >= 0)
   {
-    double duration = m_times[0]->dateTime() - m_times[m_times.length() -1]->dateTime();
-    m_timeSpan->setDateTime(m_times[0]->qDateTime());
-    m_timeSpan->setDuration(duration);
-    ComponentDataItem2D<T>::setJLength(m_times.length());
-
-    if(resetDataArray)
-    {
-      ComponentDataItem2D<T>::resetDataArray();
-    }
-
+    m_times.removeAt(index);
+    resetTimeSpan();
+    ComponentDataItem2D<T>::removeJItemAt(index);
     return true;
   }
   else
@@ -182,65 +158,50 @@ bool TimeSeriesIdBasedComponentDataItem<T>::removeTime(SDKTemporal::Time* time, 
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::setTimes(const QList<SDKTemporal::Time*>& times)
+void TimeSeriesIdBasedComponentDataItem<T>::resetTimeSpan()
 {
-  qDeleteAll(m_times);
-  m_times.clear();
-
-  m_times = times;
-
-  qSort(m_times.begin() , m_times.end() , &SDKTemporal::Time::compare);
-
-  double duration = m_times[0]->dateTime() - m_times[m_times.length() -1]->dateTime();
-  m_timeSpan->setDateTime(m_times[0]->qDateTime());
-  m_timeSpan->setDuration(duration);
-  ComponentDataItem2D<T>::setJLength(m_times.length());
+  if(m_times.length())
+  {
+    double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.length() -1]->modifiedJulianDay();
+    m_timeSpan->setModifiedJulianDay(m_times[0]->modifiedJulianDay());
+    m_timeSpan->setDuration(duration);
+  }
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::getValueT(int idIndex, int timeIndex, QVariant& data) const
+void TimeSeriesIdBasedComponentDataItem<T>::getValueT(const std::vector<int> &dimensionIndexes, void* data) const
 {
-  int indexes[] = {idIndex , timeIndex};
-  ComponentDataItem2D<T>::getValueT(indexes, data);
+  ComponentDataItem2D<T>::getValueT(dimensionIndexes, data);
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::getValuesT(int idIndex, int timeIndex, int idStride, int timeStride, QVariant data[]) const
+void TimeSeriesIdBasedComponentDataItem<T>::getValueT(int idIndex, int timeIndex, void* data) const
 {
-  int indexes[] = {idIndex , timeIndex};
-  int stride[] = {idStride , timeStride };
-  ComponentDataItem2D<T>::getValuesT(indexes , stride, data);
+  ComponentDataItem2D<T>::getValueT(idIndex,timeIndex, data);
 }
 
 template<class T>
 void TimeSeriesIdBasedComponentDataItem<T>::getValuesT(int idIndex, int timeIndex, int idStride, int timeStride, void* data) const
 {
-  int indexes[] = {idIndex , timeIndex};
-  int stride[] = {idStride , timeStride };
-  ComponentDataItem2D<T>::getValuesT(indexes,stride, data);
+  ComponentDataItem2D<T>::getValuesT(idIndex,timeIndex,idStride, timeStride, data);
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::setValueT(int idIndex, int timeIndex, const QVariant& data)
+void TimeSeriesIdBasedComponentDataItem<T>::setValueT(const std::vector<int> &dimensionIndexes, const void *data)
 {
-  int indexes[] = {idIndex , timeIndex};
-  ComponentDataItem2D<T>::setValueT(indexes, data);
+  ComponentDataItem2D<T>::setValueT(dimensionIndexes, data);
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::setValuesT(int idIndex, int timeIndex, int idStride, int timeStride, const QVariant data[])
+void TimeSeriesIdBasedComponentDataItem<T>::setValueT(int idIndex, int timeIndex, const void *data)
 {
-  int indexes[] = {idIndex , timeIndex};
-  int stride[] = {idStride , timeStride };
-  ComponentDataItem2D<T>::setValuesT(indexes,stride, data);
+  ComponentDataItem2D<T>::setValueT(idIndex, timeIndex, data);
 }
 
 template<class T>
 void TimeSeriesIdBasedComponentDataItem<T>::setValuesT(int idIndex, int timeIndex, int idStride, int timeStride, const void *data)
 {
-  int indexes[] = {idIndex , timeIndex};
-  int stride[] = {idStride , timeStride };
-  ComponentDataItem2D<T>::setValuesT(indexes, stride, data);
+  ComponentDataItem2D<T>::setValuesT(idIndex,timeIndex,idStride, timeStride, data);
 }
 
 template<class T>
@@ -256,9 +217,21 @@ void TimeSeriesIdBasedComponentDataItem<T>::clearIdentifiers()
 }
 
 template<class T>
-QList<SDKTemporal::Time*> TimeSeriesIdBasedComponentDataItem<T>::timesInternal() const
+QList<DateTime *> TimeSeriesIdBasedComponentDataItem<T>::timesInternal() const
 {
   return m_times;
+}
+
+template<class T>
+DateTime *TimeSeriesIdBasedComponentDataItem<T>::timeInternal(int timeIndex) const
+{
+  return m_times[timeIndex];
+}
+
+template<class T>
+int TimeSeriesIdBasedComponentDataItem<T>::timeCountInternal() const
+{
+  return m_times.length();
 }
 
 template<class T>
@@ -272,6 +245,7 @@ void TimeSeriesIdBasedComponentDataItem<T>::clearTimes()
 {
   qDeleteAll(m_times);
   m_times.clear();
+  ComponentDataItem2D<T>::resizeDataArray(0,0);
 }
 
 template class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem<int>;

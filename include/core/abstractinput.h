@@ -32,36 +32,40 @@ class HYDROCOUPLE_EXPORT AbstractInput : public AbstractExchangeItem,
 
   public:
 
-    AbstractInput(const QString& id,
-                  const QList<Dimension*>& dimensions,
-                  ValueDefinition* valueDefinition,
-                  AbstractModelComponent* modelComponent);
+    AbstractInput(const QString &id,
+                  const QList<Dimension*> &dimensions,
+                  ValueDefinition *valueDefinition,
+                  AbstractModelComponent *modelComponent);
 
-    AbstractInput(const QString& id,
-                  const QString& caption,
-                  const QList<Dimension*>& dimensions,
-                  ValueDefinition* valueDefinition,
+    AbstractInput(const QString &id,
+                  const QString &caption,
+                  const QList<Dimension*> &dimensions,
+                  ValueDefinition *valueDefinition,
                   AbstractModelComponent *modelComponent);
 
     virtual ~AbstractInput();
 
-    HydroCouple::IOutput* provider() const override;
+    HydroCouple::IOutput *provider() const override;
 
-    void setProvider(HydroCouple::IOutput* provider) override;
+    bool setProvider(HydroCouple::IOutput *provider) override;
 
     virtual bool canConsume(HydroCouple::IOutput *provider, QString &message) const override;
 
+    virtual void retrieveValuesFromProvider() = 0;
+
+    virtual void applyData() = 0;
+
   signals:
 
-    void propertyChanged(const QString& propertyName) override;
+    void propertyChanged(const QString &propertyName) override;
 
   private:
 
-    HydroCouple::IOutput* m_provider;
+    HydroCouple::IOutput *m_provider;
 
 };
 
-class HYDROCOUPLE_EXPORT AbstractMultiInput : public AbstractInput,
+class HYDROCOUPLE_EXPORT AbstractMultiInput: public AbstractInput,
     public virtual HydroCouple::IMultiInput
 {
     Q_OBJECT
@@ -70,22 +74,22 @@ class HYDROCOUPLE_EXPORT AbstractMultiInput : public AbstractInput,
 
   public:
 
-    AbstractMultiInput(const QString& id,
-                       const QList<Dimension*>& dimensions,
-                       ValueDefinition* valueDefinition,
+    AbstractMultiInput(const QString &id,
+                       const QList<Dimension*> &dimensions,
+                       ValueDefinition *valueDefinition,
                        AbstractModelComponent *modelComponent);
 
-    AbstractMultiInput(const QString& id,
-                       const QString& caption,
-                       const QList<Dimension*>& dimensions,
-                       ValueDefinition* valueDefinition,
-                       AbstractModelComponent* modelComponent);
+    AbstractMultiInput(const QString &id,
+                       const QString &caption,
+                       const QList<Dimension*> &dimensions,
+                       ValueDefinition *valueDefinition,
+                       AbstractModelComponent *modelComponent);
 
     virtual ~AbstractMultiInput();
 
     QList<HydroCouple::IOutput*>  providers() const override;
 
-    void addProvider(HydroCouple::IOutput *provider) override;
+    bool addProvider(HydroCouple::IOutput *provider) override;
 
     bool removeProvider(HydroCouple::IOutput *provider) override;
 
@@ -93,7 +97,7 @@ class HYDROCOUPLE_EXPORT AbstractMultiInput : public AbstractInput,
 
     void propertyChanged(const QString &propertyName) override;
 
-  private:
+  protected:
 
     QList<HydroCouple::IOutput*> m_providers;
 };

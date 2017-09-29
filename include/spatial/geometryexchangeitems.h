@@ -1,3 +1,24 @@
+/*!
+ *  \file    geometryexchangeitems.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  geometryexchangeitems.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2017
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ *  \copyright Copyright 2017 Caleb Buahin
+ */
+
 #ifndef GEOMETRYEXCHANGEITEMS_H
 #define GEOMETRYEXCHANGEITEMS_H
 
@@ -6,140 +27,126 @@
 #include "hydrocouplespatial.h"
 
 class HCGeometry;
+class Envelope;
 
-class HYDROCOUPLESDK_EXPORT HCGeometryInputDouble  : public AbstractInput,
+
+//typedef void (*NotifyGeometryListChanged) (const GeometryInputDouble*);
+
+class HYDROCOUPLESDK_EXPORT GeometryInputDouble  : public AbstractInput,
     public ComponentDataItem1D<double>,
-    public virtual HydroCouple::Spatial::IGeometryExchangeItem
+    public virtual HydroCouple::Spatial::IGeometryComponentDataItem
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Spatial::IGeometryComponentDataItem
-                 HydroCouple::Spatial::IGeometryExchangeItem)
+    Q_INTERFACES(HydroCouple::Spatial::IGeometryComponentDataItem)
 
   public:
 
-    HCGeometryInputDouble(const QString& id,
-                          HydroCouple::Spatial::GeometryType geomType,
-                          Dimension *geometryDimesion,
-                          ValueDefinition* valueDefinition,
-                          AbstractModelComponent *modelComponent);
+    GeometryInputDouble(const QString& id,
+                        HydroCouple::Spatial::IGeometry::GeometryType geomType,
+                        Dimension *geometryDimesion,
+                        ValueDefinition* valueDefinition,
+                        AbstractModelComponent *modelComponent);
 
-    virtual ~HCGeometryInputDouble();
+    virtual ~GeometryInputDouble();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     int geometryCount() const override;
 
     HydroCouple::Spatial::IGeometry *geometry(int geometryIndex) const override;
 
-    virtual HydroCouple::IDimension *geometryDimension() const override;
+    HydroCouple::IDimension *geometryDimension() const override;
 
-    void addGeometry(HCGeometry *geometry);
+    HydroCouple::Spatial::IEnvelope *envelope() const override;
 
-    void addGeometries(QList<HCGeometry*> geometries);
+    virtual void addGeometry(const QSharedPointer<HCGeometry> &geometry);
 
-    bool removeGeometry(HCGeometry *geometry);
+    virtual void addGeometries(const QList<QSharedPointer<HCGeometry>> &geometries);
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    virtual bool removeGeometry(const QSharedPointer<HCGeometry> &geometry);
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+    void getValue(const std::vector<int> &dimensionIndexes,  void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int geometryDimensionIndex, QVariant &data) const override;
-
-    void getValues(int geometryDimensionIndex, int stride,  QVariant data[]) const override;
+    void getValue(int geometryDimensionIndex, void *data) const override;
 
     void getValues(int geometryDimensionIndex, int stride,  void *data) const override;
 
-    void setValue(int geometryDimensionIndex, const QVariant &data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
-    void setValues(int geometryDimensionIndex, int stride, const QVariant data[]) override;
+    void setValue(int geometryDimensionIndex, const void *data) override;
 
     void setValues(int geometryDimensionIndex , int stride, const void* data) override;
 
-    QList<HCGeometry*> geometries() const;
+    QList<QSharedPointer<HCGeometry>> geometries() const;
 
   private:
-    HydroCouple::Spatial::GeometryType m_geometryType;
-    QList<HCGeometry*> m_geometries;
+    HydroCouple::Spatial::IGeometry::GeometryType m_geometryType;
+    QList<QSharedPointer<HCGeometry>> m_geometries;
+    Envelope *m_envelope;
 };
 
 //==============================================================================================================================
 
-class HYDROCOUPLESDK_EXPORT HCGeometryOutputDouble  : public AbstractOutput,
+class HYDROCOUPLESDK_EXPORT GeometryOutputDouble  : public AbstractOutput,
     public ComponentDataItem1D<double>,
-    public virtual HydroCouple::Spatial::IGeometryExchangeItem
+    public virtual HydroCouple::Spatial::IGeometryComponentDataItem
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Spatial::IGeometryComponentDataItem
-                 HydroCouple::Spatial::IGeometryExchangeItem)
+    Q_INTERFACES(HydroCouple::Spatial::IGeometryComponentDataItem)
 
   public:
 
-    HCGeometryOutputDouble(const QString& id,
-                          HydroCouple::Spatial::GeometryType geomType,
-                          Dimension *geometryDimesion,
-                          ValueDefinition* valueDefinition,
-                          AbstractModelComponent *modelComponent);
+    GeometryOutputDouble(const QString& id,
+                         HydroCouple::Spatial::IGeometry::GeometryType geomType,
+                         Dimension *geometryDimesion,
+                         ValueDefinition* valueDefinition,
+                         AbstractModelComponent *modelComponent);
 
-    virtual ~HCGeometryOutputDouble();
+    virtual ~GeometryOutputDouble();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     int geometryCount() const override;
 
     HydroCouple::Spatial::IGeometry *geometry(int geometryIndex) const override;
 
-    virtual HydroCouple::IDimension *geometryDimension() const override;
+    HydroCouple::IDimension *geometryDimension() const override;
 
-    void addGeometry(HCGeometry *geometry);
+    HydroCouple::Spatial::IEnvelope *envelope() const override;
 
-    void addGeometries(QList<HCGeometry*> geometries);
+    void addGeometry(const QSharedPointer<HCGeometry> &geometry);
 
-    bool removeGeometry(HCGeometry *geometry);
+    void addGeometries(const QList<QSharedPointer<HCGeometry>> &geometries);
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    bool removeGeometry(const QSharedPointer<HCGeometry> &geometry);
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
+    void getValue(const std::vector<int> &dimensionIndexes,  void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int geometryDimensionIndex, QVariant &data) const override;
-
-    void getValues(int geometryDimensionIndex, int stride,  QVariant data[]) const override;
+    void getValue(int geometryDimensionIndex, void *data) const override;
 
     void getValues(int geometryDimensionIndex, int stride,  void *data) const override;
 
-    void setValue(int geometryDimensionIndex, const QVariant &data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
-    void setValues(int geometryDimensionIndex, int stride, const QVariant data[]) override;
+    void setValue(int geometryDimensionIndex, const void *data) override;
 
     void setValues(int geometryDimensionIndex , int stride, const void* data) override;
 
-    QList<HCGeometry*> geometries() const;
+    QList<QSharedPointer<HCGeometry>> geometries() const;
+
+    virtual void updateValues() override;
 
   private:
-    HydroCouple::Spatial::GeometryType m_geometryType;
-    QList<HCGeometry*> m_geometries;
+    HydroCouple::Spatial::IGeometry::GeometryType m_geometryType;
+    QList<QSharedPointer<HCGeometry>> m_geometries;
+    Envelope *m_envelope;
 };
 
-Q_DECLARE_METATYPE(HCGeometryInputDouble*)
-Q_DECLARE_METATYPE(HCGeometryOutputDouble*)
+Q_DECLARE_METATYPE(GeometryInputDouble*)
+Q_DECLARE_METATYPE(GeometryOutputDouble*)
 
 #endif // GEOMETRYEXCHANGEITEMS_H

@@ -14,7 +14,7 @@ IdBasedInputInt::IdBasedInputInt(const QString& id,
                                  ValueDefinition* valueDefinition,
                                  AbstractModelComponent* modelComponent)
   : AbstractInput(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    IdBasedComponentDataItem<int>(identifiers,valueDefinition->defaultValue().toInt()),
+    IdBasedComponentDataItem<int>(id, identifiers,valueDefinition->defaultValue().toInt()),
     m_identifierDimension(dimension)
 {
 
@@ -34,50 +34,20 @@ IDimension* IdBasedInputInt::identifierDimension() const
   return m_identifierDimension;
 }
 
-int IdBasedInputInt::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+int IdBasedInputInt::dimensionLength(const std::vector<int> &dimensionIndexes ) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert(dimensionIndexes.size() == 0);
   return length();
 }
 
-void IdBasedInputInt::getValue(int dimensionIndexes[], QVariant & data) const
+void IdBasedInputInt::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   ComponentDataItem1D<int>::getValueT(dimensionIndexes,data);
 }
 
-void IdBasedInputInt::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+void IdBasedInputInt::getValue(int idIndex, void *data) const
 {
-  ComponentDataItem1D<int>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputInt::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem1D<int>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputInt::setValue(int dimensionIndexes[], const QVariant &data)
-{
-  ComponentDataItem1D<int>::setValueT(dimensionIndexes,data);
-}
-
-void IdBasedInputInt::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem1D<int>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputInt::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem1D<int>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputInt::getValue(int idIndex, QVariant& data) const
-{
-  ComponentDataItem1D<int>::getValueT(&idIndex,data);
-}
-
-void IdBasedInputInt::getValues(int idIndex, int stride, QVariant data[]) const
-{
-  ComponentDataItem1D<int>::getValuesT(&idIndex,&stride,data);
+  ComponentDataItem1D<int>::getValuesT(idIndex,1,data);
 }
 
 void IdBasedInputInt::getValues(int idIndex, int stride, void *data) const
@@ -85,14 +55,14 @@ void IdBasedInputInt::getValues(int idIndex, int stride, void *data) const
   ComponentDataItem1D<int>::getValuesT(&idIndex,&stride,data);
 }
 
-void IdBasedInputInt::setValue(int idIndex, const QVariant &data)
+void IdBasedInputInt::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
-  ComponentDataItem1D<int>::setValueT(&idIndex,data);
+  ComponentDataItem1D<int>::setValueT(dimensionIndexes,data);
 }
 
-void IdBasedInputInt::setValues(int idIndex, int stride, const QVariant data[])
+void IdBasedInputInt::setValue(int idIndex, const void *data)
 {
-  ComponentDataItem1D<int>::setValuesT(&idIndex,&stride,data);
+  ComponentDataItem1D<int>::setValuesT(idIndex,1,data);
 }
 
 void IdBasedInputInt::setValues(int idIndex, int stride, const void *data)
@@ -130,7 +100,7 @@ void IdBasedInputInt::readData(QXmlStreamReader &xmlReader)
               if(!m_identifierDimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                setLength(length.toInt());
+                resizeDataArray(length.toInt());
               }
             }
 
@@ -177,7 +147,7 @@ void IdBasedInputInt::readData(QXmlStreamReader &xmlReader)
   }
 }
 
-void IdBasedInputInt::writeData(QXmlStreamWriter &xmlWriter)
+void IdBasedInputInt::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeStartElement("ComponentDataItem");
   {
@@ -203,10 +173,10 @@ void IdBasedInputInt::writeData(QXmlStreamWriter &xmlWriter)
 
     xmlWriter.writeStartElement("Values");
     {
-      int ind[1] = {0};
-      int str[1] = {length()};
+//      int ind[1] = {0};
+//      int str[1] = {length()};
       int values[length()];
-      getValues(ind,str,values);
+      getValues(0,length(),values);
 
       for(int i = 0 ; i < length() ; i++)
       {
@@ -231,7 +201,7 @@ IdBasedInputDouble::IdBasedInputDouble(const QString& id,
                                        ValueDefinition* valueDefinition,
                                        AbstractModelComponent *modelComponent)
   : AbstractInput(id,QList<Dimension*>({identifierDimension}),valueDefinition,modelComponent),
-    IdBasedComponentDataItem<double>(identifiers,valueDefinition->defaultValue().toDouble()),
+    IdBasedComponentDataItem<double>(id, identifiers,valueDefinition->defaultValue().toDouble()),
     m_identifierDimension(identifierDimension)
 {
 }
@@ -251,50 +221,20 @@ IDimension* IdBasedInputDouble::identifierDimension() const
   return m_identifierDimension;
 }
 
-int IdBasedInputDouble::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+int IdBasedInputDouble::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert(dimensionIndexes.size() == 0);
   return length();
 }
 
-void IdBasedInputDouble::getValue(int dimensionIndexes[], QVariant & data) const
+void IdBasedInputDouble::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   ComponentDataItem1D<double>::getValueT(dimensionIndexes,data);
 }
 
-void IdBasedInputDouble::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+void IdBasedInputDouble::getValue(int idIndex, void *data) const
 {
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputDouble::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputDouble::setValue(int dimensionIndexes[], const QVariant &data)
-{
-  ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
-}
-
-void IdBasedInputDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputDouble::getValue(int idIndex, QVariant& data) const
-{
-  ComponentDataItem1D<double>::getValueT(&idIndex,data);
-}
-
-void IdBasedInputDouble::getValues(int idIndex, int stride, QVariant data[]) const
-{
-  ComponentDataItem1D<double>::getValuesT(&idIndex,&stride,data);
+  ComponentDataItem1D<double>::getValuesT(idIndex,1,data);
 }
 
 void IdBasedInputDouble::getValues(int idIndex, int stride, void *data) const
@@ -302,14 +242,14 @@ void IdBasedInputDouble::getValues(int idIndex, int stride, void *data) const
   ComponentDataItem1D<double>::getValuesT(&idIndex,&stride,data);
 }
 
-void IdBasedInputDouble::setValue(int idIndex, const QVariant &data)
+void IdBasedInputDouble::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
-  ComponentDataItem1D<double>::setValueT(&idIndex,data);
+  ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
 }
 
-void IdBasedInputDouble::setValues(int idIndex, int stride, const QVariant data[])
+void IdBasedInputDouble::setValue(int idIndex, const void *data)
 {
-  ComponentDataItem1D<double>::setValuesT(&idIndex,&stride,data);
+  ComponentDataItem1D<double>::setValuesT(idIndex,1,data);
 }
 
 void IdBasedInputDouble::setValues(int idIndex, int stride, const void *data)
@@ -346,8 +286,9 @@ void IdBasedInputDouble::readData(QXmlStreamReader &xmlReader)
 
               if(!m_identifierDimension->id().compare(id))
               {
+
                 QString length = attributes.value("Length").toString();
-                setLength(length.toInt());
+                resizeDataArray(length.toInt());
               }
             }
 
@@ -394,7 +335,7 @@ void IdBasedInputDouble::readData(QXmlStreamReader &xmlReader)
   }
 }
 
-void IdBasedInputDouble::writeData(QXmlStreamWriter &xmlWriter)
+void IdBasedInputDouble::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeStartElement("ComponentDataItem");
   {
@@ -420,10 +361,10 @@ void IdBasedInputDouble::writeData(QXmlStreamWriter &xmlWriter)
 
     xmlWriter.writeStartElement("Values");
     {
-      int ind[1] = {0};
-      int str[1] = {length()};
+//      int ind[1] = {0};
+//      int str[1] = {length()};
       double values[length()];
-      getValues(ind,str,values);
+      getValues(0,length(),values);
 
       for(int i = 0 ; i < length() ; i++)
       {
@@ -447,7 +388,7 @@ IdBasedInputString::IdBasedInputString(const QString &id, const QStringList &ide
                                                                ValueDefinition* valueDefinition,
                                                                AbstractModelComponent *modelComponent)
   : AbstractInput(id,QList<Dimension*>({identifierDimension}),valueDefinition,modelComponent),
-    IdBasedComponentDataItem<QString>(identifiers,valueDefinition->defaultValue().toString()),
+    IdBasedComponentDataItem<QString>(id, identifiers,valueDefinition->defaultValue().toString()),
     m_identifierDimension(identifierDimension)
 {
 }
@@ -467,50 +408,20 @@ IDimension* IdBasedInputString::identifierDimension() const
   return m_identifierDimension;
 }
 
-int IdBasedInputString::dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const
+int IdBasedInputString::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert(dimensionIndexes.size() == 0);
   return length();
 }
 
-void IdBasedInputString::getValue(int dimensionIndexes[], QVariant & data) const
+void IdBasedInputString::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   ComponentDataItem1D<QString>::getValueT(dimensionIndexes,data);
 }
 
-void IdBasedInputString::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+void IdBasedInputString::getValue(int idIndex, void *data) const
 {
-  ComponentDataItem1D<QString>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputString::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem1D<QString>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputString::setValue(int dimensionIndexes[], const QVariant &data)
-{
-  ComponentDataItem1D<QString>::setValueT(dimensionIndexes,data);
-}
-
-void IdBasedInputString::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem1D<QString>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputString::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem1D<QString>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void IdBasedInputString::getValue(int idIndex, QVariant& data) const
-{
-  ComponentDataItem1D<QString>::getValueT(&idIndex,data);
-}
-
-void IdBasedInputString::getValues(int idIndex, int stride, QVariant data[]) const
-{
-  ComponentDataItem1D<QString>::getValuesT(&idIndex,&stride,data);
+  ComponentDataItem1D<QString>::getValuesT(idIndex,1,data);
 }
 
 void IdBasedInputString::getValues(int idIndex, int stride, void *data) const
@@ -518,14 +429,14 @@ void IdBasedInputString::getValues(int idIndex, int stride, void *data) const
   ComponentDataItem1D<QString>::getValuesT(&idIndex,&stride,data);
 }
 
-void IdBasedInputString::setValue(int idIndex, const QVariant &data)
+void IdBasedInputString::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
-  ComponentDataItem1D<QString>::setValueT(&idIndex,data);
+  ComponentDataItem1D<QString>::setValueT(dimensionIndexes,data);
 }
 
-void IdBasedInputString::setValues(int idIndex, int stride, const QVariant data[])
+void IdBasedInputString::setValue(int idIndex, const void *data)
 {
-  ComponentDataItem1D<QString>::setValuesT(&idIndex,&stride,data);
+  ComponentDataItem1D<QString>::setValuesT(idIndex,1,data);
 }
 
 void IdBasedInputString::setValues(int idIndex, int stride, const void *data)
@@ -564,7 +475,7 @@ void IdBasedInputString::readData(QXmlStreamReader &xmlReader)
               if(!m_identifierDimension->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                setLength(length.toInt());
+                resizeDataArray(length.toInt());
               }
             }
 
@@ -611,7 +522,7 @@ void IdBasedInputString::readData(QXmlStreamReader &xmlReader)
   }
 }
 
-void IdBasedInputString::writeData(QXmlStreamWriter &xmlWriter)
+void IdBasedInputString::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeStartElement("ComponentDataItem");
   {
@@ -637,10 +548,10 @@ void IdBasedInputString::writeData(QXmlStreamWriter &xmlWriter)
 
     xmlWriter.writeStartElement("Values");
     {
-      int ind[1] = {0};
-      int str[1] = {length()};
+//      int ind[1] = {0};
+//      int str[1] = {length()};
       QString* values = new QString[length()];
-      getValues(ind,str,values);
+      getValues(0,length(),values);
 
       for(int i = 0 ; i < length() ; i++)
       {

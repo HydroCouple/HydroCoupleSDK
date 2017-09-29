@@ -40,14 +40,15 @@ class HYDROCOUPLESDK_EXPORT Description : public QObject,
     public virtual HydroCouple::IDescription
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::IDescription)
+
+    Q_INTERFACES(HydroCouple::IPropertyChanged
+                 HydroCouple::IDescription)
+
     Q_PROPERTY(QString Caption READ caption WRITE setCaption NOTIFY propertyChanged)
     Q_PROPERTY(QString Description READ description WRITE setDescription NOTIFY propertyChanged)
 
   public:
-
     Description(QObject *parent = nullptr);
-
 
     Description(const QString &caption, QObject *parent = nullptr);
 
@@ -62,11 +63,9 @@ class HYDROCOUPLESDK_EXPORT Description : public QObject,
     void setDescription(const QString &decription) override;
 
   signals:
-
     void propertyChanged(const QString& propertyName) override;
 
   protected:
-
     QString m_caption, m_description;
 };
 

@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "spatial/point.h"
 #include "spatial/geometryfactory.h"
+#include "spatial/envelope.h"
 
 #include <math.h>
 
@@ -9,8 +10,8 @@ using namespace HydroCouple::Spatial;
 
 unsigned int HCPoint::m_nextId(0);
 
-HCPoint::HCPoint(QObject* parent):
-  HCGeometry(parent),
+HCPoint::HCPoint(const QString &id, HCGeometry *parent):
+  HCGeometry(id, parent),
   m_x(0),
   m_y(0),
   m_z(0),
@@ -22,8 +23,9 @@ HCPoint::HCPoint(QObject* parent):
   setIndex(HCPoint::getNextId());
 }
 
-HCPoint::HCPoint(double x, double y, QObject* parent):
-  HCGeometry(parent),
+
+HCPoint::HCPoint(double x, double y, const QString &id, HCGeometry *parent):
+  HCGeometry(id, parent),
   m_x(x),
   m_y(y),
   m_z(0),
@@ -35,8 +37,8 @@ HCPoint::HCPoint(double x, double y, QObject* parent):
   setIndex(HCPoint::getNextId());
 }
 
-HCPoint::HCPoint(double x, double y, double z, QObject* parent):
-  HCGeometry(parent),
+HCPoint::HCPoint(double x, double y, double z, const QString &id, HCGeometry *parent):
+  HCGeometry(id, parent),
   m_x(x),
   m_y(y),
   m_z(z),
@@ -48,8 +50,8 @@ HCPoint::HCPoint(double x, double y, double z, QObject* parent):
   setIndex(HCPoint::getNextId());
 }
 
-HCPoint::HCPoint(double x, double y, double z, double m, QObject* parent):
-  HCGeometry(parent),
+HCPoint::HCPoint(double x, double y, double z, double m, const QString &id, HCGeometry *parent):
+  HCGeometry(id, parent),
   m_x(x),
   m_y(y),
   m_z(z),
@@ -63,7 +65,6 @@ HCPoint::HCPoint(double x, double y, double z, double m, QObject* parent):
 
 HCPoint::~HCPoint()
 {
-
 }
 
 double HCPoint::x() const
@@ -99,15 +100,12 @@ void HCPoint::setY(double y)
 void HCPoint::setZ(double z)
 {
   m_z = z;
-  setGeometryFlag(GeometryFlag::HasZ , true);
 }
 
 void HCPoint::setM(double m)
 {
   m_m = m;
-  setGeometryFlag(GeometryFlag::HasM , true);
 }
-
 
 void HCPoint::enable3D()
 {
@@ -131,54 +129,64 @@ void HCPoint::disableM()
   setGeometryFlag(GeometryFlag::HasM , false);
 }
 
-
 int HCPoint::dimension() const
 {
   return 0;
 }
 
-GeometryType HCPoint::geometryType() const
+IGeometry::GeometryType HCPoint::geometryType() const
 {
   if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
      geometryFlags().testFlag(GeometryFlag::HasM))
   {
-    return HydroCouple::Spatial::PointZM;
+    return IGeometry::PointZM;
   }
   else if(geometryFlags().testFlag(GeometryFlag::HasZ))
   {
-    return HydroCouple::Spatial::PointZ;
+    return IGeometry::PointZ;
   }
   else if(geometryFlags().testFlag(GeometryFlag::HasM))
   {
-    return HydroCouple::Spatial::PointM;
+    return IGeometry::PointM;
   }
   else
   {
-    return  HydroCouple::Spatial::Point;
+    return IGeometry::Point;
   }
 }
 
-IGeometry* HCPoint::envelope() const
+Envelope *HCPoint::envelopeInternal() const
 {
-  return nullptr;
+  double eps = std::numeric_limits<double>::epsilon();
+  m_envelope->setMinX(m_x - eps);
+  m_envelope->setMaxX(m_x + eps);
+  m_envelope->setMinY(m_y - eps);
+  m_envelope->setMaxY(m_y + eps);
+  m_envelope->setMinZ(m_z - eps);
+  m_envelope->setMaxZ(m_z + eps);
+
+  return m_envelope;
 }
 
-bool HCPoint::compare(const IPoint *point) const
+bool HCPoint::equals(const IPoint *point, double epsilon, bool threeDimensional) const
 {
-  if(m_x == point->x() &&
-     m_y == point->y() &&
-     m_z == point->z() &&
-     m_m == point->m())
+  double dz = 0;
+  double dx   = m_x - point->x();
+  double dy   = m_y - point->y();
+
+  if(threeDimensional)
   {
-    return true;
+    dz = m_z - point->z();
   }
 
-  return false;
+  double size = sqrt(dx * dx + dy*dy + dz*dz);
+
+  return size <= epsilon;
 }
 
-HCPoint* HCPoint::clone(QObject* parent) const
+HCPoint* HCPoint::clone() const
 {
-  HCPoint* p1 = new HCPoint(m_x, m_y,parent);
+  HCPoint* p1 = new HCPoint(m_x, m_y);
 
   if(geometryFlags().testFlag(HasZ))
   {
@@ -195,9 +203,9 @@ HCPoint* HCPoint::clone(QObject* parent) const
   return p1;
 }
 
-HCVertex* HCPoint::cloneToVertex(QObject *parent) const
+HCVertex* HCPoint::cloneToVertex() const
 {
-  HCVertex* vertex = new HCVertex(m_x,m_y,parent);
+  HCVertex* vertex = new HCVertex(m_x,m_y);
 
   if(geometryFlags().testFlag(HasZ))
   {
@@ -214,7 +222,6 @@ HCVertex* HCPoint::cloneToVertex(QObject *parent) const
   return vertex;
 }
 
-
 void HCPoint::setGeometryFlag(HCGeometry::GeometryFlag flag, bool on)
 {
   if(!on)
@@ -223,7 +230,7 @@ void HCPoint::setGeometryFlag(HCGeometry::GeometryFlag flag, bool on)
     {
       case HCGeometry::HasZ:
         {
-           m_z = 0.0 ;
+          m_z = 0.0 ;
         }
         break;
       case HCGeometry::HasM:
@@ -272,4 +279,319 @@ unsigned int HCPoint::getNextId()
 void HCPoint::resetId()
 {
   m_nextId = 0;
+}
+
+//==========================================================================================================================================
+
+Vect::Vect(const Vect &point)
+{
+  v = new double[3]{point.v[0], point.v[1], point.v[2]};
+
+}
+
+
+Vect::Vect(const IPoint &point)
+{
+  v = new double[3]{point.x(), point.y(), point.z()};
+}
+
+Vect::Vect(const IVertex &point)
+{
+  v = new double[3]{point.x(), point.y(), point.z()};
+
+}
+
+Vect::Vect(double x, double y, double z)
+{
+  v = new double[3]{x, y, z};
+}
+
+Vect &Vect::operator =(const Vect &vect)
+{
+//  v = new double[3]();
+
+  for(int i = 0; i < 3; i++)
+  {
+    v[i] = vect.v[i];
+  }
+
+  return *this;
+}
+
+
+Vect::~Vect()\
+{
+  delete[] v;
+}
+
+double Vect::x() const
+{
+  return v[0];
+}
+
+double Vect::y() const
+{
+  return v[1];
+}
+
+double Vect::z() const
+{
+  return v[2];
+}
+
+double Vect::length() const
+{
+  return sqrt(lengthSquared());
+}
+
+double Vect::lengthSquared() const
+{
+  double l = 0;
+
+  for(int i = 0; i < 3; i++)
+    l += v[i] * v[i];
+
+  return l;
+}
+
+void Vect::normalize()
+{
+  double l = length();
+
+  for(int i = 0; i < 3; i++)
+    v[i] = v[i] / l;
+}
+
+Vect Vect::normalized() const
+{
+  Vect ov;
+
+  double l = length();
+
+  for(int i = 0; i < 3; i++)
+    ov.v[i] = v[i] / l;
+
+  return ov;
+}
+
+Vect Vect::normal2dToVector() const
+{
+  Vect ov;
+
+  ov.v[0] = v[1];
+  ov.v[1] = -v[0];
+
+  return ov;
+}
+
+Vect Vect::unitNormal2dToVector() const
+{
+  Vect ov;
+  double l = length();
+  ov.v[0] = v[1] / l ;
+  ov.v[1] = -v[0] / l;
+  return ov;
+}
+
+Vect &Vect::operator *=(double factor)
+{
+  for(int i = 0; i < 3; i++)
+    v[i] *= factor;
+
+  return *this;
+}
+
+Vect &Vect::operator *=(const Vect &vector)
+{
+  for(int i = 0; i < 3; i++)
+    v[i] *= vector.v[i];
+
+  return *this;
+}
+
+Vect &Vect::operator +=(const Vect &vector)
+{
+  for(int i = 0; i < 3; i++)
+    v[i] += vector.v[i];
+
+  return *this;
+}
+
+Vect &Vect::operator -=(const Vect &vector)
+{
+  for(int i = 0; i < 3; i++)
+    v[i] -= vector.v[i];
+
+  return *this;
+}
+
+Vect &Vect::operator /=(double divisor)
+{
+  for(int i = 0; i < 3; i++)
+    v[i] /= divisor;
+
+  return *this;
+}
+
+Vect &Vect::operator /= (const Vect &vector)
+{
+  for(int i = 0; i < 3; i++)
+    v[i] /= vector.v[i];
+
+  return *this;
+}
+
+double &Vect::operator [](const int index)
+{
+  return v[index];
+}
+
+const double &Vect::operator [](const int index) const
+{
+  return v[index];
+}
+
+Vect operator *(const Vect &v, double factor)
+{
+  Vect ov;
+
+  for(int i = 0; i < 3; i++)
+    ov.v[i] = v.v[i] * factor;
+
+  return ov;
+}
+
+Vect operator *(double factor, const Vect &v)
+{
+  Vect ov;
+
+  for(int i = 0; i < 3; i++)
+    ov.v[i] = v.v[i] * factor;
+
+  return ov;
+}
+
+Vect operator *(const Vect &v1 , const Vect &v2)
+{
+  Vect ov;
+
+  for(int i = 0; i < 3; i++)
+    ov.v[i] = v1.v[i] * v2.v[i];
+
+  return ov;
+}
+
+Vect operator +(const Vect &v1 , const Vect &v2)
+{
+  Vect ov;
+
+  for(int i = 0; i < 3; i++)
+    ov.v[i] = v1.v[i] + v2.v[i];
+
+  return ov;
+}
+
+Vect operator -(const Vect &v1 , const Vect &v2)
+{
+
+  Vect ov;
+
+  for(int i = 0; i < 3; i++)
+    ov.v[i] = v1.v[i] - v2.v[i];
+
+  return ov;
+}
+
+Vect operator /(const Vect &v, double divisor)
+{
+  Vect vv;
+
+  for(int i = 0; i < 3; i++)
+    vv.v[i] = v.v[i] / divisor;
+
+  return vv;
+}
+
+Vect operator /(const Vect &v1 , const Vect &v2)
+{
+  Vect vv;
+
+  for(int i = 0; i < 3; i++)
+    vv.v[i] = v1.v[i] / v2.v[i];
+
+  return vv;
+}
+
+double Vect::dotProduct(const Vect& u, const Vect &v)
+{
+  double prod = 0.0;
+
+  for(int i = 0; i < 3; i++)
+    prod += u.v[i] * v.v[i];
+
+  return prod;
+}
+
+double Vect::dotProduct(double x, double y, double z, const Vect &v)
+{
+  return x * v.v[0] + y*v.v[1] + z * v.v[2];
+}
+
+double Vect::dotProduct(double x1, double y1, double z1, double x2, double y2, double z2)
+{
+  return x1 * x2 + y1 * y2 + z1 * z2;
+}
+
+Vect Vect::crossProduct(const Vect& u, const Vect &v)
+{
+  Vect ov;
+
+  ov.v[0] = u.v[1] * v.v[2] - u.v[2] * v.v[1];
+  ov.v[1] = u.v[2] * v.v[0] - u.v[0] * v.v[2];
+  ov.v[2] = u.v[0] * v.v[1] - u.v[1] * v.v[0];
+
+  return ov;
+}
+
+bool Vect::linesIntersect2d(const Vect &l1p1, const Vect &l1p2, const Vect &l2p1, const Vect &l2p2, Vect &outVect)
+{
+  double denom = ((l2p2.v[1] - l2p1.v[1])*(l1p2.v[0] - l1p1.v[0]) - (l2p2.v[0]-l2p1.v[0])*(l1p2.v[1]-l1p1.v[1]));
+
+  if(denom)
+  {
+    double l1u = (l2p2.v[0] - l2p1.v[0])*(l1p1.v[1] - l2p1.v[1]) - (l2p2.v[1] - l2p1.v[1])*(l1p1.v[0] - l2p1.v[0]);
+
+    //    double l2u = (l1p2.x - l1p1.x)*(l1p1.y - l2p1.y) - (l1p2.y - l1p1.y)*(l1p1.x - l2p1.x); other line
+
+    if(l1u <= 0.0 && l1u <= 1.0 )
+    {
+      outVect = l1p1 + (l1p2 - l1p1)*l1u;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+Vect Vect::unitX()
+{
+  Vect v(1.0);
+  return v;
+}
+
+Vect Vect::unitY()
+{
+  Vect v(0.0, 1.0);
+  return v;
+}
+
+Vect Vect::unitZ()
+{
+  Vect v(0.0,0.0,1.0);
+  return v;
+}
+
+void Vect::print()
+{
+  printf("x:%f\ty:%f\tz:%f\n",v[0],v[1],v[2]);
 }

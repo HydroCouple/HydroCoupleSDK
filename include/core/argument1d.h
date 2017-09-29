@@ -36,33 +36,25 @@ class HYDROCOUPLESDK_EXPORT Argument1DInt : public AbstractArgument,
                   ValueDefinition *valueDefinition,
                   AbstractModelComponent *modelComponent);
 
-    virtual ~Argument1DInt(){}
+    virtual ~Argument1DInt();
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    void getValue(const std::vector<int> &dimensionIndexes,  void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
-    void writeData(QXmlStreamWriter &xmlWriter) override;
+    void writeData(QXmlStreamWriter &xmlWriter) const override;
 
-    bool writeToFile() const override;
+    void saveData() override;
 
     QString toString() const override;
 
-    bool readValues(const QString &value, bool isFile = false) override;
+    bool readValues(const QString &value,  QString &message, bool isFile = false) override;
 
-    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem) override;
+    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem, QString &message) override;
 
   private:
     Dimension* m_dimension;
@@ -79,33 +71,25 @@ class HYDROCOUPLESDK_EXPORT Argument1DDouble : public AbstractArgument,
                      ValueDefinition *valueDefinition,
                      AbstractModelComponent *modelComponent);
 
-    virtual ~Argument1DDouble(){}
+    virtual ~Argument1DDouble();
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    void getValue(const std::vector<int> &dimensionIndexes,  void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
-    void writeData(QXmlStreamWriter &xmlWriter) override;
+    void writeData(QXmlStreamWriter &xmlWriter) const override;
 
-    bool writeToFile() const override;
+    void saveData() override;
 
     QString toString() const override;
 
-    bool readValues(const QString &value, bool isFile = false) override;
+    bool readValues(const QString &value, QString &message, bool isFile = false) override;
 
-    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem) override;
+    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem, QString &message) override;
 
   private:
     Dimension* m_dimension;
@@ -123,33 +107,25 @@ class HYDROCOUPLESDK_EXPORT Argument1DString : public AbstractArgument,
                      ValueDefinition* valueDefinition,
                      AbstractModelComponent* modelComponent);
 
-    virtual ~Argument1DString(){}
+    virtual ~Argument1DString();
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    void getValue(const std::vector<int> &dimensionIndexes,  void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
-    void writeData(QXmlStreamWriter &xmlWriter) override;
+    void writeData(QXmlStreamWriter &xmlWriter) const override;
 
-    bool writeToFile() const override;
+    void saveData() override;
 
     QString toString() const override;
 
-    bool readValues(const QString &value, bool isFile = false) override;
+    bool readValues(const QString &value, QString &message , bool isFile = false) override;
 
-    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem) override;
+    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem, QString &message) override;
 
   private:
     Dimension* m_dimension;

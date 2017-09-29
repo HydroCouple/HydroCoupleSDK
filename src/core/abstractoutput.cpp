@@ -8,7 +8,7 @@ AbstractOutput::AbstractOutput(const QString& id,
                                const QList<Dimension*>& dimensions,
                                ValueDefinition* valueDefinition,
                                AbstractModelComponent *modelComponent)
-   : AbstractExchangeItem(id, dimensions,valueDefinition, modelComponent)
+  : AbstractExchangeItem(id, dimensions,valueDefinition, modelComponent)
 {
 
 }
@@ -18,7 +18,7 @@ AbstractOutput::AbstractOutput(const QString& id,
                                const QList<Dimension*>& dimensions,
                                ValueDefinition* valueDefinition,
                                AbstractModelComponent *modelComponent)
-   : AbstractExchangeItem(id, caption , dimensions, valueDefinition, modelComponent)
+  : AbstractExchangeItem(id, caption , dimensions, valueDefinition, modelComponent)
 {
 
 }
@@ -30,51 +30,67 @@ AbstractOutput::~AbstractOutput()
 
 QList<HydroCouple::IInput*> AbstractOutput::consumers() const
 {
-   return m_consumers.values();
+  return m_consumers.values();
 }
 
 void AbstractOutput::addConsumer(HydroCouple::IInput* consumer)
 {
-   if(!m_consumers.contains(consumer->id()))
-      m_consumers[consumer->id()] = consumer;
+  if(!m_consumers.contains(consumer->id()))
+  {
+    m_consumers[consumer->id()] = consumer;
+  }
 
-   emit propertyChanged("Consumers");
+  emit propertyChanged("Consumers");
 }
 
 bool AbstractOutput::removeConsumer(HydroCouple::IInput *consumer)
 {
-   bool happened = m_consumers.remove(consumer->id());
+  bool happened = m_consumers.remove(consumer->id());
 
-   emit propertyChanged("Consumers");
-   return happened;
+  emit propertyChanged("Consumers");
+  return happened;
 }
 
 QList<HydroCouple::IAdaptedOutput*> AbstractOutput::adaptedOutputs()  const
 {
-   return m_adaptedOutputs.values();
+  return m_adaptedOutputs.values();
 }
 
 void AbstractOutput::addAdaptedOutput(HydroCouple::IAdaptedOutput* adaptedOutput)
 {
-   if(!m_adaptedOutputs.contains(adaptedOutput->id()))
-      m_adaptedOutputs[adaptedOutput->id()] = adaptedOutput;
+  if(!m_adaptedOutputs.contains(adaptedOutput->id()))
+  {
+    m_adaptedOutputs[adaptedOutput->id()] = adaptedOutput;
+  }
 
-   emit propertyChanged("Consumers");
+  emit propertyChanged("Consumers");
 }
 
 bool AbstractOutput::removeAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOutput)
 {
-   bool happened = m_adaptedOutputs.remove(adaptedOutput->id());
-   emit propertyChanged("Consumers");
-   return happened;
+  bool happened = m_adaptedOutputs.remove(adaptedOutput->id());
+  emit propertyChanged("Consumers");
+  return happened;
 }
 
-void AbstractOutput::update(IInput *querySpecifier)
+void AbstractOutput::updateValues(IInput *querySpecifier)
 {
-  while(modelComponent()->status() != HydroCouple::Done &&
-        modelComponent()->status() != HydroCouple::Failed &&
-        modelComponent()->status() != HydroCouple::Finished)
+  if(modelComponent()->status() != IModelComponent::Updated)
   {
-    modelComponent()->update();
+    modelComponent()->update(QList<IOutput*>({this}));
   }
+
+  refreshAdaptedOutputs();
+}
+
+void AbstractOutput::refreshAdaptedOutputs()
+{
+  for(IAdaptedOutput *adaptedOutput : m_adaptedOutputs)
+    adaptedOutput->refresh();
+}
+
+void AbstractOutput::initializeAdaptedOutputs()
+{
+  for(IAdaptedOutput* adaptedOutput : m_adaptedOutputs)
+    adaptedOutput->initialize();
 }

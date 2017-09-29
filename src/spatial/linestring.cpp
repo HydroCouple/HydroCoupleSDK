@@ -2,19 +2,29 @@
 #include "spatial/point.h"
 #include "spatial/linestring.h"
 #include "spatial/edge.h"
+#include "spatial/envelope.h"
 
 #include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
 
-HCLineString::HCLineString(QObject *parent)
-  :HCGeometry(parent)
+HCLineString::HCLineString(const QString &id, HCGeometry *parent)
+  :HCGeometry(id, parent)
 {
 }
 
 HCLineString::~HCLineString()
 {
+  for(HCPoint *point : m_points)
+  {
+    if(point != nullptr)
+    {
+      delete point;
+    }
+  }
+
+  m_points.clear();
 }
 
 int HCLineString::dimension() const
@@ -22,7 +32,12 @@ int HCLineString::dimension() const
   return 1;
 }
 
-HydroCouple::Spatial::GeometryType HCLineString::geometryType() const
+bool HCLineString::isEmpty() const
+{
+  return m_points.length() == 0;
+}
+
+IGeometry::GeometryType HCLineString::geometryType() const
 {
   if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
      geometryFlags().testFlag(GeometryFlag::HasM))
@@ -43,11 +58,6 @@ HydroCouple::Spatial::GeometryType HCLineString::geometryType() const
   }
 }
 
-IGeometry* HCLineString::envelope() const
-{
-  return nullptr;
-}
-
 double HCLineString::length() const
 {
   double outLength = 0;
@@ -64,6 +74,11 @@ double HCLineString::length() const
 
 IPoint* HCLineString::startPoint() const
 {
+  return startPointInternal();
+}
+
+HCPoint *HCLineString::startPointInternal() const
+{
   if(m_points.length())
   {
     return m_points[0];
@@ -73,6 +88,11 @@ IPoint* HCLineString::startPoint() const
 }
 
 IPoint* HCLineString::endPoint() const
+{
+  return endPointInternal();
+}
+
+HCPoint *HCLineString::endPointInternal() const
 {
   if(m_points.length())
   {
@@ -86,7 +106,7 @@ bool HCLineString::isClosed() const
 {
   if(m_points.length())
   {
-    bool comp = m_points[0]->compare(m_points[m_points.length() - 1]);
+    bool comp = m_points[0]->equals(m_points[m_points.length() - 1]);
     return comp;
   }
 
@@ -103,7 +123,7 @@ bool HCLineString::isRing() const
     {
       for(HCPoint* p2 : m_points)
       {
-        if(p1 != p2 && p1->compare(p2))
+        if(p1 != p2 && p1->equals(p2))
         {
           count++;
         }
@@ -130,7 +150,12 @@ int HCLineString::pointCount() const
   return m_points.length();
 }
 
-IPoint* HCLineString::point(int index) const
+IPoint *HCLineString::point(int index) const
+{
+  return m_points[index];
+}
+
+HCPoint *HCLineString::pointInternal(int index) const
 {
   return m_points[index];
 }
@@ -180,22 +205,19 @@ QList<HCPoint*> HCLineString::points() const
   return m_points;
 }
 
-void HCLineString::addPoint(HCPoint *point)
+bool HCLineString::addPoint(HCPoint *point)
 {
   assert(point != nullptr);
-
   assert(point->geometryFlags().testFlag(GeometryFlag::HasZ) == this->is3D());
   assert(point->geometryFlags().testFlag(GeometryFlag::HasM) == this->isMeasured());
 
   m_points.append(point);
-  setIsEmpty(m_points.length() == 0);
+  return true;
 }
 
 bool HCLineString::removePoint(HCPoint *point)
 {
   bool removed = m_points.removeOne(point);
-  setIsEmpty(m_points.length() == 0);
-
   return removed;
 }
 
@@ -212,26 +234,26 @@ void HCLineString::setGeometryFlag(GeometryFlag flag, bool on)
   HCGeometry::setGeometryFlag(flag,on);
 }
 
-HCLine* HCLineString::toLine(QObject *parent) const
+HCLine* HCLineString::toLine() const
 {
   assert(m_points.length() == 2);
 
-  HCLine* line = new HCLine(parent);
-  line->setP1(m_points[0]->clone(line));
-  line->setP2(m_points[1]->clone(line));
+  HCLine* line = new HCLine();
+  line->setP1(m_points[0]->clone());
+  line->setP2(m_points[1]->clone());
   return line;
 
 }
 
-HCLinearRing* HCLineString::toLinearRing(QObject *parent) const
+HCLinearRing* HCLineString::toLinearRing() const
 {
   assert(isClosed() && isSimple());
 
-  HCLinearRing* linearRing = new HCLinearRing(parent);
+  HCLinearRing* linearRing = new HCLinearRing();
 
   for(int i = 0 ; i < m_points.length() ; i++)
   {
-    HCPoint* point = m_points[i]->clone(linearRing);
+    HCPoint* point = m_points[i]->clone();
     linearRing->addPoint(point);
   }
 
@@ -278,4 +300,44 @@ void HCLineString::flip()
       flipped.append(m_points[i]);
     }
   }
+}
+
+Envelope *HCLineString::envelopeInternal() const
+{
+  m_envelope->resetExtentsToInfinity();
+
+  for(HCPoint *point : m_points)
+  {
+    m_envelope->merge(point->envelopeInternal());
+  }
+
+  return m_envelope;
+}
+
+bool HCLineString::contains(const IGeometry *geom) const
+{
+  const IPoint *point = dynamic_cast<const IPoint*>(geom);
+
+  if(point != nullptr && m_points.length() > 0)
+  {
+    int i, j, nvert = m_points.length();
+    bool c = false;
+
+    for(i = 0, j = nvert - 1; i < nvert; j = i++)
+    {
+      IPoint *pi = m_points[i];
+      IPoint *pj = m_points[j];
+
+      if(((pi->y() >= point->y()) != (pj->y() >= point->y())) &&
+         (point->x() <= (pj->x() - pi->x()) * (point->y() - pi->y()) / (pj->y() - pi->y()) + pi->x())
+         )
+      {
+        c = !c;
+      }
+    }
+
+    return c;
+  }
+
+  return HCGeometry::contains(point);
 }

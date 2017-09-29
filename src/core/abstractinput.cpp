@@ -7,8 +7,8 @@ AbstractInput::AbstractInput(const QString& id,
                              const QList<Dimension*>& dimensions,
                              ValueDefinition* valueDefinition,
                              AbstractModelComponent* modelComponent)
-   :AbstractExchangeItem(id,dimensions,valueDefinition,modelComponent),
-     m_provider(nullptr)
+  :AbstractExchangeItem(id,dimensions,valueDefinition,modelComponent),
+    m_provider(nullptr)
 {
 
 }
@@ -18,8 +18,8 @@ AbstractInput::AbstractInput(const QString& id,
                              const QList<Dimension*>& dimensions,
                              ValueDefinition* valueDefinition,
                              AbstractModelComponent* modelComponent)
-   :AbstractExchangeItem(id,caption,dimensions,valueDefinition,modelComponent),
-     m_provider(nullptr)
+  :AbstractExchangeItem(id,caption,dimensions,valueDefinition,modelComponent),
+    m_provider(nullptr)
 {
 
 }
@@ -31,19 +31,27 @@ AbstractInput::~AbstractInput()
 
 IOutput* AbstractInput::provider() const
 {
-   return m_provider;
+  return m_provider;
 }
 
-void AbstractInput::setProvider(IOutput *provider)
+bool AbstractInput::setProvider(IOutput *provider)
 {
-   m_provider = provider;
-   emit propertyChanged("Provider");
+  QString message ="";
+
+  if(canConsume(provider, message))
+  {
+    m_provider = provider;
+    emit propertyChanged("Provider");
+    return true;
+  }
+
+  return false;
 }
 
 bool AbstractInput::canConsume(IOutput *provider, QString &message) const
 {
-   message = "";
-   return true;
+  message = "Not implemented ";
+  return true;
 }
 
 
@@ -53,7 +61,7 @@ AbstractMultiInput::AbstractMultiInput(const QString& id,
                                        const QList<Dimension*>& dimensions,
                                        ValueDefinition* valueDefinition,
                                        AbstractModelComponent* modelComponent)
-   :AbstractInput(id, dimensions, valueDefinition, modelComponent)
+  :AbstractInput(id, dimensions, valueDefinition, modelComponent)
 {
 
 }
@@ -63,7 +71,7 @@ AbstractMultiInput::AbstractMultiInput(const QString& id,
                                        const QList<Dimension*>& dimensions,
                                        ValueDefinition* valueDefinition,
                                        AbstractModelComponent* modelComponent)
-   :AbstractInput(id,caption,dimensions,valueDefinition,modelComponent)
+  :AbstractInput(id,caption,dimensions,valueDefinition,modelComponent)
 {
 
 }
@@ -75,27 +83,32 @@ AbstractMultiInput::~AbstractMultiInput()
 
 QList<IOutput*> AbstractMultiInput::providers() const
 {
-   return m_providers;
+  return m_providers;
 }
 
-void AbstractMultiInput::addProvider(IOutput *provider)
+bool AbstractMultiInput::addProvider(IOutput *provider)
 {
-   if(!m_providers.contains(provider) && provider)
-   {
-      m_providers.append(provider);
-      emit propertyChanged("Providers");
-   }
+  QString message = "";
+
+  if(provider  && !m_providers.contains(provider) && canConsume(provider, message))
+  {
+    m_providers.append(provider);
+    emit propertyChanged("Providers");
+    return true;
+  }
+
+  return false;
 }
 
 bool AbstractMultiInput::removeProvider(IOutput *provider)
 {
-   if(m_providers.removeOne(provider))
-   {
-      emit propertyChanged("Providers");
-      return true;
-   }
-   else
-   {
-      return false;
-   }
+  if(m_providers.removeOne(provider))
+  {
+    emit propertyChanged("Providers");
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }

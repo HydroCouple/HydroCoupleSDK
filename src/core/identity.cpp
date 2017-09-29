@@ -13,6 +13,10 @@ Identity::Identity(const QString &id, const QString &caption, QObject *parent)
 
 }
 
+Identity::~Identity()
+{
+}
+
 QString Identity::id() const
 {
    return m_id;

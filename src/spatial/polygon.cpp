@@ -4,8 +4,10 @@
 #include "spatial/linestring.h"
 #include "spatial/edge.h"
 #include "spatial/point.h"
+#include "spatial/envelope.h"
 
 #include <math.h>
+#include <set>
 #include <assert.h>
 #include <qdebug.h>
 
@@ -14,12 +16,22 @@ using namespace HydroCouple::Spatial;
 
 unsigned int HCPolygon::m_nextId(0);
 
-HCPolygon::HCPolygon(HCPolyhedralSurface *parent)
-  : HCGeometry(parent),
-    m_edge(nullptr),
-    m_polyhedralSurface(parent)
+
+HCPolygon::HCPolygon(const QString &id, HCGeometry *parent)
+  : HCGeometry(id, parent),
+    m_polyhedralSurface(nullptr),
+    m_edge(nullptr)
 {
-  m_exteriorRing = new HCLineString(this);
+  m_exteriorRing = new HCLineString(QUuid::createUuid().toString(), this);
+  setIndex(HCPolygon::getNextId());
+}
+
+HCPolygon::HCPolygon(const QString &id, HCPolyhedralSurface *parent)
+  : HCGeometry(id, parent),
+    m_polyhedralSurface(parent),
+    m_edge(nullptr)
+{
+  m_exteriorRing = new HCLineString(QUuid::createUuid().toString(), this);
 
   setGeometryFlag(GeometryFlag::HasM , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasM));
   setGeometryFlag(GeometryFlag::HasZ , m_polyhedralSurface->geometryFlags().testFlag(GeometryFlag::HasZ));
@@ -28,34 +40,56 @@ HCPolygon::HCPolygon(HCPolyhedralSurface *parent)
   setIndex(HCPolygon::getNextId());
 }
 
-HCPolygon::HCPolygon(QObject *parent)
-  : HCGeometry(parent),
-    m_edge(nullptr),
-    m_polyhedralSurface(nullptr)
-{
-  m_exteriorRing = new HCLineString(this);
-  setIndex(HCPolygon::getNextId());
-}
-
 HCPolygon::~HCPolygon()
 {
   if(m_polyhedralSurface)
   {
-    if(m_edge)
+
+    if(m_edge != nullptr)
     {
-      HCEdge *edge = m_edge;
+      std::list<Edge*> edgesToDelete;
+
+      Edge *edge = m_edge;
 
       do
       {
+        if(edge->rightInternal() == nullptr)
+          edgesToDelete.push_back(edge);
+
         edge->setLeft(nullptr);
+
         edge = edge->leftNextInternal();
 
-      }while (edge != m_edge);
+      }while(edge != m_edge);
 
+      for(Edge *dEdge : edgesToDelete)
+      {
+        HCVertex  *origin = dEdge->origInternal();
+        HCVertex  *dest = dEdge->destInternal();
+
+        Edge::deleteEdge(dEdge);
+
+        if(origin != nullptr && origin->edgeInternal() == nullptr)
+        {
+          delete origin;
+        }
+
+        if(dest != nullptr && dest != origin && dest->edgeInternal() == nullptr)
+        {
+          delete dest;
+        }
+      }
     }
 
     m_polyhedralSurface->removePatch(this);
+    m_exteriorRing->m_points.clear();
   }
+
+  delete m_exteriorRing;
+
+  qDeleteAll(m_interiorRings);
+  m_interiorRings.clear();
+
 }
 
 int HCPolygon::dimension() const
@@ -63,36 +97,36 @@ int HCPolygon::dimension() const
   return 2;
 }
 
-GeometryType HCPolygon::geometryType() const
+IGeometry::GeometryType HCPolygon::geometryType() const
 {
   if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
      geometryFlags().testFlag(GeometryFlag::HasM))
   {
-    return HydroCouple::Spatial::PolygonZM;
+    return IGeometry::PolygonZM;
   }
   else if(geometryFlags().testFlag(GeometryFlag::HasZ))
   {
-    return HydroCouple::Spatial::PolygonZ;
+    return IGeometry::PolygonZ;
   }
   else if(geometryFlags().testFlag(GeometryFlag::HasM))
   {
-    return HydroCouple::Spatial::PolygonM;
+    return IGeometry::PolygonM;
   }
   else
   {
-    return  HydroCouple::Spatial::Polygon;
+    return IGeometry::Polygon;
   }
 }
 
-HydroCouple::Spatial::IGeometry* HCPolygon::envelope() const
+Envelope *HCPolygon::envelopeInternal() const
 {
-  return nullptr;
+  return exteriorRingInternal()->envelopeInternal();
 }
 
 double HCPolygon::area() const
 {
-  if(m_exteriorRing->isEmpty() || !m_exteriorRing->isClosed())
-    return 0;
+  //  if(m_exteriorRing->isEmpty() || !m_exteriorRing->isClosed())
+  //    return 0;
 
   double areaOut = m_exteriorRing->area();
 
@@ -102,6 +136,12 @@ double HCPolygon::area() const
   }
 
   return fabs(areaOut);
+}
+
+double HCPolygon::area3D() const
+{
+  //triangularte and use the 3d area calculation
+  return 0;
 }
 
 IPoint *HCPolygon::centroid() const
@@ -174,6 +214,11 @@ ILineString *HCPolygon::interiorRing(int index) const
   return m_interiorRings[index];
 }
 
+HCLineString *HCPolygon::interiorRingInternal(int index) const
+{
+  return m_interiorRings[index];
+}
+
 QList<HCLineString*> HCPolygon::interiorRingsInternal() const
 {
   return m_interiorRings;
@@ -191,6 +236,7 @@ bool HCPolygon::addInteriorRing(HCLineString* interiorRing)
     m_interiorRings.append(interiorRing);
     return true;
   }
+
   return false;
 }
 
@@ -204,14 +250,14 @@ HydroCouple::Spatial::IEdge* HCPolygon::edge() const
   return m_edge;
 }
 
-HCEdge *HCPolygon::edgeInternal() const
+Edge *HCPolygon::edgeInternal() const
 {
   return m_edge;
 }
 
-HCEdge *HCPolygon::getEdge(int index) const
+Edge *HCPolygon::getEdge(int index) const
 {
-  HCEdge* edge = m_edge;
+  Edge* edge = m_edge;
 
   int i = 0;
 
@@ -246,6 +292,30 @@ HydroCouple::Spatial::IPolyhedralSurface* HCPolygon::polyhydralSurface() const
 HCPolyhedralSurface* HCPolygon::polyhydralSurfaceInternal() const
 {
   return m_polyhedralSurface;
+}
+
+bool HCPolygon::contains(const HydroCouple::Spatial::IGeometry *geom) const
+{
+  const IPoint *point = dynamic_cast<const IPoint*>(geom);
+
+  if(point != nullptr)
+  {
+    bool c = m_exteriorRing->contains(point);
+
+    if(c && m_interiorRings.length())
+    {
+      for(HCLineString *lineString : m_interiorRings)
+      {
+        if(lineString->contains(point))
+          return false;
+      }
+    }
+
+    return c;
+  }
+
+  return HCGeometry::contains(point);
+
 }
 
 bool HCPolygon::isConvex() const
@@ -310,13 +380,13 @@ unsigned int HCPolygon::getNextId()
   return tid;
 }
 
-void HCPolygon::addEdge(HCEdge *edge)
+void HCPolygon::addEdge(Edge *edge)
 {
   assert(edge != nullptr);
   m_edge = edge;
 }
 
-void HCPolygon::removeEdge(HCEdge *edge)
+void HCPolygon::removeEdge(Edge *edge)
 {
   assert(edge!=nullptr);
 
@@ -324,7 +394,7 @@ void HCPolygon::removeEdge(HCEdge *edge)
   // use null if this is the only edge
   // assumes that the edge hasn't been actually removed yet
 
-  HCEdge *next = edge->leftNextInternal();
+  Edge *next = edge->leftNextInternal();
   m_edge = next != edge ? next : nullptr;
 
   //  edge->setLeft(nullptr);
@@ -337,20 +407,20 @@ void HCPolygon::reCreateOuterLineString() const
   {
     m_exteriorRing->m_points.clear();
 
-    HCEdge* start = m_edge;
+    Edge* start = m_edge;
 
     if(start)
     {
       assert(start->origInternal());
 
+      m_exteriorRing->setIsEmpty(false);
       m_exteriorRing->m_points.append(start->origInternal());
+
       do
       {
         start = start->leftNextInternal();
-
-        assert(start->origInternal());
-
         m_exteriorRing->m_points.append(start->origInternal());
+        assert(start->origInternal());
 
       }while(start != m_edge);
     }

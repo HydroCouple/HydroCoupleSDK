@@ -4,6 +4,9 @@
 #include "hydrocoupletemporal.h"
 #include "core/abstractadaptedoutput.h"
 #include "temporal/timeseriescomponentdataitem.h"
+#include "splineinterpolator.h"
+
+#include <vector>
 
 class TemporalInterpolationFactory;
 class AbstractModelComponent;
@@ -12,67 +15,55 @@ class IdBasedArgumentInt;
 
 class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public AbstractAdaptedOutput,
     public TimeSeriesComponentDataItem<double>,
-    public virtual HydroCouple::Temporal::ITimeExchangeItem
+    public virtual HydroCouple::Temporal::ITimeSeriesComponentDataItem
 {
     Q_OBJECT
 
     Q_INTERFACES(HydroCouple::IAdaptedOutput
-                 HydroCouple::Temporal::ITimeExchangeItem)
-
-    Q_PROPERTY(int PolynomialOrder READ polynomialOrder WRITE setPolynomialOrder NOTIFY propertyChanged)
-
+                 HydroCouple::Temporal::ITimeComponentDataItem
+                 HydroCouple::Temporal::ITimeSeriesComponentDataItem)
 
   public:
-
-
-    TimeSeriesInterpolationAdaptedOutput(const QString& id,
-                                         Quantity* valueDefinition,
-                                         HydroCouple::Temporal::ITimeExchangeItem* adaptee,
-                                         AbstractAdaptedOutputFactory* timeSeriesInterpolationFactory);
+    TimeSeriesInterpolationAdaptedOutput(const QString &id,
+                                         Quantity *valueDefinition,
+                                         HydroCouple::Temporal::ITimeSeriesComponentDataItem *adaptee,
+                                         AbstractAdaptedOutputFactory *timeSeriesInterpolationFactory);
 
     virtual ~TimeSeriesInterpolationAdaptedOutput();
 
-    int polynomialOrder() const;
+    QList<HydroCouple::Temporal::IDateTime*> times() const override;
 
-    void setPolynomialOrder(int polynomialOrder);
+    HydroCouple::Temporal::IDateTime *time(int timeIndex) const override;
 
-    void initialize() override;
-
-    void refresh() override;
-
-    QList<HydroCouple::Temporal::ITime*> times() const override;
+    int timeCount() const override;
 
     HydroCouple::Temporal::ITimeSpan* timeSpan() const override;
 
     HydroCouple::IDimension* timeDimension() const override;
 
-    void update(HydroCouple::IInput* querySpecifier) override;
+    void updateValues(HydroCouple::IInput* querySpecifier) override;
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    void getValue(const std::vector<int> &dimensionIndexes, void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int timeIndex, QVariant &data) const override;
-
-    void getValues(int timeIndex, int stride, QVariant data[]) const override;
+    void getValue(int timeIndex, void *data) const override;
 
     void getValues(int timeIndex, int stride, void *data) const override;
 
-    void setValue(int timeIndex, const QVariant &data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
-    void setValues(int timeIndex, int stride, const QVariant data[]) override;
+    void setValue(int timeIndex, const void *data) override;
 
     void setValues(int timeIndex, int stride, const void *data) override;
+
+    void initialize() override;
+
+    void refresh() override;
+
+    SplineInterpolator::InterpolationMethod interpolationMethod() const;
+
+    void setInterpolationMethod(SplineInterpolator::InterpolationMethod interpolationMethod);
 
   signals:
 
@@ -80,17 +71,17 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public Abstra
 
   private:
 
-    static double interpolate(double t, const QList<double>& ts , const QList<double>& ys);
-
-    static double basis(int tIndex, double t, const QList<double>& ts);
+     SplineInterpolator::InterpolationMethod getInterpolationMode(int count);
 
   private:
 
-    IdBasedArgumentInt* m_polynomialOrderArgument;
-    int m_polynomialOrder;
+    IdBasedArgumentInt* m_interpolationOptionsArgument;
+    int m_polynomialOrder ;
     Dimension* m_timeDimension;
-    QMap<double,double> m_timeSeriesBuffer;
-    HydroCouple::Temporal::ITimeExchangeItem* m_adaptee;
+    std::vector<double> m_timesBuffer;
+    std::vector<double> m_valuesBuffer;
+    HydroCouple::Temporal::ITimeSeriesComponentDataItem* m_adaptee;
+    SplineInterpolator::InterpolationMethod m_interpolationMode;
 
 };
 

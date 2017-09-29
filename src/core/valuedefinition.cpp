@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "core/valuedefinition.h"
 #include "core/unit.h"
+
 #include <QDataStream>
 
 using namespace HydroCouple;
@@ -60,37 +61,56 @@ bool ValueDefinition::validateData(const QVariant &value)
 
 QString ValueDefinition::serializeData(const QVariant &value)
 {
-  QByteArray data;
-  QDataStream dataStream(&data , QIODevice::WriteOnly);
-  dataStream << value;
-
-  return QString(data.constData());
+//  QByteArray data;
+//  QDataStream dataStream(&data , QIODevice::WriteOnly);
+//  dataStream << value;
+  return value.toString();//QString(data.constData());
 }
 
-QVariant ValueDefinition::deserializeData(const QString &value)
+QVariant ValueDefinition::deserializeData(const QString &value, QVariant::Type type)
 {
-  QByteArray data(value.toStdString().c_str());
-  QDataStream dataStream(&data , QIODevice::ReadOnly);
-  QVariant outData;
-  dataStream >> outData;
+
+  QVariant outData(value);
+  outData.convert(type);
+
+//  if(!value.isNull() && !value.isEmpty())
+//  {
+//    QByteArray data(value.toStdString().c_str());
+//    QDataStream dataStream(&data , QIODevice::ReadOnly);
+//    dataStream >> outData;
+//  }
+
   return outData;
 }
+
+ValueDefinition *ValueDefinition::copy(const IValueDefinition *valueDefinition, QObject *parent)
+{
+  if(dynamic_cast<const HydroCouple::IQuality*>(valueDefinition))
+  {
+    return Quality::copy(dynamic_cast<const HydroCouple::IQuality*>(valueDefinition), parent);
+  }
+  if(dynamic_cast<const HydroCouple::IQuantity*>(valueDefinition))
+  {
+    return Quantity::copy(dynamic_cast<const HydroCouple::IQuantity*>(valueDefinition), parent);
+  }
+
+  return nullptr;
+}
+
+//=================================================================================================================
 
 Quality::Quality(QVariant::Type type, const QList<QVariant> &categories, QObject *parent)
   :ValueDefinition(type,parent) , m_categories(categories)
 {
-
 }
 
 Quality::Quality(const QString& caption, QVariant::Type type, const QList<QVariant> &categories, QObject *parent)
   :ValueDefinition(caption,type,parent) , m_categories(categories)
 {
-
 }
 
 Quality::~Quality()
 {
-
 }
 
 QList<QVariant> Quality::categories() const
@@ -135,14 +155,14 @@ void Quality::readData(QXmlStreamReader &xmlReader)
     if(attributes.hasAttribute("MissingValue"))
     {
       QString value = attributes.value("MissingValue").toString();
-      QVariant dataValue = deserializeData(value);
+      QVariant dataValue = deserializeData(value, m_type);
       setMissingValue(dataValue);
     }
 
     if(attributes.hasAttribute("DefaultValue"))
     {
       QString value = attributes.value("DefaultValue").toString();
-      QVariant dataValue = deserializeData(value);
+      QVariant dataValue = deserializeData(value, m_type);
       setDefaultValue(dataValue);
     }
 
@@ -175,7 +195,7 @@ void Quality::readData(QXmlStreamReader &xmlReader)
              &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QString value = xmlReader.readElementText();
-            m_categories.append(deserializeData(value));
+            m_categories.append(deserializeData(value, m_type));
           }
 
           xmlReader.readNext();
@@ -210,6 +230,18 @@ void Quality::writeData(QXmlStreamWriter &xmlWriter)
   }
   xmlWriter.writeEndElement();
 }
+
+ValueDefinition *Quality::copy(QObject *parent)
+{
+  return copy(this,parent);
+}
+
+Quality *Quality::copy(const IQuality *quality, QObject *parent)
+{
+  return new Quality(quality->caption(), quality->type(), quality->categories(), parent);
+}
+
+//=================================================================================================================
 
 Quantity::Quantity(QVariant::Type type, Unit *unit, QObject *parent)
   :ValueDefinition(type, parent)
@@ -266,14 +298,14 @@ void Quantity::readData(QXmlStreamReader &xmlReader)
     if(attributes.hasAttribute("MissingValue"))
     {
       QString value = attributes.value("MissingValue").toString();
-      QVariant dataValue = deserializeData(value);
+      QVariant dataValue = deserializeData(value, m_type);
       setMissingValue(dataValue);
     }
 
     if(attributes.hasAttribute("DefaultValue"))
     {
       QString value = attributes.value("DefaultValue").toString();
-      QVariant dataValue = deserializeData(value);
+      QVariant dataValue = deserializeData(value, m_type);
       setDefaultValue(dataValue);
     }
 
@@ -334,76 +366,106 @@ void Quantity::writeData(QXmlStreamWriter &xmlWriter)
   xmlWriter.writeEndElement();
 }
 
-Quantity* Quantity::lengthInMeters(const QString &caption, const QString &description, QObject *parent)
+ValueDefinition *Quantity::copy(QObject *parent)
+{
+  return copy(this,parent);
+}
+
+Quantity *Quantity::copy(const IQuantity *quantity, QObject *parent)
+{
+  Quantity *outQuantity = new Quantity(quantity->caption(), quantity->type(),
+                                       Unit::copy(quantity->unit(),parent), parent);
+  return outQuantity;
+}
+
+Quantity* Quantity::lengthInMeters(QObject *parent)
 {
 
-  Quantity* quantity = new Quantity(caption, QVariant::Double, Unit::lengthInMeters(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Length in meters", QVariant::Double, Unit::lengthInMeters(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Length in meters");
 
   return quantity;
 }
 
-Quantity* Quantity::lengthInFeet(const QString &caption, const QString &description, QObject *parent)
+Quantity* Quantity::lengthInFeet(QObject *parent)
 {
-  Quantity* quantity = new Quantity(caption,QVariant::Double, Unit::lengthInFeet(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Length in feet",QVariant::Double, Unit::lengthInFeet(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Length in feet");
 
   return quantity;
 }
 
-Quantity* Quantity::areaInSquareMeters(const QString &caption, const QString &description, QObject *parent)
+Quantity* Quantity::areaInSquareMeters(QObject *parent)
 {
-  Quantity* quantity = new Quantity(caption,QVariant::Double,Unit::areaInSquareMeters(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Area in square meters",QVariant::Double,Unit::areaInSquareMeters(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Area in square meters");
 
   return quantity;
 }
 
-Quantity* Quantity::areaInSquareFeet(const QString &caption, const QString &description, QObject *parent)
+Quantity* Quantity::areaInSquareFeet(QObject *parent)
 {
-  Quantity* quantity = new Quantity(caption, QVariant::Double,Unit::areaInSquareFeet(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Area in square feet", QVariant::Double,Unit::areaInSquareFeet(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Area in square feet");
 
   return quantity;
 }
 
-Quantity* Quantity::volumeInCubicMeters(const QString &caption, const QString &description, QObject *parent)
+Quantity* Quantity::volumeInCubicMeters(QObject *parent)
 {
-  Quantity* quantity = new Quantity(caption, QVariant::Double, Unit::volumeInCubicMeters(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Volume in cubic meters", QVariant::Double, Unit::volumeInCubicMeters(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Volume in cubic meters");
 
   return quantity;
 }
 
-Quantity* Quantity::volumeInCubicFeet(const QString &caption, const QString &description, QObject *parent)
+Quantity* Quantity::volumeInCubicFeet(QObject *parent)
 {
 
-  Quantity* quantity = new Quantity(caption, QVariant::Double, Unit::volumeInCubicFeet(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Volume in cubic feet", QVariant::Double, Unit::volumeInCubicFeet(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Volume in cubic feet");
 
   return quantity;
 }
 
-Quantity* Quantity::flowInCMS(const QString &caption, const QString &description, QObject *parent)
+Quantity* Quantity::flowInCMS(QObject *parent)
 {
-  Quantity* quantity = new Quantity(caption, QVariant::Double, Unit::flowInCMS(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Flow in cubic meters per second", QVariant::Double, Unit::flowInCMS(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Flow in cubic meters per second");
 
   return quantity;
 }
 
-Quantity* Quantity::flowInCFS(const QString &caption, const QString &description, QObject *parent)
+Quantity* Quantity::flowInCFS(QObject *parent)
 {
-  Quantity* quantity = new Quantity(caption, QVariant::Double, Unit::flowInCFS(parent),parent);
-  quantity->setDescription(description);
+  Quantity* quantity = new Quantity("Flow in cubic feet per second", QVariant::Double, Unit::flowInCFS(parent),parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Flow in cubic feet per second");
 
   return quantity;
 }
 
-Quantity* Quantity::unitLessValues(const QString &caption, const QString &description, QVariant::Type type, QObject *parent)
+Quantity* Quantity::unitLessValues(const QString& caption, QVariant::Type type, QObject *parent)
 {
   Quantity* quantity = new Quantity(caption, type, Unit::unitlessCoefficient(parent),parent);
-  quantity->setDescription(description);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription(caption);
 
   return quantity;
 }

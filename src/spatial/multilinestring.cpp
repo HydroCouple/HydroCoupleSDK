@@ -6,16 +6,17 @@
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
 
-HCMultiLineString::HCMultiLineString(QObject *parent)
-  :HCGeometryCollection(parent)
+HCMultiLineString::HCMultiLineString(const QString &id, HCGeometry *parent)
+  :HCGeometryCollection(id, parent)
 {
 }
 
 HCMultiLineString::~HCMultiLineString()
 {
+  m_lineStrings.clear();
 }
 
-HydroCouple::Spatial::GeometryType HCMultiLineString::geometryType() const
+IGeometry::GeometryType HCMultiLineString::geometryType() const
 {
   if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
      geometryFlags().testFlag(GeometryFlag::HasM))
@@ -61,24 +62,52 @@ double HCMultiLineString::length() const
   return outLength;
 }
 
-ILineString* HCMultiLineString::element(int index) const
+ILineString* HCMultiLineString::lineString(int index) const
 {
   assert(index < m_lineStrings.length());
   return m_lineStrings[index];
 }
+
+
+
+HCLineString* HCMultiLineString::lineStringInternal(int index) const
+{
+  assert(index < m_lineStrings.length());
+  return m_lineStrings[index];
+}
+
 
 QList<HCLineString*> HCMultiLineString::lineStrings() const
 {
   return m_lineStrings;
 }
 
-void HCMultiLineString::addLineString(HCLineString *lineString)
+bool HCMultiLineString::addGeometry(HCGeometry *geometry)
 {
-  m_lineStrings.append(lineString);
-  addGeometry(lineString);
+  HCLineString *lineString = dynamic_cast<HCLineString*>(geometry);
+
+  return lineString != nullptr && addLineString(lineString);
+}
+
+bool HCMultiLineString::addLineString(HCLineString *lineString)
+{
+  if(HCGeometryCollection::addGeometry(lineString))
+  {
+    m_lineStrings.append(lineString);
+    return true;
+  }
+
+  return false;
+}
+
+bool HCMultiLineString::removeGeometry(HCGeometry *geometry)
+{
+  HCLineString *lineString = dynamic_cast<HCLineString*>(geometry);
+  return   lineString != nullptr && removeLineString(lineString);
 }
 
 bool HCMultiLineString::removeLineString(HCLineString *lineString)
 {
-  return m_lineStrings.removeOne(lineString) && removeGeometry(lineString);
+ return HCGeometryCollection::removeGeometry(lineString) && m_lineStrings.removeOne(lineString);
 }
+

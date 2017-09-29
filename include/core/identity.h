@@ -33,25 +33,23 @@ class HYDROCOUPLESDK_EXPORT Identity : public Description,
 {
 
     Q_OBJECT
+
     Q_INTERFACES(HydroCouple::IIdentity)
     Q_PROPERTY(QString Id READ id NOTIFY propertyChanged)
 
   public:
+    Identity(const QString& id = QUuid::createUuid().toString() , QObject* parent = nullptr);
 
-    Identity(const QString& id, QObject* parent = nullptr);
+    Identity(const QString& id = QUuid::createUuid().toString(), const QString& caption = "", QObject* parent = nullptr);
 
-    Identity(const QString& id, const QString& caption, QObject* parent = nullptr);
-
-    virtual ~Identity(){}
+    virtual ~Identity();
 
     QString id() const override;
 
   signals:
-
     void propertyChanged(const QString& propertyName) override;
 
   protected:
-
     void setId(const QString& id);
 
   private:

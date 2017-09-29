@@ -1,3 +1,23 @@
+/*!
+ *  \file    geometrycollection.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  geometrycollection.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef GEOMETRYCOLLECTION_H
 #define GEOMETRYCOLLECTION_H
 
@@ -10,30 +30,27 @@ class HCPolygon;
 class HYDROCOUPLESDK_EXPORT HCGeometryCollection : public HCGeometry,
     public virtual HydroCouple::Spatial::IGeometryCollection
 {
-    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IGeometryCollection)
 
   public:
 
-    HCGeometryCollection(QObject* parent = nullptr);
+    HCGeometryCollection(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
     virtual ~HCGeometryCollection();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     int dimension() const override;
-
-    HydroCouple::Spatial::IGeometry *envelope() const override;
 
     int geometryCount() const override;
 
     HydroCouple::Spatial::IGeometry* geometry(int index) const override;
 
-    void initializeData(int length, double defaultValue = std::numeric_limits<double>::quiet_NaN()) override;
+    HCGeometry *geometryInternal(int index) const;
 
-    void addGeometry(HCGeometry *geometry);
+    virtual bool addGeometry(HCGeometry *geometry);
 
-    bool removeGeometry(HCGeometry *geometry);
+    virtual bool removeGeometry(HCGeometry *geometry);
 
     void enable3D() override;
 
@@ -43,13 +60,14 @@ class HYDROCOUPLESDK_EXPORT HCGeometryCollection : public HCGeometry,
 
     void disableM() override;
 
-  signals:
-    void propertyChanged(const QString& propertyName) override;
+    Envelope *envelopeInternal() const override;
 
   protected:
+
     QList<HCGeometry*> geometries() const;
 
   private:
+
     QList<HCGeometry*> m_geometries;
 };
 
@@ -57,22 +75,30 @@ class HYDROCOUPLESDK_EXPORT HCGeometryCollection : public HCGeometry,
 class HYDROCOUPLESDK_EXPORT HCMultiPoint : public HCGeometryCollection,
     public virtual HydroCouple::Spatial::IMultiPoint
 {
-    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IMultiPoint)
 
   public:
 
-    HCMultiPoint(QObject *parent);
+    HCMultiPoint(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr );
 
     virtual ~HCMultiPoint();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     HydroCouple::Spatial::IPoint* point(int index) const override;
 
-    void addPoint(HCPoint *point);
+    HCPoint *pointInternal(int index) const;
+
+    bool addGeometry(HCGeometry *geometry) override;
+
+    bool addPoint(HCPoint *point);
+
+    bool removeGeometry(HCGeometry *geometry) override;
 
     bool removePoint(HCPoint *point);
+
+  private:
+    QList<HCPoint*> m_points;
 };
 
 
@@ -80,27 +106,32 @@ class HYDROCOUPLESDK_EXPORT HCMultiLineString : public HCGeometryCollection,
     public virtual HydroCouple::Spatial::IMultiCurve,
     public virtual HydroCouple::Spatial::IMultiLineString
 {
-    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IMultiCurve
                  HydroCouple::Spatial::IMultiLineString)
 
   public:
 
-    HCMultiLineString(QObject* parent = nullptr);
+    HCMultiLineString(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
     virtual ~HCMultiLineString();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     bool isClosed() const override;
 
     double length() const override;
 
-    HydroCouple::Spatial::ILineString* element(int index) const override;
+    HydroCouple::Spatial::ILineString* lineString(int index) const override;
+
+    HCLineString *lineStringInternal(int index) const;
 
     QList<HCLineString*> lineStrings() const;
 
-    void addLineString(HCLineString* lineString);
+    bool addGeometry(HCGeometry *geometry) override;
+
+    bool addLineString(HCLineString* lineString);
+
+    bool removeGeometry(HCGeometry *geometry) override;
 
     bool removeLineString(HCLineString *lineString);
 
@@ -110,20 +141,19 @@ class HYDROCOUPLESDK_EXPORT HCMultiLineString : public HCGeometryCollection,
 
 };
 
-class HCMultiPolygon : public HCGeometryCollection,
+class HYDROCOUPLESDK_EXPORT HCMultiPolygon : public HCGeometryCollection,
     public virtual HydroCouple::Spatial::IMultiSurface,
     public virtual HydroCouple::Spatial::IMultiPolygon
 {
-    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IMultiSurface
                  HydroCouple::Spatial::IMultiPolygon)
 
   public:
-    HCMultiPolygon(QObject *parent);
+    HCMultiPolygon(const QString &id = QUuid::createUuid().toString() , HCGeometry *parent = nullptr);
 
     virtual ~HCMultiPolygon();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     double area() const override;
 
@@ -131,9 +161,15 @@ class HCMultiPolygon : public HCGeometryCollection,
 
     HydroCouple::Spatial::IPoint* pointOnSurface() const override;
 
-    HydroCouple::Spatial::IPolygon *element(int index) const override;
+    HydroCouple::Spatial::IPolygon *polygon(int index) const override;
 
-    void addPolygon(HCPolygon *polygon);
+    HCPolygon *polygonInternal(int index) const;
+
+    bool addGeometry(HCGeometry *geometry) override;
+
+    bool addPolygon(HCPolygon *polygon);
+
+    bool removeGeometry(HCGeometry *geometry) override;
 
     bool removePolygon(HCPolygon *polygon);
 

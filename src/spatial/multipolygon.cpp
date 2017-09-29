@@ -8,16 +8,17 @@
 
 using namespace HydroCouple::Spatial;
 
-HCMultiPolygon::HCMultiPolygon(QObject *parent)
-  :HCGeometryCollection(parent)
+HCMultiPolygon::HCMultiPolygon(const QString &id, HCGeometry *parent)
+  :HCGeometryCollection(id, parent)
 {
 }
 
 HCMultiPolygon::~HCMultiPolygon()
 {
+  m_polygons.clear();
 }
 
-HydroCouple::Spatial::GeometryType HCMultiPolygon::geometryType() const
+IGeometry::GeometryType HCMultiPolygon::geometryType() const
 {
   if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
      geometryFlags().testFlag(GeometryFlag::HasM))
@@ -64,20 +65,46 @@ IPoint *HCMultiPolygon::pointOnSurface() const
   return nullptr;
 }
 
-IPolygon* HCMultiPolygon::element(int index) const
+IPolygon* HCMultiPolygon::polygon(int index) const
 {
   assert(index < m_polygons.length());
   return m_polygons[index];
 }
 
-void HCMultiPolygon::addPolygon(HCPolygon *polygon)
+HCPolygon* HCMultiPolygon::polygonInternal(int index) const
 {
-  m_polygons.append(polygon);
-  addGeometry(polygon);
+  assert(index < m_polygons.length());
+  return m_polygons[index];
+}
+
+
+bool HCMultiPolygon::addGeometry(HCGeometry *geometry)
+{
+  HCPolygon *polygon = dynamic_cast<HCPolygon*>(geometry);
+
+  return polygon != nullptr && addPolygon(polygon);
+}
+
+
+bool HCMultiPolygon::addPolygon(HCPolygon *polygon)
+{
+  if(HCGeometryCollection::addGeometry(polygon))
+  {
+    m_polygons.append(polygon);
+    return true;
+  }
+
+  return false;
+}
+
+bool HCMultiPolygon::removeGeometry(HCGeometry *geometry)
+{
+  HCPolygon *polygon = dynamic_cast<HCPolygon*>(geometry);
+  return   polygon != nullptr && removePolygon(polygon);
 }
 
 bool HCMultiPolygon::removePolygon(HCPolygon *polygon)
 {
-  return m_polygons.removeOne(polygon) && removeGeometry(polygon);
+  return HCGeometryCollection::removeGeometry(polygon) && m_polygons.removeOne(polygon);
 }
 

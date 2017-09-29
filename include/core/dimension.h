@@ -41,6 +41,10 @@ class HYDROCOUPLESDK_EXPORT Dimension : public Identity,
 
     virtual ~Dimension();
 
+    Dimension *copy(QObject *parent);
+
+    static Dimension *copy(const HydroCouple::IDimension *dimension, QObject *parent);
+
   signals:
 
     void propertyChanged(const QString& propertyName) override;

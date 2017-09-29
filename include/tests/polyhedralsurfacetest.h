@@ -21,69 +21,69 @@ class PolyhedralSurfaceTest : public QObject
 
     void testCreatePolyhedralSurface()
     {
-      HCPolyhedralSurface* surface = new HCPolyhedralSurface(this);
+      HCPolyhedralSurface* surface = new HCPolyhedralSurface("");
 
       HCPoint::resetId();
       HCPoint::getNextId();
 
-      HCVertex *v0 = new HCVertex(-114.5,39.5,surface);
-      HCVertex *v1 = new HCVertex(-114.0,39.5,surface);
+      HCVertex *v0 = new HCVertex(-114.5,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v1 = new HCVertex(-114.0,39.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v2 = new HCVertex(-113.5,39.5,surface);
-      HCVertex *v3 = new HCVertex(-113.0,39.5,surface);
+      HCVertex *v2 = new HCVertex(-113.5,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v3 = new HCVertex(-113.0,39.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v4 = new HCVertex(-114.5,40.0,surface);
-      HCVertex *v5 = new HCVertex(-114.0,40.0,surface);
-      HCVertex *v6 = new HCVertex(-113.5,40.0,surface);
-      HCVertex *v7 = new HCVertex(-113.0,40.0,surface);
+      HCVertex *v4 = new HCVertex(-114.5,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v5 = new HCVertex(-114.0,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v6 = new HCVertex(-113.5,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v7 = new HCVertex(-113.0,40.0,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v8  = new HCVertex(-114.5,40.5,surface);
-      HCVertex *v9 = new HCVertex(-114.0,40.5,surface);
-      HCVertex *v10 = new HCVertex(-113.5,40.5,surface);
-      HCVertex *v11 = new HCVertex(-113.0,40.5,surface);
+      HCVertex *v8  = new HCVertex(-114.5,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v9 = new HCVertex(-114.0,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v10 = new HCVertex(-113.5,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v11 = new HCVertex(-113.0,40.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v12 = new HCVertex(-114.5,41.0,surface);
-      HCVertex *v13 = new HCVertex(-114.0,41.0,surface);
-      HCVertex *v14 = new HCVertex(-113.5,41.0,surface);
-      HCVertex *v15 = new HCVertex(-113.0,41.0,surface);
+      HCVertex *v12 = new HCVertex(-114.5,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v13 = new HCVertex(-114.0,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v14 = new HCVertex(-113.5,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v15 = new HCVertex(-113.0,41.0,QUuid::createUuid().toString(),surface);
 
       //1
-      HCPolygon *poly = new HCPolygon (surface);
-      HCEdge *tedge = surface->createVertexEdge(v0,v1,poly);
+      HCPolygon *poly = new HCPolygon(QUuid::createUuid().toString(),surface);
+      Edge *tedge = surface->createVertexEdge(v0,v1,poly);
       tedge = surface->createVertexEdge(v1,v5,poly);
       tedge = surface->createVertexEdge(v5,v4,poly);
       tedge = surface->createVertexEdge(v4,v0,poly);
 
       //2
-      poly  = new HCPolygon (surface);
+      poly  = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge = surface->createVertexEdge(v1,v2,poly);
       tedge = surface->createVertexEdge(v2,v6,poly);
       tedge = surface->createVertexEdge(v6,v5,poly);
       tedge = surface->createVertexEdge(v5,v1,poly);
 
       //3
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge = surface->createVertexEdge(v2,v3,poly);
       tedge = surface->createVertexEdge(v3,v7,poly);
       tedge =  surface->createVertexEdge(v7,v6,poly);
       tedge =  surface->createVertexEdge(v6,v2,poly);
 
       //6
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v6,v7,poly);
       tedge =   surface->createVertexEdge(v7,v11,poly);
       tedge =   surface->createVertexEdge(v11,v10,poly);
       tedge =   surface->createVertexEdge(v10,v6,poly);
 
       //7
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =  surface->createVertexEdge(v8,v9,poly);
       tedge =   surface->createVertexEdge(v9,v13,poly);
       tedge =    surface->createVertexEdge(v13,v12,poly);
       tedge =   surface->createVertexEdge(v12,v8,poly);
 
       //8
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v9,v10,poly);
       tedge =   surface->createVertexEdge(v10,v14,poly);
       tedge =   surface->createVertexEdge(v14,v13,poly);
@@ -91,7 +91,7 @@ class PolyhedralSurfaceTest : public QObject
 
 
       //9
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v10,v11,poly);
       tedge =   surface->createVertexEdge(v11,v15,poly);
       tedge =   surface->createVertexEdge(v15,v14,poly);
@@ -99,14 +99,14 @@ class PolyhedralSurfaceTest : public QObject
 
 
       //5
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v5,v6,poly);
       tedge =   surface->createVertexEdge(v6,v10,poly);
       tedge =   surface->createVertexEdge(v10,v9,poly);
       tedge =   surface->createVertexEdge(v9,v5,poly);
 
       //4
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =  surface->createVertexEdge(v4,v5,poly);
       tedge =  surface->createVertexEdge(v5,v9,poly);
       tedge =  surface->createVertexEdge(v9,v8,poly);
@@ -123,10 +123,11 @@ class PolyhedralSurfaceTest : public QObject
 
         stream << "HGID,ShapeWKT" << endl;
 
-        for(HCPolygon *polygon : surface->patches())
+        for(int i = 0 ; i < surface->patchCount(); i++)
         {
-          QString wkt = polygon->getWKT();
-          stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+          HCPolygon* polygon = surface->patchInternal(i);
+          QString wkt =  polygon->getWKT();
+          stream << "\"" << QString::number( polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
         file.close();
@@ -164,55 +165,62 @@ class PolyhedralSurfaceTest : public QObject
         fileVRT.close();
       }
 
-      system("./ogr2ogr -f KML polyhedralsurface_create.kml polyhedralsurface_create.vrt -dsco NameField=HGID");
+      QString cd = "cd " + QFileInfo(QCoreApplication::applicationDirPath()).absoluteFilePath();
+      system(qPrintable(cd));
+      system("export PATH=/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH");
+      system("/usr/local/bin/ogr2ogr -f KML polyhedralsurface_create.kml polyhedralsurface_create.vrt -dsco NameField=HGID");
 
       delete surface;
     }
 
     void testDeletePatchFromPolyhedralSurface()
     {
-      HCPolyhedralSurface* surface = new HCPolyhedralSurface(this);
+      HCPolyhedralSurface* surface = new HCPolyhedralSurface("");
 
       HCPoint::resetId();
       HCPoint::getNextId();
 
-      HCVertex *v0 = new HCVertex(-114.5,39.5,surface);
-      HCVertex *v1 = new HCVertex(-114.0,39.5,surface);
+      HCVertex *v0 = new HCVertex(-114.5,39.5,"0",surface);
+      HCVertex *v1 = new HCVertex(-114.0,39.5,"1",surface);
 
-      HCVertex *v2 = new HCVertex(-113.5,39.5,surface);
-      HCVertex *v3 = new HCVertex(-113.0,39.5,surface);
+      HCVertex *v2 = new HCVertex(-113.5,39.5,"2",surface);
+      HCVertex *v3 = new HCVertex(-113.0,39.5,"3",surface);
 
-      HCVertex *v4 = new HCVertex(-114.5,40.0,surface);
-      HCVertex *v5 = new HCVertex(-114.0,40.0,surface);
-      HCVertex *v6 = new HCVertex(-113.5,40.0,surface);
-      HCVertex *v7 = new HCVertex(-113.0,40.0,surface);
+      HCVertex *v4 = new HCVertex(-114.5,40.0,"4",surface);
+      HCVertex *v5 = new HCVertex(-114.0,40.0,"5",surface);
 
-      HCVertex *v8  = new HCVertex(-114.5,40.5,surface);
-      HCVertex *v9 = new HCVertex(-114.0,40.5,surface);
-      HCVertex *v10 = new HCVertex(-113.5,40.5,surface);
-      HCVertex *v11 = new HCVertex(-113.0,40.5,surface);
+      HCVertex *v6 = new HCVertex(-113.5,40.0,"6",surface);
+      HCVertex *v7 = new HCVertex(-113.0,40.0,"7",surface);
 
-      HCVertex *v12 = new HCVertex(-114.5,41.0,surface);
-      HCVertex *v13 = new HCVertex(-114.0,41.0,surface);
-      HCVertex *v14 = new HCVertex(-113.5,41.0,surface);
-      HCVertex *v15 = new HCVertex(-113.0,41.0,surface);
+      HCVertex *v8  = new HCVertex(-114.5,40.5,"8",surface);
+      HCVertex *v9 = new HCVertex(-114.0,40.5,"9",surface);
+
+      HCVertex *v10 = new HCVertex(-113.5,40.5,"10",surface);
+      HCVertex *v11 = new HCVertex(-113.0,40.5,"11",surface);
+
+      HCVertex *v12 = new HCVertex(-114.5,41.0,"12",surface);
+      HCVertex *v13 = new HCVertex(-114.0,41.0,"13",surface);
+      HCVertex *v14 = new HCVertex(-113.5,41.0,"14",surface);
+      HCVertex *v15 = new HCVertex(-113.0,41.0,"15",surface);
 
       //1
-      HCPolygon *poly = new HCPolygon (surface);
-      HCEdge *tedge = surface->createVertexEdge(v0,v1,poly);
+      HCPolygon *poly = new HCPolygon("1",surface);
+      HCPolygon *poly1 = poly;
+      Edge *tedge = surface->createVertexEdge(v0,v1,poly);
       tedge = surface->createVertexEdge(v1,v5,poly);
       tedge = surface->createVertexEdge(v5,v4,poly);
       tedge = surface->createVertexEdge(v4,v0,poly);
 
       //2
-      poly  = new HCPolygon (surface);
+      poly  = new HCPolygon("2",surface);
+      HCPolygon *poly2 = poly;
       tedge = surface->createVertexEdge(v1,v2,poly);
       tedge = surface->createVertexEdge(v2,v6,poly);
       tedge = surface->createVertexEdge(v6,v5,poly);
       tedge = surface->createVertexEdge(v5,v1,poly);
 
       //3
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon("3",surface);
       HCPolygon *poly3 = poly;
       tedge = surface->createVertexEdge(v2,v3,poly);
       tedge = surface->createVertexEdge(v3,v7,poly);
@@ -220,14 +228,14 @@ class PolyhedralSurfaceTest : public QObject
       tedge =  surface->createVertexEdge(v6,v2,poly);
 
       //4
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon("4",surface);
       tedge =  surface->createVertexEdge(v4,v5,poly);
       tedge =  surface->createVertexEdge(v5,v9,poly);
       tedge =  surface->createVertexEdge(v9,v8,poly);
       tedge =  surface->createVertexEdge(v8,v4,poly);
 
       //5
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon("5",surface);
       HCPolygon *poly5 = poly;
       tedge =   surface->createVertexEdge(v5,v6,poly);
       tedge =   surface->createVertexEdge(v6,v10,poly);
@@ -235,14 +243,14 @@ class PolyhedralSurfaceTest : public QObject
       tedge =   surface->createVertexEdge(v9,v5,poly);
 
       //6
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon("6",surface);
       tedge =   surface->createVertexEdge(v6,v7,poly);
       tedge =   surface->createVertexEdge(v7,v11,poly);
       tedge =   surface->createVertexEdge(v11,v10,poly);
       tedge =   surface->createVertexEdge(v10,v6,poly);
 
       //7
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon("7",surface);
       HCPolygon *poly7 = poly;
       tedge =  surface->createVertexEdge(v8,v9,poly);
       tedge =   surface->createVertexEdge(v9,v13,poly);
@@ -250,14 +258,14 @@ class PolyhedralSurfaceTest : public QObject
       tedge =   surface->createVertexEdge(v12,v8,poly);
 
       //8
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon("8",surface);
       tedge =   surface->createVertexEdge(v9,v10,poly);
       tedge =   surface->createVertexEdge(v10,v14,poly);
       tedge =   surface->createVertexEdge(v14,v13,poly);
       tedge =   surface->createVertexEdge(v13,v9,poly);
 
       //9
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon("9",surface);
       HCPolygon *poly8 = poly;
       tedge =   surface->createVertexEdge(v10,v11,poly);
       tedge =   surface->createVertexEdge(v11,v15,poly);
@@ -265,10 +273,12 @@ class PolyhedralSurfaceTest : public QObject
       tedge =   surface->createVertexEdge(v14,v10,poly);
 
 
-      surface->deletePatch(poly3);
-      surface->deletePatch(poly5);
-      surface->deletePatch(poly7);
-      surface->deletePatch(poly8);
+      surface->deletePatch(poly1);
+//      surface->deletePatch(poly2);
+//      surface->deletePatch(poly3);
+//      surface->deletePatch(poly5);
+//      surface->deletePatch(poly7);
+//      surface->deletePatch(poly8);
 
       qDebug() << "\n\n";
 
@@ -280,11 +290,12 @@ class PolyhedralSurfaceTest : public QObject
 
         stream << "HGID,ShapeWKT" << endl;
 
-        for(HCPolygon *polygon : surface->patches())
+        for(int i = 0 ; i < surface->patchCount(); i++)
         {
-          HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-          QString wkt = polygon->getWKT();
-          stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+          HCPolygon* polygon = surface->patchInternal(i);
+          HCPolyhedralSurface::printAllLeftNext( polygon->edge());
+          QString wkt =  polygon->getWKT();
+          stream << "\"" << QString::number( polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
         file.close();
@@ -322,62 +333,64 @@ class PolyhedralSurfaceTest : public QObject
         fileVRT.close();
       }
 
-      system("ogr2ogr -f KML polyhedralsurface_delete_patch.kml polyhedralsurface_delete_patch.vrt -dsco NameField=HGID");
+      QString cd = "cd " + QFileInfo(QCoreApplication::applicationDirPath()).absoluteFilePath();
+      system(qPrintable(cd));
+      system("/usr/local/bin/ogr2ogr -f KML polyhedralsurface_delete_patch.kml polyhedralsurface_delete_patch.vrt -dsco NameField=HGID");
 
       delete surface;
     }
 
     void testMakeAndDeleteVertexEdgeFromPolyhedralSurface()
     {
-      HCPolyhedralSurface* surface = new HCPolyhedralSurface(this);
+      HCPolyhedralSurface* surface = new HCPolyhedralSurface("");
 
       HCPoint::resetId();
       HCPoint::getNextId();
 
-      HCVertex *v0 = new HCVertex(-114.5,39.5,surface);
-      HCVertex *v1 = new HCVertex(-114.0,39.5,surface);
+      HCVertex *v0 = new HCVertex(-114.5,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v1 = new HCVertex(-114.0,39.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v2 = new HCVertex(-113.5,39.5,surface);
-      HCVertex *v3 = new HCVertex(-113.0,39.5,surface);
+      HCVertex *v2 = new HCVertex(-113.5,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v3 = new HCVertex(-113.0,39.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v4 = new HCVertex(-114.5,40.0,surface);
-      HCVertex *v5 = new HCVertex(-114.0,40.0,surface);
-      HCVertex *v6 = new HCVertex(-113.5,40.0,surface);
-      HCVertex *v7 = new HCVertex(-113.0,40.0,surface);
+      HCVertex *v4 = new HCVertex(-114.5,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v5 = new HCVertex(-114.0,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v6 = new HCVertex(-113.5,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v7 = new HCVertex(-113.0,40.0,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v8  = new HCVertex(-114.5,40.5,surface);
-      HCVertex *v9 = new HCVertex(-114.0,40.5,surface);
-      HCVertex *v10 = new HCVertex(-113.5,40.5,surface);
-      HCVertex *v11 = new HCVertex(-113.0,40.5,surface);
+      HCVertex *v8  = new HCVertex(-114.5,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v9 = new HCVertex(-114.0,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v10 = new HCVertex(-113.5,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v11 = new HCVertex(-113.0,40.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v12 = new HCVertex(-114.5,41.0,surface);
-      HCVertex *v13 = new HCVertex(-114.0,41.0,surface);
-      HCVertex *v14 = new HCVertex(-113.5,41.0,surface);
-      HCVertex *v15 = new HCVertex(-113.0,41.0,surface);
+      HCVertex *v12 = new HCVertex(-114.5,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v13 = new HCVertex(-114.0,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v14 = new HCVertex(-113.5,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v15 = new HCVertex(-113.0,41.0,QUuid::createUuid().toString(),surface);
 
       //1
-      HCPolygon *poly = new HCPolygon (surface);
-      HCEdge *tedge = surface->createVertexEdge(v0,v1,poly);
+      HCPolygon *poly = new HCPolygon(QUuid::createUuid().toString(),surface);
+      Edge *tedge = surface->createVertexEdge(v0,v1,poly);
       tedge = surface->createVertexEdge(v1,v5,poly);
       tedge = surface->createVertexEdge(v5,v4,poly);
       tedge = surface->createVertexEdge(v4,v0,poly);
 
       //2
-      poly  = new HCPolygon (surface);
+      poly  = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge = surface->createVertexEdge(v1,v2,poly);
       tedge = surface->createVertexEdge(v2,v6,poly);
       tedge = surface->createVertexEdge(v6,v5,poly);
       tedge = surface->createVertexEdge(v5,v1,poly);
 
       //3
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge = surface->createVertexEdge(v2,v3,poly);
       tedge = surface->createVertexEdge(v3,v7,poly);
       tedge =  surface->createVertexEdge(v7,v6,poly);
       tedge =  surface->createVertexEdge(v6,v2,poly);
 
       //4
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       HCPolygon *poly4 = poly;
       tedge =  surface->createVertexEdge(v4,v5,poly);
       tedge =  surface->createVertexEdge(v5,v9,poly);
@@ -385,7 +398,7 @@ class PolyhedralSurfaceTest : public QObject
       tedge =  surface->createVertexEdge(v8,v4,poly);
 
       //5
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       HCPolygon *poly5 = poly;
       tedge =   surface->createVertexEdge(v5,v6,poly);
       tedge =   surface->createVertexEdge(v6,v10,poly);
@@ -393,37 +406,37 @@ class PolyhedralSurfaceTest : public QObject
       tedge =   surface->createVertexEdge(v9,v5,poly);
 
       //6
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v6,v7,poly);
       tedge =   surface->createVertexEdge(v7,v11,poly);
       tedge =   surface->createVertexEdge(v11,v10,poly);
       tedge =   surface->createVertexEdge(v10,v6,poly);
 
       //7
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =  surface->createVertexEdge(v8,v9,poly);
       tedge =   surface->createVertexEdge(v9,v13,poly);
       tedge =    surface->createVertexEdge(v13,v12,poly);
       tedge =   surface->createVertexEdge(v12,v8,poly);
 
       //8
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v9,v10,poly);
       tedge =   surface->createVertexEdge(v10,v14,poly);
       tedge =   surface->createVertexEdge(v14,v13,poly);
       tedge =   surface->createVertexEdge(v13,v9,poly);
 
       //9
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v10,v11,poly);
       tedge =   surface->createVertexEdge(v11,v15,poly);
       tedge =   surface->createVertexEdge(v15,v14,poly);
       tedge =   surface->createVertexEdge(v14,v10,poly);
 
-      HCVertex *v16 = new HCVertex(-114.0,40.75,surface);
+      HCVertex *v16 = new HCVertex(-114.0,40.75,QUuid::createUuid().toString(),surface);
       surface->createVertexEdge(v9,v16,poly4,poly5);
 
-      HCEdge *e_6_10 = surface->findEdge(v6,v10);
+      Edge *e_6_10 = surface->findEdge(v6,v10);
       HCPolyhedralSurface::printEdge(e_6_10);
       surface->deleteVertexEdge(e_6_10);
 
@@ -437,11 +450,13 @@ class PolyhedralSurfaceTest : public QObject
 
         stream << "HGID,ShapeWKT" << endl;
 
-        for(HCPolygon *polygon : surface->patches())
+        for(int i = 0 ; i < surface->patchCount(); i++)
         {
-          HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-          QString wkt = polygon->getWKT();
-          stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+          HCPolygon* polygon = surface->patchInternal(i);
+
+          HCPolyhedralSurface::printAllLeftNext( polygon->edge());
+          QString wkt =  polygon->getWKT();
+          stream << "\"" << QString::number( polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
         file.close();
@@ -479,62 +494,64 @@ class PolyhedralSurfaceTest : public QObject
         fileVRT.close();
       }
 
-      system("ogr2ogr -f KML polyhedralsurface_vertex_edge.kml polyhedralsurface_vertex_edge.vrt -dsco NameField=HGID");
+      QString cd = "cd " + QFileInfo(QCoreApplication::applicationDirPath()).absoluteFilePath();
+      system(qPrintable(cd));
+      system("/usr/local/bin/ogr2ogr -f KML polyhedralsurface_vertex_edge.kml polyhedralsurface_vertex_edge.vrt -dsco NameField=HGID");
 
       delete surface;
     }
 
     void testMakeAndDeleteFaceEdgeFromPolyhedralSurface()
     {
-      HCPolyhedralSurface* surface = new HCPolyhedralSurface(this);
+      HCPolyhedralSurface* surface = new HCPolyhedralSurface("");
 
       HCPoint::resetId();
       HCPoint::getNextId();
 
-      HCVertex *v0 = new HCVertex(-114.5,39.5,surface);
-      HCVertex *v1 = new HCVertex(-114.0,39.5,surface);
+      HCVertex *v0 = new HCVertex(-114.5,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v1 = new HCVertex(-114.0,39.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v2 = new HCVertex(-113.5,39.5,surface);
-      HCVertex *v3 = new HCVertex(-113.0,39.5,surface);
+      HCVertex *v2 = new HCVertex(-113.5,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v3 = new HCVertex(-113.0,39.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v4 = new HCVertex(-114.5,40.0,surface);
-      HCVertex *v5 = new HCVertex(-114.0,40.0,surface);
-      HCVertex *v6 = new HCVertex(-113.5,40.0,surface);
-      HCVertex *v7 = new HCVertex(-113.0,40.0,surface);
+      HCVertex *v4 = new HCVertex(-114.5,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v5 = new HCVertex(-114.0,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v6 = new HCVertex(-113.5,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v7 = new HCVertex(-113.0,40.0,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v8  = new HCVertex(-114.5,40.5,surface);
-      HCVertex *v9 = new HCVertex(-114.0,40.5,surface);
-      HCVertex *v10 = new HCVertex(-113.5,40.5,surface);
-      HCVertex *v11 = new HCVertex(-113.0,40.5,surface);
+      HCVertex *v8  = new HCVertex(-114.5,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v9 = new HCVertex(-114.0,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v10 = new HCVertex(-113.5,40.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v11 = new HCVertex(-113.0,40.5,QUuid::createUuid().toString(),surface);
 
-      HCVertex *v12 = new HCVertex(-114.5,41.0,surface);
-      HCVertex *v13 = new HCVertex(-114.0,41.0,surface);
-      HCVertex *v14 = new HCVertex(-113.5,41.0,surface);
-      HCVertex *v15 = new HCVertex(-113.0,41.0,surface);
+      HCVertex *v12 = new HCVertex(-114.5,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v13 = new HCVertex(-114.0,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v14 = new HCVertex(-113.5,41.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v15 = new HCVertex(-113.0,41.0,QUuid::createUuid().toString(),surface);
 
       //1
-      HCPolygon *poly = new HCPolygon (surface);
-      HCEdge *tedge = surface->createVertexEdge(v0,v1,poly);
+      HCPolygon *poly = new HCPolygon(QUuid::createUuid().toString(),surface);
+      Edge *tedge = surface->createVertexEdge(v0,v1,poly);
       tedge = surface->createVertexEdge(v1,v5,poly);
       tedge = surface->createVertexEdge(v5,v4,poly);
       tedge = surface->createVertexEdge(v4,v0,poly);
 
       //2
-      poly  = new HCPolygon (surface);
+      poly  = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge = surface->createVertexEdge(v1,v2,poly);
       tedge = surface->createVertexEdge(v2,v6,poly);
       tedge = surface->createVertexEdge(v6,v5,poly);
       tedge = surface->createVertexEdge(v5,v1,poly);
 
       //3
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge = surface->createVertexEdge(v2,v3,poly);
       tedge = surface->createVertexEdge(v3,v7,poly);
       tedge =  surface->createVertexEdge(v7,v6,poly);
       tedge =  surface->createVertexEdge(v6,v2,poly);
 
       //4
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       HCPolygon *poly4 = poly;
       tedge =  surface->createVertexEdge(v4,v5,poly);
       tedge =  surface->createVertexEdge(v5,v9,poly);
@@ -542,35 +559,35 @@ class PolyhedralSurfaceTest : public QObject
       tedge =  surface->createVertexEdge(v8,v4,poly);
 
       //5
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v5,v6,poly);
       tedge =   surface->createVertexEdge(v6,v10,poly);
       tedge =   surface->createVertexEdge(v10,v9,poly);
       tedge =   surface->createVertexEdge(v9,v5,poly);
 
       //6
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v6,v7,poly);
       tedge =   surface->createVertexEdge(v7,v11,poly);
       tedge =   surface->createVertexEdge(v11,v10,poly);
       tedge =   surface->createVertexEdge(v10,v6,poly);
 
       //7
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =  surface->createVertexEdge(v8,v9,poly);
       tedge =   surface->createVertexEdge(v9,v13,poly);
       tedge =    surface->createVertexEdge(v13,v12,poly);
       tedge =   surface->createVertexEdge(v12,v8,poly);
 
       //8
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v9,v10,poly);
       tedge =   surface->createVertexEdge(v10,v14,poly);
       tedge =   surface->createVertexEdge(v14,v13,poly);
       tedge =   surface->createVertexEdge(v13,v9,poly);
 
       //9
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       tedge =   surface->createVertexEdge(v10,v11,poly);
       tedge =   surface->createVertexEdge(v11,v15,poly);
       tedge =   surface->createVertexEdge(v15,v14,poly);
@@ -589,11 +606,12 @@ class PolyhedralSurfaceTest : public QObject
 
         stream << "HGID,ShapeWKT" << endl;
 
-        for(HCPolygon *polygon : surface->patches())
+        for(int i = 0 ; i < surface->patchCount(); i++)
         {
-          HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-          QString wkt = polygon->getWKT();
-          stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+          HCPolygon* polygon = surface->patchInternal(i);
+          HCPolyhedralSurface::printAllLeftNext( polygon->edge());
+          QString wkt =  polygon->getWKT();
+          stream << "\"" << QString::number( polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
         }
 
         file.close();
@@ -631,7 +649,9 @@ class PolyhedralSurfaceTest : public QObject
         fileVRT.close();
       }
 
-      system("ogr2ogr -f KML polyhedralsurface_face_edge.kml polyhedralsurface_face_edge.vrt -dsco NameField=HGID");
+      QString cd = "cd " + QFileInfo(QCoreApplication::applicationDirPath()).absoluteFilePath();
+      system(qPrintable(cd));
+      system("/usr/local/bin/ogr2ogr -f KML polyhedralsurface_face_edge.kml polyhedralsurface_face_edge.vrt -dsco NameField=HGID");
       system("./converttokml.sh");
 
       delete surface;
@@ -639,38 +659,38 @@ class PolyhedralSurfaceTest : public QObject
 
     void testHardDeleteFaceEdge()
     {
-      HCPolyhedralSurface* surface = new HCPolyhedralSurface(this);
+      HCPolyhedralSurface* surface = new HCPolyhedralSurface("");
 
       HCPoint::resetId();
       HCPoint::getNextId();
 
-      HCVertex *v0 = new HCVertex(-114.5,39.5,surface);
-      HCVertex *v1 = new HCVertex(-114.0,39.5,surface);
-      HCVertex *v4 = new HCVertex(-114.5,40.0,surface);
-      HCVertex *v5 = new HCVertex(-114.0,40.0,surface);
-      HCVertex *vmid = new HCVertex(-114.25,39.75,surface);
+      HCVertex *v0 = new HCVertex(-114.5,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v1 = new HCVertex(-114.0,39.5,QUuid::createUuid().toString(),surface);
+      HCVertex *v4 = new HCVertex(-114.5,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *v5 = new HCVertex(-114.0,40.0,QUuid::createUuid().toString(),surface);
+      HCVertex *vmid = new HCVertex(-114.25,39.75,QUuid::createUuid().toString(),surface);
 
       //1
-      HCPolygon *poly = new HCPolygon (surface);
+      HCPolygon *poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       surface->createVertexEdge(v0,v1,poly);
-      HCEdge* e2 = surface->createVertexEdge(v1,vmid,poly);
-      HCEdge* e1 = surface->createVertexEdge(vmid,v0,poly);
+      Edge* e2 = surface->createVertexEdge(v1,vmid,poly);
+      Edge* e1 = surface->createVertexEdge(vmid,v0,poly);
 
       //2
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       surface->createVertexEdge(v1,v5,poly);
-      HCEdge* e3 = surface->createVertexEdge(v5,vmid,poly);
+      Edge* e3 = surface->createVertexEdge(v5,vmid,poly);
       surface->createVertexEdge(vmid,v1,poly);
 
       //3
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       surface->createVertexEdge(v5,v4,poly);
-      HCEdge* e4 = surface->createVertexEdge(v4,vmid,poly);
+      Edge* e4 = surface->createVertexEdge(v4,vmid,poly);
       surface->createVertexEdge(vmid,v5,poly);
 
 
       //3
-      poly = new HCPolygon (surface);
+      poly = new HCPolygon(QUuid::createUuid().toString(),surface);
       surface->createVertexEdge(v4,v0,poly);
       surface->createVertexEdge(v0,vmid,poly);
       surface->createVertexEdge(vmid,v4,poly);
@@ -686,8 +706,9 @@ class PolyhedralSurfaceTest : public QObject
 
           stream << "HGID,ShapeWKT" << endl;
 
-          for(HCPolygon *polygon : surface->patches())
+          for(int i = 0; i < surface->patchCount() ; i++)
           {
+            HCPolygon *polygon = surface->patchInternal(i);
             HCPolyhedralSurface::printAllLeftNext(polygon->edge());
             QString wkt = polygon->getWKT();
             stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
@@ -729,17 +750,21 @@ class PolyhedralSurfaceTest : public QObject
           fileVRT.close();
         }
 
-        system("ogr2ogr -f KML polyhedralsurface_hardface.kml polyhedralsurface_hardface.vrt -dsco NameField=HGID");
+        QString cd = "cd " + QFileInfo(QCoreApplication::applicationDirPath()).absoluteFilePath();
+        system(qPrintable(cd));
+        system("/usr/local/bin/ogr2ogr -f KML polyhedralsurface_hardface.kml polyhedralsurface_hardface.vrt -dsco NameField=HGID");
       }
 
-//      surface->deleteFaceEdge(e2);
-//      surface->deleteFaceEdge(e3);
-//      surface->deleteFaceEdge(e4);
+      //      surface->deleteFaceEdge(e2);
+      //      surface->deleteFaceEdge(e3);
+      //      surface->deleteFaceEdge(e4);
 
-      while (vmid->edgeInternal())
-      {
-         surface->deleteFaceEdge(vmid->edgeInternal());
-      }
+//      while (vmid->edgeInternal())
+//      {
+//        surface->deleteFaceEdge(vmid->edgeInternal());
+//      }
+
+      delete vmid;
 
       //io polyhedralsurface_hardface_lbo
       {
@@ -751,11 +776,12 @@ class PolyhedralSurfaceTest : public QObject
 
           stream << "HGID,ShapeWKT" << endl;
 
-          for(HCPolygon *polygon : surface->patches())
+          for(int i = 0 ; i < surface->patchCount(); i++)
           {
+            HCPolygon* polygon = surface->patchInternal(i);
             HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-            QString wkt = polygon->getWKT();
-            stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+            QString wkt =  polygon->getWKT();
+            stream << "\"" << QString::number( polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
           }
 
           file.close();
@@ -794,10 +820,12 @@ class PolyhedralSurfaceTest : public QObject
           fileVRT.close();
         }
 
-        system("ogr2ogr -f KML polyhedralsurface_hardface_lbo.kml polyhedralsurface_hardface_lbo.vrt -dsco NameField=HGID");
+        QString cd = "cd " + QFileInfo(QCoreApplication::applicationDirPath()).absoluteFilePath();
+        system(qPrintable(cd));
+        system("/usr/local/bin/ogr2ogr -f KML polyhedralsurface_hardface_lbo.kml polyhedralsurface_hardface_lbo.vrt -dsco NameField=HGID");
       }
 
-//      surface->deleteFaceEdge(e1);
+      //      surface->deleteFaceEdge(e1);
 
       //io polyhedralsurface_hardface_l
       {
@@ -809,11 +837,12 @@ class PolyhedralSurfaceTest : public QObject
 
           stream << "HGID,ShapeWKT" << endl;
 
-          for(HCPolygon *polygon : surface->patches())
+          for(int i = 0 ; i < surface->patchCount(); i++)
           {
-            HCPolyhedralSurface::printAllLeftNext(polygon->edge());
-            QString wkt = polygon->getWKT();
-            stream << "\"" << QString::number(polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
+            HCPolygon* polygon = surface->patchInternal(i);
+            HCPolyhedralSurface::printAllLeftNext( polygon->edge());
+            QString wkt =  polygon->getWKT();
+            stream << "\"" << QString::number( polygon->index()) << "\" , \"" << wkt  << "\"" << endl;
           }
 
           file.close();
@@ -852,7 +881,9 @@ class PolyhedralSurfaceTest : public QObject
           fileVRT.close();
         }
 
-        system("ogr2ogr -f KML polyhedralsurface_hardface_l.kml polyhedralsurface_hardface_l.vrt -dsco NameField=HGID");
+        QString cd = "cd " + QFileInfo(QCoreApplication::applicationDirPath()).absoluteFilePath();
+        system(qPrintable(cd));
+        system("/usr/local/bin/ogr2ogr -f KML polyhedralsurface_hardface_l.kml polyhedralsurface_hardface_l.vrt -dsco NameField=HGID");
       }
 
       delete surface;

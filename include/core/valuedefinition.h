@@ -42,9 +42,13 @@ class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description,
 
     virtual void writeData(QXmlStreamWriter &xmlWriter) = 0;
 
+    virtual ValueDefinition *copy(QObject *parent = nullptr) = 0;
+
+    static  ValueDefinition *copy(const HydroCouple::IValueDefinition *valueDefinition, QObject *parent = nullptr);
+
     static  QString serializeData(const QVariant &value);
 
-    static QVariant deserializeData(const QString &value);
+    static QVariant deserializeData(const QString &value, QVariant::Type type);
 
   protected:
 
@@ -54,8 +58,10 @@ class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description,
 
     void propertyChanged(const QString &propertyName) override;
 
-  private:
+  protected:
     QVariant::Type m_type;
+
+  private:
     QVariant m_missingValue, m_defaultValue;
 };
 
@@ -91,6 +97,10 @@ class HYDROCOUPLESDK_EXPORT Quality : public ValueDefinition,
     void readData(QXmlStreamReader &xmlReader) override;
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
+
+    ValueDefinition *copy(QObject *parent = nullptr) override;
+
+    static Quality *copy(const HydroCouple::IQuality *quality, QObject *parent = nullptr);
 
   signals:
 
@@ -135,40 +145,27 @@ class HYDROCOUPLESDK_EXPORT Quantity : public ValueDefinition,
 
     void writeData(QXmlStreamWriter &xmlWriter) override;
 
-    static Quantity* lengthInMeters(const QString &caption = "Length In Meters",
-                                    const QString &description ="Length in Meters",
-                                    QObject *parent = nullptr);
+    ValueDefinition *copy(QObject *parent = nullptr) override;
 
-    static Quantity* lengthInFeet(const QString &caption = "Length In Feet",
-                                  const QString &description ="Length in Feet",
-                                  QObject *parent = nullptr);
+    static Quantity *copy(const IQuantity* quantity, QObject *parent = nullptr);
 
-    static Quantity* areaInSquareMeters(const QString &caption = "Area In Square Meters",
-                                        const QString &description ="Area in Square Meters",
-                                        QObject *parent = nullptr);
+    static Quantity* lengthInMeters(QObject *parent = nullptr);
 
-    static Quantity* areaInSquareFeet(const QString &caption = "Area In Square Feet",
-                                      const QString &description ="Area In Square Feet",
-                                      QObject *parent = nullptr);
+    static Quantity* lengthInFeet(QObject *parent = nullptr);
 
-    static Quantity* volumeInCubicMeters(const QString &caption = "Volume In Cubic Meters",
-                                         const QString &description ="Volume In Cubic Meters",
-                                         QObject *parent = nullptr);
+    static Quantity* areaInSquareMeters(QObject *parent = nullptr);
 
-    static Quantity* volumeInCubicFeet(const QString &caption = "Volume In Cubic Feet",
-                                       const QString &description ="Volume In Cubic Feet",
-                                       QObject *parent = nullptr);
+    static Quantity* areaInSquareFeet(QObject *parent = nullptr);
 
-    static Quantity* flowInCMS(const QString &caption = "Flow In Cubic Meters Per Second",
-                               const QString &description ="Flow In Cubic Meters Per Second",
-                               QObject *parent = nullptr);
+    static Quantity* volumeInCubicMeters(QObject *parent = nullptr);
 
-    static Quantity* flowInCFS(const QString &caption = "Flow In Cubic Feet Per Second",
-                               const QString &description ="Flow In Cubic Feet Per Second",
-                               QObject *parent = nullptr);
+    static Quantity* volumeInCubicFeet(QObject *parent = nullptr);
+
+    static Quantity* flowInCMS(QObject *parent = nullptr);
+
+    static Quantity* flowInCFS(QObject *parent = nullptr);
 
     static Quantity* unitLessValues(const QString &caption = "Unitless",
-                                    const QString &description ="Unitless",
                                     QVariant::Type type = QVariant::String,
                                     QObject *parent = nullptr);
 

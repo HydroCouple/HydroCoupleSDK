@@ -1,104 +1,72 @@
 #include "stdafx.h"
 #include "core/abstractadaptedoutput.h"
 #include "core/valuedefinition.h"
-#include "temporal/timeseriesinterpolationadaptedoutput.h"
 #include "core/idbasedargument.h"
 #include "core/dimension.h"
 #include "core/idbasedargument.h"
-#include "temporal/temporalinterpolationfactory.h"
+#include "core/unit.h"
 #include "temporal/timedata.h"
+#include "temporal/temporalinterpolationfactory.h"
+#include "temporal/timeseriesinterpolationadaptedoutput.h"
+
 #include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Temporal;
+using namespace std;
 
-TimeSeriesInterpolationAdaptedOutput::TimeSeriesInterpolationAdaptedOutput(const QString& id,
-                                                                           Quantity* valueDefinition,
-                                                                           HydroCouple::Temporal::ITimeExchangeItem* adaptee,
-                                                                           AbstractAdaptedOutputFactory* temporalInterpolationFactory)
-  : AbstractAdaptedOutput(id,QList<Dimension*>({new Dimension("timeDimension" , "Time dimension for adapted output", temporalInterpolationFactory )}),valueDefinition,dynamic_cast<HydroCouple::IOutput*>(adaptee),temporalInterpolationFactory),
-    TimeSeriesComponentDataItem<double>(QList<SDKTemporal::Time*>({new SDKTemporal::Time(temporalInterpolationFactory)}),valueDefinition->defaultValue().toDouble()),
-    m_polynomialOrderArgument(nullptr),
+TimeSeriesInterpolationAdaptedOutput::TimeSeriesInterpolationAdaptedOutput(const QString &id,
+                                                                           Quantity *valueDefinition,
+                                                                           HydroCouple::Temporal::ITimeSeriesComponentDataItem *adaptee,
+                                                                           AbstractAdaptedOutputFactory *temporalInterpolationFactory)
+  : AbstractAdaptedOutput(id,QList<Dimension*>({Dimension::copy(adaptee->timeDimension(), nullptr)}), valueDefinition,
+                          dynamic_cast<HydroCouple::IOutput*>(adaptee),temporalInterpolationFactory),
+    TimeSeriesComponentDataItem<double>(id, std::list<SDKTemporal::DateTime*>({new SDKTemporal::DateTime(temporalInterpolationFactory)}), valueDefinition->defaultValue().toDouble()),
+    m_interpolationOptionsArgument(nullptr),
     m_polynomialOrder(2),
-    m_adaptee(adaptee)
+    m_adaptee(adaptee),
+    m_interpolationMode(SplineInterpolator::Linear)
 {
   m_timeDimension = dimensionsInternal()[0];
-
   Dimension *identifierDimension = new Dimension("PolynomialOrderDimension","Dimension for the order of the polynomial",this);
   QStringList identifiers;
-  identifiers.append("PolynomialOrder");
-  Quantity* quantity = Quantity::unitLessValues("IdentifiersUnit","", QVariant::Int , this);
+  identifiers.append("InterpolationMode");
+  Quantity* quantity = Quantity::unitLessValues("IdentifiersUnit", QVariant::Int , this);
 
-  m_polynomialOrderArgument = new IdBasedArgumentInt("PolynomialOrder", identifiers, identifierDimension, quantity, nullptr);
-  m_polynomialOrderArgument->setCaption("Interpolation polynomial order");
-  m_polynomialOrderArgument->addComment("Interpolation polynomila order must be at least 2 for Linear, 3 for Quadratic, 4 for Cubic, etc.");
-  m_polynomialOrderArgument->setValue(0, m_polynomialOrder);
-
-  addArgument(m_polynomialOrderArgument);
-  m_timeSeriesBuffer[-1000000000000000000000.00000] = 0;
+  m_interpolationOptionsArgument = new IdBasedArgumentInt("InterpolationOptions", identifiers, identifierDimension, quantity, nullptr);
+  m_interpolationOptionsArgument->setCaption("Interpolation options");
+  m_interpolationOptionsArgument->addComment("Interpolation Options 0 = Linear, 1 = Quadratic, 2 = Cubic, 3 = Lagrange");
+  m_interpolationOptionsArgument->setValuesT(0,1,&m_polynomialOrder);
+  addArgument(m_interpolationOptionsArgument);
 }
-
 
 TimeSeriesInterpolationAdaptedOutput::~TimeSeriesInterpolationAdaptedOutput()
 {
-  delete m_polynomialOrderArgument;
+  delete m_timeDimension;
+  delete m_interpolationOptionsArgument;
 }
 
-int TimeSeriesInterpolationAdaptedOutput::polynomialOrder() const
+QList<IDateTime*> TimeSeriesInterpolationAdaptedOutput::times() const
 {
-  return m_polynomialOrder;
-}
+  QList<IDateTime*> otimes;
+  std::vector<SDKTemporal::DateTime*> itimes = TimeSeriesComponentDataItem<double>::timesInternal();
 
-void TimeSeriesInterpolationAdaptedOutput::setPolynomialOrder(int polynomialOrder)
-{
-  if(polynomialOrder >= 2)
-  {
-    m_polynomialOrder = polynomialOrder;
-  }
-}
-
-void TimeSeriesInterpolationAdaptedOutput::initialize()
-{
-
-    m_polynomialOrderArgument->getValues(0,1,&m_polynomialOrder);
-
-    if(m_polynomialOrder < 2)
-      m_polynomialOrder = 2;
-
-    initializeAdaptedOutputs();
-}
-
-void TimeSeriesInterpolationAdaptedOutput::refresh()
-{
-  //retrieve data into buffer and trim appropriately.
-
-  int timeDimIndex = m_adaptee->dimensionLength(nullptr,0) - 1;
-  double time = m_adaptee->times()[timeDimIndex]->dateTime();
-
-  QVariant value(0.0);
-  m_adaptee->getValue(timeDimIndex,value);
-
-  m_timeSeriesBuffer[time] = value.toDouble();
-
-  while (m_timeSeriesBuffer.count() > m_polynomialOrder)
-  {
-     m_timeSeriesBuffer.remove(m_timeSeriesBuffer.keys()[0]);
-  }
-
-  refreshAdaptedOutputs();
-}
-
-QList<ITime*> TimeSeriesInterpolationAdaptedOutput::times() const
-{
-  QList<ITime*> otimes;
-  QList<SDKTemporal::Time*> itimes = TimeSeriesComponentDataItem<double>::timesInternal();
-
-  for(SDKTemporal::Time* time : itimes)
+  for(SDKTemporal::DateTime* time : itimes)
   {
     otimes.append(time);
   }
 
   return otimes;
+}
+
+IDateTime* TimeSeriesInterpolationAdaptedOutput::time(int timeIndex) const
+{
+  return timeInternal(timeIndex);
+}
+
+int TimeSeriesInterpolationAdaptedOutput::timeCount() const
+{
+  return timeCountInternal();
 }
 
 ITimeSpan* TimeSeriesInterpolationAdaptedOutput::timeSpan() const
@@ -111,111 +79,42 @@ IDimension* TimeSeriesInterpolationAdaptedOutput::timeDimension() const
   return m_timeDimension;
 }
 
-void TimeSeriesInterpolationAdaptedOutput::update(IInput *querySpecifier)
+void TimeSeriesInterpolationAdaptedOutput::updateValues(IInput *querySpecifier)
 {
-  ITimeExchangeItem* timeExchangeItem = dynamic_cast<ITimeExchangeItem*>(querySpecifier);
+  IOutput *adaptee = dynamic_cast<IOutput*>(m_adaptee);
+  adaptee->updateValues(querySpecifier);
 
-  if(timeExchangeItem)
+  ITimeComponentDataItem* timeExchangeItem = dynamic_cast<ITimeComponentDataItem*>(querySpecifier);
+  double queryTime = timeExchangeItem->time(timeExchangeItem->timeCount() - 1)->modifiedJulianDay();
+
+  double currentTime = *m_timesBuffer.end();// [m_timeSeriesBuffer.keys().length() - 1];
+
+  if(m_timesBuffer.size() > 1 && currentTime >= queryTime)
   {
-    QList<HydroCouple::Temporal::ITime*> inpTimes = timeExchangeItem->times();
-    HydroCouple::Temporal::ITime *queryTime = inpTimes[inpTimes.length() -1];
+    SplineInterpolator::InterpolationMethod method = getInterpolationMode(m_timesBuffer.size());
+    double value = SplineInterpolator::interpolate(method, m_timesBuffer, m_valuesBuffer, queryTime);
+    setValueT(timeCount() - 1, &value);
 
-    while (m_timeSeriesBuffer.keys()[m_timeSeriesBuffer.keys().length() - 1] < queryTime->dateTime() &&
-           modelComponent()->status() == HydroCouple::Updated)
-    {
-      modelComponent()->update();
-    }
-
-    int timeDimLength = length();
-
-    QList<SDKTemporal::Time*> ctimes = timesInternal();
-    SDKTemporal::Time* lastTime = ctimes[timeDimLength -1];
-
-    double currentTime = m_timeSeriesBuffer.keys()[m_timeSeriesBuffer.keys().length() - 1];
-
-    if(currentTime > lastTime->dateTime())
-    {
-      if(timeDimLength > 1)
-      {
-        double values[timeDimLength -1];
-        getValues(1,timeDimLength - 1,values);
-        setValues(0,timeDimLength - 1,values);
-
-        for(int i = 0 ; i < timeDimLength -1; i++)
-        {
-          ctimes[i]->setDateTime(ctimes[i+1]->qDateTime());
-        }
-      }
-
-      lastTime->setDateTime(currentTime);
-    }
-
-    double value = interpolate(queryTime->dateTime(), m_timeSeriesBuffer.keys() , m_timeSeriesBuffer.values());
-    setValueT(timeDimLength - 1, value);
-  }
-  else
-  {
-    while (modelComponent()->status() != HydroCouple::Done &&
-           modelComponent()->status() != HydroCouple::Failed &&
-           modelComponent()->status() != HydroCouple::Finished)
-    {
-      modelComponent()->update();
-    }
+    refreshAdaptedOutputs();
   }
 
-  QList<HydroCouple::IAdaptedOutput*> tadaptedOutputs = adaptedOutputs();
-
-  for(HydroCouple::IAdaptedOutput* adaptedOutput :tadaptedOutputs)
-  {
-    adaptedOutput->refresh();
-  }
 }
 
-int TimeSeriesInterpolationAdaptedOutput::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int TimeSeriesInterpolationAdaptedOutput::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert(dimensionIndexes.size() == 0);
   //assert(dimensionIndexes == nullptr);
   return length();
 }
 
-void TimeSeriesInterpolationAdaptedOutput::getValue(int dimensionIndexes[], QVariant & data) const
+void TimeSeriesInterpolationAdaptedOutput::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
-  ComponentDataItem1D<double>::getValueT(dimensionIndexes,data);
+  TimeSeriesComponentDataItem<double>::getValueT(dimensionIndexes,data);
 }
 
-void TimeSeriesInterpolationAdaptedOutput::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesInterpolationAdaptedOutput::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesInterpolationAdaptedOutput::setValue(int dimensionIndexes[], const QVariant &data)
-{
-  ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
-}
-
-void TimeSeriesInterpolationAdaptedOutput::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesInterpolationAdaptedOutput::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void TimeSeriesInterpolationAdaptedOutput::getValue(int timeIndex, QVariant &data) const
+void TimeSeriesInterpolationAdaptedOutput::getValue(int timeIndex, void *data) const
 {
   TimeSeriesComponentDataItem<double>::getValueT(timeIndex,data);
-}
-
-void TimeSeriesInterpolationAdaptedOutput::getValues(int timeIndex, int stride, QVariant data[]) const
-{
-  TimeSeriesComponentDataItem<double>::getValuesT(timeIndex,stride,data);
 }
 
 void TimeSeriesInterpolationAdaptedOutput::getValues(int timeIndex, int stride, void *data) const
@@ -223,47 +122,168 @@ void TimeSeriesInterpolationAdaptedOutput::getValues(int timeIndex, int stride, 
   TimeSeriesComponentDataItem<double>::getValuesT(timeIndex,stride,data);
 }
 
-void TimeSeriesInterpolationAdaptedOutput::setValue(int timeIndex, const QVariant &data)
+void TimeSeriesInterpolationAdaptedOutput::setValue(const std::vector<int> &dimensionIndexes, const void *data)
+{
+  TimeSeriesComponentDataItem<double>::setValueT(dimensionIndexes,data);
+}
+
+void TimeSeriesInterpolationAdaptedOutput::setValue(int timeIndex, const void *data)
 {
   TimeSeriesComponentDataItem<double>::setValueT(timeIndex,data);
 }
 
-void TimeSeriesInterpolationAdaptedOutput::setValues(int timeIndex, int stride, const QVariant data[])
-{
-  TimeSeriesComponentDataItem<double>::setValuesT(timeIndex,stride,data);
-}
-
 void TimeSeriesInterpolationAdaptedOutput::setValues(int timeIndex, int stride, const void *data)
 {
-  TimeSeriesComponentDataItem<double>::setValuesT(timeIndex,stride,data);
+  TimeSeriesComponentDataItem<double>::setValuesT(timeIndex, stride , data);
 }
 
-double TimeSeriesInterpolationAdaptedOutput::interpolate(double t, const QList<double> &ts, const QList<double> &ys)
+void TimeSeriesInterpolationAdaptedOutput::initialize()
 {
-  double value = 0;
-
-  for(int i = 0 ; i < ts.length() ; i++)
-  {
-    value += ys[i] * basis(i,t,ts);
-  }
-
-  return value;
+  m_interpolationOptionsArgument->getValues(0,1,&m_interpolationMode);
+  setInterpolationMethod(m_interpolationMode);
+  initializeAdaptedOutputs();
 }
 
-double TimeSeriesInterpolationAdaptedOutput::basis(int tIndex, double t, const QList<double>& ts)
+void TimeSeriesInterpolationAdaptedOutput::refresh()
 {
-  double tsj = ts[tIndex];
-  double value = 1.0;
-
-  for(int i = 0 ; i < ts.length() ; i++)
+  if(m_adaptee->timeCount())
   {
-    if(tIndex != i)
+    //retrieve data into buffer and trim appropriately.
+    double time = m_adaptee->time(m_adaptee->timeCount() - 1)->modifiedJulianDay();
+    double value = 0.0;
+    m_adaptee->getValue(m_adaptee->timeCount() - 1,&value);
+
+    if(m_timesBuffer.size() == 0)
     {
-      value *= (t - ts[i])/(tsj-ts[i]);
+      m_timesBuffer.push_back(time);
+      m_valuesBuffer.push_back(value);
     }
+    else if(time == m_timesBuffer[m_timesBuffer.size() - 1])
+    {
+      m_valuesBuffer[m_valuesBuffer.size() - 1] = value;
+    }
+    else if(time > m_timesBuffer[m_timesBuffer.size() - 1])
+    {
+      m_timesBuffer.push_back(time);
+      m_valuesBuffer.push_back(value);
+    }
+
+    while (m_timesBuffer.size() > (size_t)m_polynomialOrder)
+    {
+      m_timesBuffer.erase(m_timesBuffer.begin());
+      m_valuesBuffer.erase(m_valuesBuffer.begin());
+    }
+
+    refreshAdaptedOutputs();
+  }
+}
+
+SplineInterpolator::InterpolationMethod TimeSeriesInterpolationAdaptedOutput::interpolationMethod() const
+{
+  return m_interpolationMode;
+}
+
+void TimeSeriesInterpolationAdaptedOutput::setInterpolationMethod(SplineInterpolator::InterpolationMethod interpolationMethod)
+{
+  m_interpolationMode = interpolationMethod;
+
+  switch (m_interpolationMode)
+  {
+    case SplineInterpolator::Linear:
+      {
+        m_polynomialOrder = 2;
+      }
+      break;
+    case SplineInterpolator::Quadratic:
+      {
+        m_polynomialOrder = 3;
+      }
+      break;
+    case SplineInterpolator::Cubic:
+      {
+        m_polynomialOrder = 4;
+      }
+      break;
+    case SplineInterpolator::Lagrange:
+      {
+        m_polynomialOrder = 5;
+      }
+      break;
   }
 
-  return value;
 }
+
+SplineInterpolator::InterpolationMethod TimeSeriesInterpolationAdaptedOutput::getInterpolationMode(int count)
+{
+  switch (m_interpolationMode)
+  {
+    case SplineInterpolator::Linear:
+      {
+        return m_interpolationMode;
+      }
+      break;
+    case SplineInterpolator::Quadratic:
+      {
+        switch (count)
+        {
+          case 2:
+            {
+              return SplineInterpolator::Linear;
+            }
+            break;
+          default:
+            return m_interpolationMode;
+            break;
+        }
+      }
+      break;
+    case SplineInterpolator::Cubic:
+      {
+        switch (count)
+        {
+          case 2:
+            {
+              return SplineInterpolator::Linear;
+            }
+            break;
+          case 3:
+            {
+              return SplineInterpolator::Quadratic;
+            }
+            break;
+          default:
+            return m_interpolationMode;
+            break;
+        }
+      }
+      break;
+    case SplineInterpolator::Lagrange:
+      {
+        switch (count)
+        {
+          case 2:
+            {
+              return SplineInterpolator::Linear;
+            }
+            break;
+          case 3:
+            {
+              return SplineInterpolator::Quadratic;
+            }
+            break;
+          case 4:
+            {
+              return SplineInterpolator::Cubic;
+            }
+            break;
+          default:
+            return m_interpolationMode;
+            break;
+        }
+      }
+      break;
+  }
+}
+
 
 

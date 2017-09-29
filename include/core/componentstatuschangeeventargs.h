@@ -37,8 +37,8 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject,
     Q_OBJECT
     Q_INTERFACES(HydroCouple::IComponentStatusChangeEventArgs)
     Q_PROPERTY(HydroCouple::IModelComponent* Component READ component)
-    Q_PROPERTY(HydroCouple::ComponentStatus Status READ status)
-    Q_PROPERTY(HydroCouple::ComponentStatus PreviousStatus READ previousStatus )
+    Q_PROPERTY(HydroCouple::IModelComponent::ComponentStatus Status READ status)
+    Q_PROPERTY(HydroCouple::IModelComponent::ComponentStatus PreviousStatus READ previousStatus )
     Q_PROPERTY(QString Message READ message)
 
   public:
@@ -51,8 +51,8 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject,
     * \param message
     * \param percentProgress
     */
-    ComponentStatusChangeEventArgs(HydroCouple::ComponentStatus newStatus,
-                                   HydroCouple::ComponentStatus oldStatus, const QString& message,
+    ComponentStatusChangeEventArgs(HydroCouple::IModelComponent::ComponentStatus newStatus,
+                                   HydroCouple::IModelComponent::ComponentStatus oldStatus, const QString& message,
                                    float percentProgress, AbstractModelComponent *parent);
 
    /*!
@@ -62,8 +62,8 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject,
     * \param oldStatus
     * \param message
     */
-    ComponentStatusChangeEventArgs(HydroCouple::ComponentStatus newStatus,
-                                   HydroCouple::ComponentStatus oldStatus, const QString& message,
+    ComponentStatusChangeEventArgs(HydroCouple::IModelComponent::ComponentStatus newStatus,
+                                   HydroCouple::IModelComponent::ComponentStatus oldStatus, const QString& message,
                                    AbstractModelComponent *parent);
 
     ~ComponentStatusChangeEventArgs();
@@ -76,24 +76,24 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject,
     /*!
        * \brief Gets the IModelComponent's status before the status change.
        */
-    HydroCouple::ComponentStatus previousStatus() const override;
+    HydroCouple::IModelComponent::ComponentStatus previousStatus() const override;
 
     /*!
        * \brief setPreviousStatus
        * \param previousStatus
        */
-    void setPreviousStatus(HydroCouple::ComponentStatus previousStatus);
+    void setPreviousStatus(HydroCouple::IModelComponent::ComponentStatus previousStatus);
 
     /*!
        * \brief Gets the IModelComponent's status after the status change.
        */
-    HydroCouple::ComponentStatus status() const override;
+    HydroCouple::IModelComponent::ComponentStatus status() const override;
 
     /*!
        * \brief setStatus
        * \param status
        */
-    void setStatus(HydroCouple::ComponentStatus status);
+    void setStatus(HydroCouple::IModelComponent::ComponentStatus status);
 
     /*!
        * \brief Gets additional information about the status change.
@@ -121,7 +121,7 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject,
     QString m_message;
     float m_percentProgress;
     HydroCouple::IModelComponent* m_component;
-    HydroCouple::ComponentStatus m_oldStatus, m_newStatus;
+    HydroCouple::IModelComponent::ComponentStatus m_oldStatus, m_newStatus;
 };
 
 Q_DECLARE_METATYPE(ComponentStatusChangeEventArgs*)

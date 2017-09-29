@@ -1,18 +1,47 @@
+/*!
+ *  \file    geometry.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  geometry.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef GEOMETRY_H
 #define GEOMETRY_H
 
 #include "hydrocouplespatial.h"
 #include "core/identity.h"
-#include <gdal/ogrsf_frmts.h>
+
+#include <ogrsf_frmts.h>
+#include <set>
 
 class SpatialReferenceSystem;
+class Envelope;
 
-class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
+/*!
+ * \brief The HCGeometry class
+ * \todo revisit inheritance from qobjects in costs are too high
+ */
+class HYDROCOUPLESDK_EXPORT HCGeometry:
     public virtual HydroCouple::Spatial::IGeometry
 {
-
-    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IGeometry)
+
+
+  private:
+    Q_DISABLE_COPY(HCGeometry)
 
   public:
 
@@ -23,14 +52,16 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
       HasM = 0x02
     };
 
-    Q_ENUM(GeometryFlag)
+    //    Q_ENUM(GeometryFlag)
     Q_DECLARE_FLAGS(GeometryFlags, GeometryFlag)
 
-    HCGeometry(QObject* parent =  nullptr);
-
-    HCGeometry(const QString& id = QUuid::createUuid().toString(), QObject* parent =  nullptr);
+    explicit HCGeometry(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
     virtual ~HCGeometry();
+
+    QString id() const override;
+
+    void setId(const QString& id);
 
     unsigned int index() const override;
 
@@ -38,7 +69,7 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
 
     int coordinateDimension() const override;
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     HydroCouple::Spatial::ISpatialReferenceSystem* spatialReferenceSystem() const override;
 
@@ -63,6 +94,8 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
     virtual void enableM() = 0;
 
     virtual void disableM() = 0;
+
+    HydroCouple::Spatial::IEnvelope* envelope() const override;
 
     HydroCouple::Spatial::IGeometry* boundary() const override;
 
@@ -106,26 +139,37 @@ class HYDROCOUPLESDK_EXPORT HCGeometry : public Identity,
 
     virtual void setGeometryFlag(GeometryFlag flag, bool on = true);
 
-    virtual void initializeData(int length, double defaultValue = std::numeric_limits<double>::quiet_NaN());
+    int marker() const;
 
-    static QString geometryTypeToString(HydroCouple::Spatial::GeometryType type);
+    void setMarker(int index) ;
 
-    static OGRwkbGeometryType toOGRDataType(HydroCouple::Spatial::GeometryType type);
+    std::set<HCGeometry*> children() const;
+
+    void setParent(HCGeometry *parent);
+
+    virtual Envelope *envelopeInternal() const = 0;
+
+    static QString geometryTypeToString(HydroCouple::Spatial::IGeometry::GeometryType type);
+
+    static OGRwkbGeometryType toOGRDataType(HydroCouple::Spatial::IGeometry::GeometryType type);
 
   protected:
 
     virtual void setIsEmpty(bool isEmpty);
 
-  public:
-    double* data;
-    int dataLength;
+  protected:
+
+    Envelope *m_envelope;
 
   private:
+    QString m_id, m_caption;
+    int m_marker;
     unsigned int m_index;
     bool m_isEmpty;
-    HydroCouple::Spatial::GeometryType m_geometryType;
     SpatialReferenceSystem *m_srs;
-    GeometryFlags m_geomFlags;
+    HCGeometry::GeometryFlags m_geomFlags;
+    std::set<HCGeometry*> m_children;
+    HCGeometry *m_parent;
 };
 
 Q_DECLARE_METATYPE(HCGeometry*)

@@ -1,15 +1,34 @@
-#Author Caleb Amoa Buahin
+c#Author Caleb Amoa Buahin
 #Email caleb.buahin@gmail.com
 #Date 2016
 #License GNU General Public License (see <http://www.gnu.org/licenses/> for details).
 
-TEMPLATE = lib
 VERSION = 1.0.0.0
 TARGET = HydroCoupleSDK
-QT += core
+QT += core testlib concurrent
 QT -= gui
 
 DEFINES += HYDROCOUPLESDK_LIBRARY
+DEFINES += UTAH_CHPC
+#DEFINES += USE_OPENMP
+#DEFINES += USE_MPI
+
+CONFIG += c++11
+CONFIG += debug_and_release
+
+contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
+
+  TEMPLATE = lib
+
+  message("Compiling as library")
+} else {
+
+  TEMPLATE = app
+  CONFIG-=app_bundle
+
+  message("Compiling as application")
+}
+
 
 INCLUDEPATH += ./include \
                ../HydroCouple/include
@@ -34,7 +53,6 @@ HEADERS += ./include/stdafx.h \
            ./include/core/abstractargument.h \
            ./include/core/exchangeitems1d.h \
            ./include/core/exchangeitems2d.h \
-           ./include/core/exchangeitems3d.h \
            ./include/core/idbasedexchangeitems.h \
            ./include/core/exchangeitemchangeeventargs.h \
            ./include/core/abstractexchangeitem.h \
@@ -62,7 +80,31 @@ HEADERS += ./include/stdafx.h \
            ./include/hydrocoupleexceptions.h \
            ./include/spatial/geometryexchangeitems.h \
            ./include/spatial/geometryargument.h \
-           ./include/spatial/polyhedralsurfaceexchangeitem.h
+           ./include/spatial/tinexchangeitem.h \
+           ./include/spatial/envelope.h \
+           ./include/spatial/octree.h \
+           ./include/spatial/tinargument.h \
+           ./include/spatial/triangle.h \
+           ./include/matrix.h \
+           ./include/spatiotemporal/timegeometrycomponentdataitem.h \
+           ./include/core/datacursor.h \
+           ./include/spatial/geometrycomponentdataitem.h \
+           ./include/core/componentdataitem.h \
+           ./include/spatiotemporal/timegeometryargument.h \
+           ./include/spatiotemporal/timegeometryinput.h \
+           ./include/spatiotemporal/timegeometryoutput.h \
+           ./include/spatiotemporal/timegeometrymultiinput.h \
+           ./include/temporal/timeseriesargument.h \
+           ./include/spatiotemporal/timetinexchangeitem.h \
+           ./include/progresschecker.h \
+           ./include/splineinterpolator.h \
+           ./include/spatiotemporal/timegeometryinterpolationadaptedoutput.h \
+           ./include/spatiotemporal/timetininterpolationadaptedoutput.h \
+           ./include/spline.h \
+           ./include/specialmap.h
+
+HEADERS += ./include/tests/geometrytest.h \
+           ./include/tests/polyhedralsurfacetest.h
 
 SOURCES += ./src/stdafx.cpp \
            ./src/core/description.cpp \
@@ -80,7 +122,6 @@ SOURCES += ./src/stdafx.cpp \
            ./src/core/abstractoutput.cpp \
            ./src/core/exchangeitems1d.cpp \
            ./src/core/exchangeitems2d.cpp \
-           ./src/core/exchangeitems3d.cpp \
            ./src/core/idbasedexchangeitems.cpp \
            ./src/core/abstractargument.cpp \
            ./src/core/abstractexchangeitem.cpp \
@@ -112,23 +153,89 @@ SOURCES += ./src/stdafx.cpp \
            ./src/spatial/polygon.cpp \
            ./src/spatial/polyhedralsurface.cpp \
            ./src/spatial/tin.cpp \
-           ./src/spatial/triangle.cpp \
+           ./src/spatial/hctriangle.cpp \
            ./src/spatial/multipolygon.cpp \
            ./src/hydrocoupleexceptions.cpp \
            ./src/spatial/geometryexchangeitems.cpp \
            ./src/core/componentdataitem1d.cpp \
            ./src/core/componentdataitem2d.cpp \
-           ./src/core/componentdataitem3d.cpp \
            ./src/spatial/geometryargument.cpp \
            ./src/core/idbasedcomponentdataitem.cpp \
-           ./src/spatial/polyhedralsurfaceexchangeitems.cpp \
-           ./src/spatial/tinexchangeitems.cpp
+           ./src/spatial/tinexchangeitems.cpp \
+           ./src/spatial/envelope.cpp \
+           ./src/spatial/octree.cpp \
+           ./src/main.cpp \
+           ./src/spatial/tinargument.cpp \
+           ./src/spatial/triangle.c \
+           ./src/spatial/tricall.c \
+           ./src/spatiotemporal/timegeometrycomponentdataitem.cpp \
+           ./src/spatiotemporal/timegeometryargument.cpp \
+           ./src/spatial/geometrycomponentdataitem.cpp \
+           ./src/spatiotemporal/timegeometryinput.cpp \
+           ./src/spatiotemporal/timegeometrymultiinput.cpp \
+           ./src/spatiotemporal/timegeometryoutput.cpp \
+           ./src/temporal/timeseriesargument.cpp \
+           ./src/core/datacursor.cpp \
+           ./src/spatiotemporal/timetinoutput.cpp \
+           ./src/spatiotemporal/timtininput.cpp \
+           ./src/spatiotemporal/timetinmultiinput.cpp \
+           ./src/progresschecker.cpp \
+           ./src/splineinterpolator.cpp \
+           ./src/spatiotemporal/timegeometryinterpolationadaptedoutput.cpp \
+           ./src/spatiotemporal/timetininterpolationadaptedoutput.cpp
 
 macx{
-INCLUDEPATH += /usr/local/include \
-               /usr/local
 
-LIBS += -L/usr/local/lib/gdal -lgdal.20
+INCLUDEPATH += /usr/local \
+               /usr/local/include \
+               /usr/local/include/gdal \
+               /usr/X11/include
+
+LIBS += -L/usr/local/lib -lgdal \
+        -L/usr/local/lib -lnetcdf_c++4
+
+    contains(DEFINES,USE_MPI){
+
+        QMAKE_CC = mpicc
+        QMAKE_CXX = mpic++
+        QMAKE_LINK = mpic++
+
+        QMAKE_CFLAGS += $$system(mpicc --showme:compile)
+        QMAKE_CXXFLAGS += $$system(mpic++ --showme:compile)
+        QMAKE_LFLAGS += $$system(mpic++ --showme:link)
+
+        LIBS += -L$$PWD/../../../../../usr/local/lib/ -lmpi
+
+        message("MPI enabled")
+
+    } else {
+      message("MPI disabled")
+    }
+
+    contains(DEFINES,USE_OPENMP){
+
+        QMAKE_CC = clang-omp
+        QMAKE_CXX = clang-omp++
+        QMAKE_LINK = $$QMAKE_CXX
+
+
+        QMAKE_CFLAGS += -fopenmp
+        QMAKE_LFLAGS += -fopenmp
+        QMAKE_CXXFLAGS += -fopenmp
+        QMAKE_LIBS += -liomp5
+        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS
+        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS
+
+
+        LIBS += -L$$PWD/../../../../../usr/local/Cellar/libiomp/20150701/lib/ -liomp5
+        INCLUDEPATH += $$PWD/../../../../../usr/local/Cellar/libiomp/20150701/include
+        DEPENDPATH += $$PWD/../../../../../usr/local/Cellar/libiomp/20150701/include
+
+      message("OpenMP enabled")
+    } else {
+      message("OpenMP disabled")
+    }
+
 }
 
 win32{
@@ -136,8 +243,55 @@ win32{
 }
 
 linux{
-INCLUDEPATH += /usr/include
-LIBS += -L/usr/lib/ogdi -lgdal
+
+INCLUDEPATH += /usr/include \
+               ../gdal/include
+
+LIBS += -L/usr/lib/ogdi -lgdal \
+        -L../gdal/lib -lgdal
+
+    contains(DEFINES,UTAH_CHPC){
+
+         INCLUDEPATH += /uufs/chpc.utah.edu/sys/installdir/hdf5/1.8.17-c7/include \
+                        /uufs/chpc.utah.edu/sys/installdir/netcdf-c/4.3.3.1/include \
+                        /uufs/chpc.utah.edu/sys/installdir/netcdf-cxx/4.3.0-c7/include
+
+         LIBS += -L/uufs/chpc.utah.edu/sys/installdir/hdf5/1.8.17-c7/lib -lhdf5 \
+                 -L/uufs/chpc.utah.edu/sys/installdir/netcdf-cxx/4.3.0-c7/lib -lnetcdf_c++4
+
+         message("Compiling on CHPC")
+    }
+
+    contains(DEFINES,USE_MPI){
+
+        QMAKE_CC = mpicc
+        QMAKE_CXX = mpic++
+        QMAKE_LINK = mpic++
+
+        QMAKE_CFLAGS += $$system(mpicc --showme:compile)
+        QMAKE_CXXFLAGS += $$system(mpic++ --showme:compile)
+        QMAKE_LFLAGS += $$system(mpic++ --showme:link)
+
+        LIBS += -L$$PWD/../../../../../usr/local/lib/ -lmpi
+
+      message("MPI enabled")
+    } else {
+      message("MPI disabled")
+    }
+
+    contains(DEFINES,USE_OPENMP){
+
+        QMAKE_CFLAGS += -fopenmp
+        QMAKE_LFLAGS += -fopenmp
+        QMAKE_CXXFLAGS += -fopenmp
+        QMAKE_LIBS += -liomp5
+        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS
+        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS
+
+      message("OpenMP enabled")
+    } else {
+      message("OpenMP disabled")
+    }
 }
 
 CONFIG(debug, debug|release) {
@@ -156,4 +310,7 @@ CONFIG(release, debug|release) {
     RCC_DIR = $$RELEASE_EXTRAS/.qrc
     UI_DIR = $$RELEASE_EXTRAS/.ui
 }   
+
+RESOURCES += \
+    hydrocouplesdk.qrc
 

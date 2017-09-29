@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "spatial/linestring.h"
 
-HCLinearRing::HCLinearRing(QObject *parent)
-  :HCLineString(parent)
+HCLinearRing::HCLinearRing(const QString &id, HCGeometry *parent)
+  :HCLineString(id, parent)
 {
 
 }

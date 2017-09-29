@@ -15,7 +15,7 @@ Input1DInt::Input1DInt(const QString &id,
                        ValueDefinition* valueDefinition,
                        AbstractModelComponent *modelComponent)
   : AbstractInput(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<int>(length,valueDefinition->defaultValue().toInt())
+    ComponentDataItem1D<int>(id, length,valueDefinition->defaultValue().toInt())
 {
 }
 
@@ -23,41 +23,20 @@ Input1DInt::~Input1DInt()
 {
 }
 
-int Input1DInt::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int Input1DInt::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
-  //assert(dimensionIndexes == nullptr);
+  assert(dimensionIndexes.size() == 0);
   return length();
 }
 
-void Input1DInt::getValue(int dimensionIndexes[], QVariant & data) const
+void Input1DInt::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   getValueT(dimensionIndexes,data);
 }
 
-void Input1DInt::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DInt::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DInt::setValue(int dimensionIndexes[], const QVariant &data)
+void Input1DInt::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   setValueT(dimensionIndexes,data);
-}
-
-void Input1DInt::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  setValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DInt::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  setValuesT(dimensionIndexes,stride,data);
 }
 
 void Input1DInt::readData(QXmlStreamReader &xmlReader)
@@ -90,8 +69,7 @@ void Input1DInt::readData(QXmlStreamReader &xmlReader)
               if(!dimensions()[0]->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                resetDataArray(length.toInt());
-
+                resizeDataArray(length.toInt());
               }
             }
             
@@ -105,6 +83,8 @@ void Input1DInt::readData(QXmlStreamReader &xmlReader)
       }
       else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
+        std::vector<int> indexes(1);
+
         while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
           if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
@@ -114,10 +94,11 @@ void Input1DInt::readData(QXmlStreamReader &xmlReader)
             if(attributes.hasAttribute("Index"))
             {
               int index = attributes.value("Index").toString().toInt();
-              
+              indexes[0] = index;
+
               QString value = xmlReader.readElementText();
-              
-              setValue(&index,value.toInt());
+              int ivalue = value.toInt();
+              setValue(indexes,&ivalue);
             }
           }
           xmlReader.readNext();
@@ -128,7 +109,7 @@ void Input1DInt::readData(QXmlStreamReader &xmlReader)
   }
 }
 
-void Input1DInt::writeData(QXmlStreamWriter &xmlWriter)
+void Input1DInt::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeStartElement("ComponentDataItem");
   {
@@ -159,7 +140,7 @@ void Input1DInt::writeData(QXmlStreamWriter &xmlWriter)
       int ind[1] = {0};
       int str[1] = {length()};
       int values[length()];
-      getValues(ind,str,values);
+      ComponentDataItem1D<int>::getValuesT(ind,str,values);
       
       for(int i = 0 ; i < length() ; i++)
       {
@@ -186,7 +167,7 @@ Input1DDouble::Input1DDouble(const QString& id,
                              ValueDefinition* valueDefinition,
                              AbstractModelComponent *modelComponent)
   : AbstractInput(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<double>(dimensionLength,valueDefinition->defaultValue().toDouble())
+    ComponentDataItem1D<double>(id, dimensionLength,valueDefinition->defaultValue().toDouble())
 {
 }
 
@@ -194,40 +175,20 @@ Input1DDouble::~Input1DDouble()
 {
 }
 
-int Input1DDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int Input1DDouble::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert(dimensionIndexes.size() == 0);
   return length();
 }
 
-void Input1DDouble::getValue(int dimensionIndexes[], QVariant & data) const
+void Input1DDouble::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   ComponentDataItem1D<double>::getValueT(dimensionIndexes,data);
 }
 
-void Input1DDouble::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DDouble::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DDouble::setValue(int dimensionIndexes[], const QVariant &data)
+void Input1DDouble::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
-}
-
-void Input1DDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
 }
 
 void Input1DDouble::readData(QXmlStreamReader &xmlReader)
@@ -260,7 +221,7 @@ void Input1DDouble::readData(QXmlStreamReader &xmlReader)
               if(!dimensions()[0]->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                resetDataArray(length.toInt());
+                resizeDataArray(length.toInt());
               }
             }
             
@@ -274,6 +235,8 @@ void Input1DDouble::readData(QXmlStreamReader &xmlReader)
       }
       else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
+        std::vector<int> indexes(1);
+
         while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
           if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
@@ -282,11 +245,9 @@ void Input1DDouble::readData(QXmlStreamReader &xmlReader)
             
             if(attributes.hasAttribute("Index"))
             {
-              int index = attributes.value("Index").toString().toInt();
-              
-              QString value = xmlReader.readElementText();
-              
-              setValue(&index,value.toDouble());
+              indexes[0] = attributes.value("Index").toString().toInt();
+              double value = atof(qPrintable(xmlReader.readElementText()));
+              setValue(indexes,&value);
             }
           }
           xmlReader.readNext();
@@ -297,7 +258,7 @@ void Input1DDouble::readData(QXmlStreamReader &xmlReader)
   }
 }
 
-void Input1DDouble::writeData(QXmlStreamWriter &xmlWriter)
+void Input1DDouble::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeStartElement("ComponentDataItem");
   {
@@ -328,7 +289,7 @@ void Input1DDouble::writeData(QXmlStreamWriter &xmlWriter)
       int ind[1] = {0};
       int str[1] = {length()};
       int values[length()];
-      getValues(ind,str,values);
+      ComponentDataItem1D<double>::getValuesT(ind,str,values);
       
       for(int i = 0 ; i < length() ; i++)
       {
@@ -353,7 +314,7 @@ Input1DString::Input1DString(const QString& id,
                              ValueDefinition* valueDefinition,
                              AbstractModelComponent* modelComponent)
   : AbstractInput(id,QList<Dimension*>({dimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<QString>(length,valueDefinition->defaultValue().toString())
+    ComponentDataItem1D<QString>(id, length,valueDefinition->defaultValue().toString())
 {
 }
 
@@ -361,41 +322,21 @@ Input1DString::~Input1DString()
 {
 }
 
-int Input1DString::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int Input1DString::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert(dimensionIndexes.size() == 0);
   //assert(dimensionIndexes == nullptr);
   return length();
 }
 
-void Input1DString::getValue(int dimensionIndexes[], QVariant & data) const
+void Input1DString::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   getValueT(dimensionIndexes,data);
 }
 
-void Input1DString::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DString::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DString::setValue(int dimensionIndexes[], const QVariant &data)
+void Input1DString::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   setValueT(dimensionIndexes,data);
-}
-
-void Input1DString::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  setValuesT(dimensionIndexes,stride,data);
-}
-
-void Input1DString::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  setValuesT(dimensionIndexes,stride,data);
 }
 
 void Input1DString::readData(QXmlStreamReader &xmlReader)
@@ -429,7 +370,7 @@ void Input1DString::readData(QXmlStreamReader &xmlReader)
               if(!dimensions()[0]->id().compare(id))
               {
                 QString length = attributes.value("Length").toString();
-                resetDataArray(length.toInt());
+                resizeDataArray(length.toInt());
               }
             }
             
@@ -443,6 +384,8 @@ void Input1DString::readData(QXmlStreamReader &xmlReader)
       }
       else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
+        std::vector<int> indexes(1);
+
         while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
           if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
@@ -451,11 +394,9 @@ void Input1DString::readData(QXmlStreamReader &xmlReader)
             
             if(attributes.hasAttribute("Index"))
             {
-              int index = attributes.value("Index").toString().toInt();
-              
+              indexes[0] = attributes.value("Index").toString().toInt();
               QString value = xmlReader.readElementText();
-              
-              setValue(&index,value);
+              setValue(indexes,&value);
             }
           }
           xmlReader.readNext();
@@ -466,7 +407,7 @@ void Input1DString::readData(QXmlStreamReader &xmlReader)
   }
 }
 
-void Input1DString::writeData(QXmlStreamWriter &xmlWriter)
+void Input1DString::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeStartElement("ComponentDataItem");
   {
@@ -497,7 +438,7 @@ void Input1DString::writeData(QXmlStreamWriter &xmlWriter)
       int ind[1] = {0};
       int str[1] = {length()};
       QString *values = new QString[length()];
-      getValues(ind,str,values);
+      getValuesT(ind,str,values);
       
       for(int i = 0 ; i < length() ; i++)
       {

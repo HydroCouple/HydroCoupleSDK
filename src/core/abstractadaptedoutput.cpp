@@ -19,7 +19,6 @@ AbstractAdaptedOutput::AbstractAdaptedOutput(const QString& id,
     m_adaptedOutputFactory(adaptedOutputFactory),
     m_adaptee(adaptee)
 {
-
 }
 
 IModelComponent* AbstractAdaptedOutput::modelComponent() const
@@ -145,6 +144,20 @@ void AbstractAdaptedOutput::setInput(IInput* input)
   emit propertyChanged("Input");
 }
 
+void AbstractAdaptedOutput::refreshAdaptedOutputs()
+{
+  for(IAdaptedOutput *adaptedOutput : m_adaptedOutputs)
+    adaptedOutput->refresh();
+}
+
+void AbstractAdaptedOutput::initializeAdaptedOutputs()
+{
+  for(IAdaptedOutput* adaptedOutput : m_adaptedOutputs)
+  {
+    adaptedOutput->initialize();
+  }
+}
+
 QList<Dimension*> AbstractAdaptedOutput::dimensionsInternal() const
 {
   return m_dimensions;
@@ -195,18 +208,4 @@ QHash<QString,AbstractArgument*> AbstractAdaptedOutput::argumentsInternal() cons
   return m_arguments;
 }
 
-void AbstractAdaptedOutput::initializeAdaptedOutputs()
-{
-  for(IAdaptedOutput* adaptedOutput : adaptedOutputs())
-  {
-    adaptedOutput->initialize();
-  }
-}
 
-void AbstractAdaptedOutput::refreshAdaptedOutputs()
-{
-  for(IAdaptedOutput* adaptedOutput : adaptedOutputs())
-  {
-    adaptedOutput->refresh();
-  }
-}

@@ -1,35 +1,58 @@
+/*!
+ *  \file    polyhedralsurface.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  polyhedralsurface.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
 #ifndef POLYHEDRALSURFACE_H
 #define POLYHEDRALSURFACE_H
 
 #include "geometry.h"
-#include <QVector>
+#include "specialmap.h"
 
 class HCPolygon;
 class HCTriangle;
 class HCVertex;
-class HCEdge;
+class Edge;
+class ProgressChecker;
+class HCLineString;
+class HCPoint;
+class Octree;
 
-class HCPolyhedralSurface : public HCGeometry,
+class HYDROCOUPLESDK_EXPORT HCPolyhedralSurface : public HCGeometry,
     public virtual HydroCouple::Spatial::IPolyhedralSurface
 {
     friend class HCPolygon;
+    friend class HCTriangle;
     friend class HCVertex;
     friend class HCTIN;
 
-    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::IPolyhedralSurface)
 
   public:
 
-    HCPolyhedralSurface(QObject *parent);
+    HCPolyhedralSurface(const QString &id = QUuid::createUuid().toString());
 
     virtual ~HCPolyhedralSurface();
 
     int dimension() const override;
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
-    HydroCouple::Spatial::IGeometry* envelope() const override;
+    Envelope *envelopeInternal() const override;
 
     double area() const override;
 
@@ -43,13 +66,17 @@ class HCPolyhedralSurface : public HCGeometry,
 
     HydroCouple::Spatial::IPolygon *patch(int index) const override;
 
-    QVector<HCPolygon*> patches() const;
+    HCPolygon *patchInternal(int index) const;
+
+    const std::vector<HCPolygon*> &patches() const;
 
     int vertexCount() const override;
 
-    HydroCouple::Spatial::IVertex *vertex(int index) override;
+    HydroCouple::Spatial::IVertex *vertex(int index) const override;
 
-    QVector<HCVertex*> vertices() const;
+    HCVertex* vertexInternal(int index) const;
+
+    const std::vector<HCVertex*> &vertices() const;
 
     HydroCouple::Spatial::IMultiPolygon *boundingPolygons(const HydroCouple::Spatial::IPolygon *polygon) const override;
 
@@ -63,33 +90,29 @@ class HCPolyhedralSurface : public HCGeometry,
 
     void disableM() override;
 
-    HCEdge *createVertexEdge(HCVertex *vertex, HCVertex *destination, HCPolygon *left , HCPolygon *right);
+    Edge *createVertexEdge(HCVertex *vertex, HCVertex *destination, HCPolygon *left , HCPolygon *right);
 
-    HCEdge *createVertexEdge(HCVertex *origin, HCVertex *destination, HCPolygon *face);
+    Edge *createVertexEdge(HCVertex *origin, HCVertex *destination, HCPolygon *face);
 
-    void deleteVertexEdge(HCEdge *edge);
+    void deleteVertexEdge(Edge *edge);
 
-    virtual HCEdge *createFaceEdge(HCPolygon *patch, HCVertex *orig, HCVertex *dest);
+    virtual Edge *createFaceEdge(HCPolygon *patch, HCVertex *orig, HCVertex *dest);
 
-    void deleteFaceEdge(HCEdge *edge);
+    void deleteFaceEdge(Edge *edge);
 
     void deletePatch(HCPolygon *polygon);
 
-    HCEdge *findDuplicateEdge(HCEdge *edge) const;
+    Edge *findDuplicateEdge(Edge *edge) const;
 
-    HCEdge *findEdge(HCVertex *origin, HCVertex *destination) const;
+    Edge *findEdge(HCVertex *origin, HCVertex *destination) const;
+
+    void reIndexVerticesAndPatches();
 
     static void printEdge(HydroCouple::Spatial::IEdge *edge);
 
     static void printAllOrigNext(HydroCouple::Spatial::IEdge *edge);
 
     static void printAllLeftNext(HydroCouple::Spatial::IEdge *edge);
-
-    void initializePatchData(int length);
-
-    void initializeEdgeData(int length);
-
-    void initializeNodeData(int length);
 
   private:
 
@@ -113,7 +136,7 @@ class HCPolyhedralSurface : public HCGeometry,
      * <- the edge in the same face orbit as _edge_ with origin vertex _org_;
      *    null if not found
      */
-    static HCEdge *getOrbitOrg(HCEdge *edge, HCVertex *org) ;
+    static Edge *getOrbitOrg(Edge *edge, HCVertex *org) ;
 
     /*
      * Set the origin of the vertex orbit of a given edge to a given vertex.
@@ -122,7 +145,7 @@ class HCPolyhedralSurface : public HCGeometry,
      * org  -> the new origin vertex;
      *         must be nonnull
      */
-    static void setOrbitOrg(HCEdge *edge, HCVertex *org);
+    static void setOrbitOrg(Edge *edge, HCVertex *org);
 
     /*
      * Return the edge with a given left face in the vertex orbit of a given
@@ -134,9 +157,15 @@ class HCPolyhedralSurface : public HCGeometry,
      * <- the edge in the same vertex orbit as _edge_ with left face _left_;
      *    null if not found
      */
-    static HCEdge *getOrbitLeft(HCEdge *edge, HCPolygon *left);
+    static Edge *getOrbitLeft(Edge *edge, HCPolygon *left);
 
-    static HCEdge *getClosestOrbitLeftNull(HCVertex* origin, HCVertex *destination);
+    /*!
+     * \brief getClosestOrbitLeftNull
+     * \param origin
+     * \param destination
+     * \return
+     */
+    static Edge *getClosestOrbitLeftNull(HCVertex* origin, HCVertex *destination);
 
     /*!
      * \brief getOrbitRight
@@ -144,7 +173,7 @@ class HCPolyhedralSurface : public HCGeometry,
      * \param right
      * \return
      */
-    static HCEdge *getOrbitRight(HCEdge *edge, HCPolygon *right);
+    static Edge *getOrbitRight(Edge *edge, HCPolygon *right);
 
     /*
      * Set the left face of the face orbit of a given edge to a given face.
@@ -153,36 +182,49 @@ class HCPolyhedralSurface : public HCGeometry,
      * left -> the new left face;
      *         must be nonnull
      */
-    static void setOrbitLeft(HCEdge *edge, HCPolygon *left);
+    static void setOrbitLeft(Edge *edge, HCPolygon *left);
 
   protected:
-    QVector<HCPolygon*> m_patches;
-    QVector<HCVertex*> m_vertices;
-
+    std::vector<HCPolygon*> m_patches;
+    std::vector<HCVertex*>  m_vertices;
+    int64_t m_patchCntr = 0, m_vertexCntr = 0;
 };
 
-class HCTIN : public HCPolyhedralSurface,
+class HYDROCOUPLESDK_EXPORT HCTIN : public HCPolyhedralSurface,
     public virtual HydroCouple::Spatial::ITIN
 {
-    Q_OBJECT
     Q_INTERFACES(HydroCouple::Spatial::ITIN)
-
-
 
   public:
 
-
-    HCTIN(QObject *parent);
+    HCTIN(const QString &id = QUuid::createUuid().toString());
 
     virtual ~HCTIN();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
-    HydroCouple::Spatial::ITriangle *patch(int index) const override;
+    HydroCouple::Spatial::ITriangle *triangle(int index) const override;
 
-    HCEdge *createFaceEdge(HCPolygon *patch, HCVertex *orig, HCVertex *dest) override;
+    HCTriangle *triangleInternal(int index) const;
+
+    Edge *createFaceEdge(HCPolygon *patch, HCVertex *orig, HCVertex *dest) override;
 
     HCTriangle* createTriangle(HCVertex *v1, HCVertex *v2, HCVertex *v3);
+
+    static void nullifyTriangleIOObjectPointers(struct triangulateio *triangleObject);
+
+    static void deleteTriangleIOObject(struct triangulateio *triangleObject);
+
+    static HCTIN *triangulateSFS(const QString &command,
+                                 const std::vector<HCPoint*>& points,
+                                 const std::vector<HCLineString*> &plsg,
+                                 const std::vector<HCPoint*> &holes);
+
+    static HCTIN *readTriangleIOObject(struct triangulateio *triangleObject);
+
+  private:
+
+    static HCPoint *findPointInOctree(HCPoint *point, Octree *octree, double tolerance = 0.000000001);
 
 };
 

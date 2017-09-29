@@ -11,14 +11,3 @@ AbstractAdaptedOutputFactoryComponentInfo::~AbstractAdaptedOutputFactoryComponen
 {
 
 }
-
-bool AbstractAdaptedOutputFactoryComponentInfo::validateLicense(QString& message) const
-{
-   message = id() + " | " + version() + "'s license has been validated";
-   return true;
-}
-
-bool AbstractAdaptedOutputFactoryComponentInfo::hasValidLicense() const
-{
-   return true;
-}

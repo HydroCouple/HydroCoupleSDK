@@ -35,6 +35,7 @@ class HYDROCOUPLESDK_EXPORT AbstractComponentDataItem : public Identity,
     public virtual HydroCouple::IComponentDataItem
 {
     Q_OBJECT
+
     Q_INTERFACES(HydroCouple::IComponentDataItem)
 
     Q_PROPERTY(HydroCouple::IModelComponent* ModelComponent READ modelComponent NOTIFY propertyChanged)
@@ -44,15 +45,15 @@ class HYDROCOUPLESDK_EXPORT AbstractComponentDataItem : public Identity,
 
   public:
 
-    AbstractComponentDataItem(const QString& id,
-                              const QList<Dimension*>& dimensions,
-                              ValueDefinition* valueDefinition,
+    AbstractComponentDataItem(const QString &id,
+                              const QList<Dimension*> &dimensions,
+                              ValueDefinition *valueDefinition,
                               AbstractModelComponent *modelComponent);
 
-    AbstractComponentDataItem(const QString& id,
-                              const QString& caption,
-                              const QList<Dimension*>& dimensions,
-                              ValueDefinition* valueDefinition,
+    AbstractComponentDataItem(const QString &id,
+                              const QString &caption,
+                              const QList<Dimension*> &dimensions,
+                              ValueDefinition *valueDefinition,
                               AbstractModelComponent *modelComponent);
 
     virtual ~AbstractComponentDataItem();
@@ -73,7 +74,7 @@ class HYDROCOUPLESDK_EXPORT AbstractComponentDataItem : public Identity,
 
     virtual void readData(QXmlStreamReader &xmlReader);
 
-    virtual void writeData(QXmlStreamWriter &xmlWriter);
+    virtual void writeData(QXmlStreamWriter &xmlWriter) const;
 
   signals:
 
@@ -83,7 +84,7 @@ class HYDROCOUPLESDK_EXPORT AbstractComponentDataItem : public Identity,
 
     QList<Dimension*> dimensionsInternal() const;
 
-    ValueDefinition* valueDefinitionInternal() const;
+    ValueDefinition *valueDefinitionInternal() const;
 
   private:
     QList<Dimension*> m_dimensions;

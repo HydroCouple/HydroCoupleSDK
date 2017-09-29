@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "core/componentdataitem.h"
 #include "core/exchangeitems2d.h"
 #include "core/valuedefinition.h"
 #include "core/dimension.h"
@@ -14,7 +15,7 @@ Input2DInt::Input2DInt(const QString& id,
                        ValueDefinition* valueDefinition,
                        AbstractModelComponent* modelComponent)
   : AbstractInput(id,QList<Dimension*>({iDimension,jDimension}),valueDefinition,modelComponent),
-    ComponentDataItem2D<int>(iLength,jLength,valueDefinition->defaultValue().toInt())
+    ComponentDataItem2D<int>(id, iLength,jLength,valueDefinition->defaultValue().toInt())
 {
 
 }
@@ -23,11 +24,11 @@ Input2DInt::~Input2DInt()
 {
 }
 
-int Input2DInt::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int Input2DInt::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength < dimensions().length());
+  assert((int)dimensionIndexes.size() < dimensions().length());
 
-  if(dimensionIndexesLength == 0)
+  if(dimensionIndexes.size() == 0)
   {
     return iLength();
   }
@@ -37,34 +38,14 @@ int Input2DInt::dimensionLength(int dimensionIndexes[], int dimensionIndexesLeng
   }
 }
 
-void Input2DInt::getValue(int dimensionIndexes[], QVariant & data) const
+void Input2DInt::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   ComponentDataItem2D<int>::getValueT(dimensionIndexes,data);
 }
 
-void Input2DInt::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  ComponentDataItem2D<int>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DInt::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem2D<int>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DInt::setValue(int dimensionIndexes[], const QVariant &data)
+void Input2DInt::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   ComponentDataItem2D<int>::setValueT(dimensionIndexes,data);
-}
-
-void Input2DInt::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem2D<int>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DInt::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem2D<int>::setValuesT(dimensionIndexes,stride,data);
 }
 
 
@@ -77,7 +58,7 @@ Input2DDouble::Input2DDouble(const QString& id,
                              ValueDefinition* valueDefinition,
                              AbstractModelComponent* modelComponent)
   : AbstractInput(id,QList<Dimension*>({iDimension,jDimension}),valueDefinition,modelComponent),
-    ComponentDataItem2D<double>(iDimensionLength,jDimensionLength,valueDefinition->defaultValue().toInt())
+    ComponentDataItem2D<double>(id, iDimensionLength,jDimensionLength,valueDefinition->defaultValue().toInt())
 {
 
 }
@@ -86,11 +67,11 @@ Input2DDouble::~Input2DDouble()
 {
 }
 
-int Input2DDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int Input2DDouble::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength < dimensions().length());
+  assert((int)dimensionIndexes.size() < dimensions().length());
 
-  if(dimensionIndexesLength == 0)
+  if(dimensionIndexes.size() == 0)
   {
     return iLength();
   }
@@ -101,35 +82,16 @@ int Input2DDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesL
   }
 }
 
-void Input2DDouble::getValue(int dimensionIndexes[], QVariant & data) const
+void Input2DDouble::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   ComponentDataItem2D<double>::getValueT(dimensionIndexes,data);
 }
 
-void Input2DDouble::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  ComponentDataItem2D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DDouble::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem2D<double>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DDouble::setValue(int dimensionIndexes[], const QVariant &data)
+void Input2DDouble::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   ComponentDataItem2D<double>::setValueT(dimensionIndexes,data);
 }
 
-void Input2DDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem2D<double>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem2D<double>::setValuesT(dimensionIndexes,stride,data);
-}
 
 //==============================================================================================================================
 
@@ -140,7 +102,7 @@ Input2DString::Input2DString(const QString& id,
                              ValueDefinition* valueDefinition,
                              AbstractModelComponent* modelComponent)
   : AbstractInput(id,QList<Dimension*>({iDimension,jDimension}),valueDefinition,modelComponent),
-    ComponentDataItem2D<QString>(iDimensionLength,jDimensionLength,valueDefinition->defaultValue().toString())
+    ComponentDataItem2D<QString>(id, iDimensionLength,jDimensionLength,valueDefinition->defaultValue().toString())
 {
 
 }
@@ -149,50 +111,29 @@ Input2DString::~Input2DString()
 {
 }
 
-int Input2DString::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int Input2DString::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength < dimensions().length());
+  assert((int)dimensionIndexes.size() < dimensions().length());
 
-  if(dimensionIndexesLength == 0)
+  if(dimensionIndexes.size() == 0)
   {
     return iLength();
   }
   else
   {
-    // int iloc = dimensionIndexes[0];
+    //int iloc = dimensionIndexes[0];
     return jLength();
   }
 }
 
-void Input2DString::getValue(int dimensionIndexes[], QVariant & data) const
+void Input2DString::getValue(const std::vector<int> &dimensionIndexes, void *data) const
 {
   ComponentDataItem2D<QString>::getValueT(dimensionIndexes,data);
 }
 
-void Input2DString::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  ComponentDataItem2D<QString>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DString::getValues(int dimensionIndexes[], int stride[], void *data) const
-{
-  ComponentDataItem2D<QString>::getValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DString::setValue(int dimensionIndexes[], const QVariant &data)
+void Input2DString::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   ComponentDataItem2D<QString>::setValueT(dimensionIndexes,data);
 }
-
-void Input2DString::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  ComponentDataItem2D<QString>::setValuesT(dimensionIndexes,stride,data);
-}
-
-void Input2DString::setValues(int dimensionIndexes[], int stride[], const void *data)
-{
-  ComponentDataItem2D<QString>::setValuesT(dimensionIndexes,stride,data);
-}
-
 
 

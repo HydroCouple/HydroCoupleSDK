@@ -37,9 +37,9 @@ QString ComponentInfo::vendor() const
   return m_vendor;
 }
 
-QStringList ComponentInfo::publications() const
+QStringList ComponentInfo::documentation() const
 {
-  return m_publications;
+  return m_documentation;
 }
 
 QString ComponentInfo::license() const
@@ -72,6 +72,17 @@ QString ComponentInfo::category() const
   return m_category;
 }
 
+bool ComponentInfo::hasValidLicense() const
+{
+   return true;
+}
+
+bool ComponentInfo::validateLicense(const QString& licenseInfo, QString& message)
+{
+  m_license = licenseInfo;
+  message = id() + " | " + version() + "'s license has been validated";
+  return true;
+}
 
 void ComponentInfo::setIconFilePath(const QString& filepath)
 {
@@ -85,10 +96,19 @@ void ComponentInfo::setVendor(const QString& vendor)
   emit propertyChanged("Vendor");
 }
 
-void ComponentInfo::setPublications(const QStringList & publications)
+void ComponentInfo::setDocumentation(const QStringList &documentation)
 {
-  m_publications = publications;
-  emit propertyChanged("Publications");
+  m_documentation = documentation;
+  emit propertyChanged("Documentation");
+}
+
+void ComponentInfo::addDocumentation(const QString &document)
+{
+  if(!m_documentation.contains(document))
+  {
+    m_documentation.append(document);
+    emit propertyChanged("Documentation");
+  }
 }
 
 void ComponentInfo::setLicense(const QString & licenseInfo)

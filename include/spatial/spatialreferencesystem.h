@@ -1,32 +1,47 @@
+/*!
+ *  \file    spatialreferencesystem.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  spatialreferencesystem.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef SPATIALREFERENCESYSTEM_H
 #define SPATIALREFERENCESYSTEM_H
 
 #include "core/description.h"
 #include "hydrocouplespatial.h"
 
-#include <map>
+#include <unordered_map>
 #include <string>
 
 class OGRSpatialReference;
 
-class SpatialReferenceSystem : public Description,
+class HYDROCOUPLESDK_EXPORT SpatialReferenceSystem :
     public virtual HydroCouple::Spatial::ISpatialReferenceSystem
 {
-    Q_OBJECT
 
     Q_INTERFACES(HydroCouple::Spatial::ISpatialReferenceSystem)
 
-    Q_PROPERTY(int AuthSRID READ authSRID NOTIFY propertyChanged)
-    Q_PROPERTY(QString AuthName READ authName NOTIFY propertyChanged)
-    Q_PROPERTY(QString WellKnownText READ srText WRITE setSrText NOTIFY propertyChanged)
-
   public:
 
-    SpatialReferenceSystem(QObject* parent = nullptr);
+    SpatialReferenceSystem();
 
-    SpatialReferenceSystem(const QString& caption, const QString& srText , QObject* parent = nullptr);
+    SpatialReferenceSystem(const QString& srText);
 
-    SpatialReferenceSystem(const QString& caption, const QString& authName, int authSRID , QObject* parent = nullptr);
+    SpatialReferenceSystem(const QString& authName, int authSRID);
 
     virtual ~SpatialReferenceSystem();
 
@@ -42,13 +57,10 @@ class SpatialReferenceSystem : public Description,
 
     static std::string findEPSGWkt(int authSRID, bool& found);
 
-  signals:
-
-    void propertyChanged(const QString& propertyName) override;
-
   private:
-    OGRSpatialReference* m_srs;
-    static const std::map<int,std::string> m_EPGSAuthorityWkts;
+    QString m_wkt , m_authName;
+    int m_authSRID;
+    static const std::unordered_map<int,std::string> m_EPGSAuthorityWkts;
 };
 
 

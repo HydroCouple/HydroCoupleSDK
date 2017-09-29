@@ -4,8 +4,8 @@
 #include <assert.h>
 
 
-HCLine::HCLine(QObject *parent)
-  :HCLineString(parent)
+HCLine::HCLine(const QString &id, HCGeometry *parent)
+  :HCLineString(id, parent)
 {
   m_points.append(nullptr);
   m_points.append(nullptr);
@@ -27,9 +27,10 @@ bool HCLine::isValid() const
   }
 }
 
-void HCLine::addPoint(HCPoint* point)
+bool HCLine::addPoint(HCPoint* point)
 {
-  throw std::logic_error("Cannot append point " + point->id().toStdString() + ". Use set point instead");
+  return false;
+ // throw std::logic_error("Cannot append point " + point->id().toStdString() + ". Use set point instead");
 }
 
 bool HCLine::removePoint(HCPoint *point)

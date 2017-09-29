@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/hydrocouplesdk">
+        <file alias="timeseriesinterpolator">resources/image/timeseriesinterpolator.png</file>
+    </qresource>
+</RCC>

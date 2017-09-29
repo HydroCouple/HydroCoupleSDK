@@ -60,7 +60,13 @@ class HYDROCOUPLE_EXPORT AbstractOutput : public AbstractExchangeItem,
 
     bool removeAdaptedOutput(HydroCouple::IAdaptedOutput *adaptedOutput) override;
 
-    void update(HydroCouple::IInput *querySpecifier) override;
+    void updateValues(HydroCouple::IInput *querySpecifier) override;
+
+    virtual void updateValues() = 0;
+
+    virtual void refreshAdaptedOutputs();
+
+    virtual void initializeAdaptedOutputs();
 
   signals:
 

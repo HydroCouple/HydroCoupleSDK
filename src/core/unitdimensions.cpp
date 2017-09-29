@@ -35,7 +35,7 @@ UnitDimensions::~UnitDimensions()
 
 }
 
-double UnitDimensions::getPower(FundamentalUnitDimension dimension) const
+double UnitDimensions::getPower(FundamentalUnitDimension dimension)
 {
    return m_powers[dimension];
 }

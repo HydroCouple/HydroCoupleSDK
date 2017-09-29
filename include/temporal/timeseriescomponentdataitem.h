@@ -4,48 +4,66 @@
 #include "hydrocoupletemporal.h"
 #include "core/exchangeitems1d.h"
 #include "core/abstractcomponentdataitem.h"
+#include "core/datacursor.h"
 
 namespace SDKTemporal
 {
-  class Time;
+  class DateTime;
   class TimeSpan;
 }
 
 template<class T>
-class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem :
-    public ComponentDataItem1D<T>
+class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem
 {
-
   public:
 
-    TimeSeriesComponentDataItem(const QList<SDKTemporal::Time*>& times,
+    TimeSeriesComponentDataItem(const QString &id, const T& defaultValue, int initialSize);
+
+    TimeSeriesComponentDataItem(const QString &id, const std::vector<SDKTemporal::DateTime*>& times,
+                                const T& defaultValue);
+
+    TimeSeriesComponentDataItem(const QString &id, const std::list<SDKTemporal::DateTime*>& times,
                                 const T& defaultValue);
 
     virtual ~TimeSeriesComponentDataItem();
 
-    bool addTime(SDKTemporal::Time* time , bool resetDataArray = true);
+    virtual QString getId() const;
 
-    void addTimes(const QList<SDKTemporal::Time*>& times, bool resetDataArray = true);
+    bool addTime(SDKTemporal::DateTime* time);
 
-    bool removeTime(SDKTemporal::Time *time, bool resetDataArray = true);
+    bool addTimes(const QList<SDKTemporal::DateTime*>& times);
 
-    void setTimes(const QList<SDKTemporal::Time*>& times);
+    bool removeTime(SDKTemporal::DateTime *time);
 
-    void getValueT(int timeIndex, QVariant& data) const;
+    void getValueT(const std::vector<int> &dimensionIndexes, void *data) const;
 
-    void getValuesT(int timeIndex, int stride, QVariant data[]) const;
+    void getValueT(int timeIndex, void *data) const;
 
     void getValuesT(int timeIndex, int stride, void *data) const;
 
-    void setValueT(int timeIndex, const QVariant& data);
+    void setValueT(const std::vector<int> &dimensionIndexes, const void *data);
 
-    void setValuesT(int timeIndex, int stride, const QVariant data[]);
+    void setValueT(int timeIndex, const void *data);
 
     void setValuesT(int timeIndex, int stride, const void *data);
 
+    int length() const;
+
+    void moveDataToPrevTime();
+
+    T& operator[](int index);
+
+    const T& operator [](int index) const;
+
+    DataCursor *timeCursor() const;
+
   protected:
 
-    QList<SDKTemporal::Time*> timesInternal() const;
+    std::vector<SDKTemporal::DateTime*> timesInternal() const;
+
+    SDKTemporal::DateTime *timeInternal(int timeIndex) const;
+
+    int timeCountInternal() const;
 
     SDKTemporal::TimeSpan* timeSpanInternal() const;
 
@@ -53,8 +71,12 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem :
 
   private:
 
-    QList<SDKTemporal::Time*> m_times;
+    DataCursor *m_timeCursor;
+    std::vector<SDKTemporal::DateTime*> m_times;
+    std::vector<T> m_data;
     SDKTemporal::TimeSpan *m_timeSpan;
+    T m_defaultValue;
+    QString m_id;
 };
 
 

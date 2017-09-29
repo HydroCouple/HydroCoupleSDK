@@ -2,9 +2,12 @@
 #include "core/componentstatuschangeeventargs.h"
 #include "core/abstractmodelcomponent.h"
 #include <QDebug>
+#include <algorithm>
 
-ComponentStatusChangeEventArgs::ComponentStatusChangeEventArgs(HydroCouple::ComponentStatus newStatus,
-                                                               HydroCouple::ComponentStatus oldStatus,
+using namespace HydroCouple;
+
+ComponentStatusChangeEventArgs::ComponentStatusChangeEventArgs(IModelComponent::ComponentStatus newStatus,
+                                                               IModelComponent::ComponentStatus oldStatus,
                                                                const QString& message, float percentProgress,
                                                                AbstractModelComponent* parent):
     //because thread crashes
@@ -19,8 +22,8 @@ ComponentStatusChangeEventArgs::ComponentStatusChangeEventArgs(HydroCouple::Comp
 
 }
 
-ComponentStatusChangeEventArgs::ComponentStatusChangeEventArgs(HydroCouple::ComponentStatus newStatus,
-                                                               HydroCouple::ComponentStatus oldStatus,
+ComponentStatusChangeEventArgs::ComponentStatusChangeEventArgs(IModelComponent::ComponentStatus newStatus,
+                                                               IModelComponent::ComponentStatus oldStatus,
                                                                const QString& message,
                                                                AbstractModelComponent *parent)
     : QObject(nullptr)
@@ -43,22 +46,22 @@ HydroCouple::IModelComponent* ComponentStatusChangeEventArgs::component() const
     return m_component;
 }
 
-HydroCouple::ComponentStatus ComponentStatusChangeEventArgs::previousStatus() const
+IModelComponent::ComponentStatus ComponentStatusChangeEventArgs::previousStatus() const
 {
     return m_oldStatus;
 }
 
-void ComponentStatusChangeEventArgs::setPreviousStatus(HydroCouple::ComponentStatus previousStatus)
+void ComponentStatusChangeEventArgs::setPreviousStatus(IModelComponent::ComponentStatus previousStatus)
 {
     m_oldStatus = previousStatus;
 }
 
-HydroCouple::ComponentStatus ComponentStatusChangeEventArgs::status() const
+IModelComponent::ComponentStatus ComponentStatusChangeEventArgs::status() const
 {
     return m_newStatus;
 }
 
-void ComponentStatusChangeEventArgs::setStatus(HydroCouple::ComponentStatus status)
+void ComponentStatusChangeEventArgs::setStatus(IModelComponent::ComponentStatus status)
 {
     m_newStatus = status;
 }
@@ -90,8 +93,5 @@ float ComponentStatusChangeEventArgs::percentProgress() const
 
 void ComponentStatusChangeEventArgs::setPercentProgress(float value)
 {
-    if(value >= 0 && value <= 100)
-    {
-        m_percentProgress = value;
-    }
+  m_percentProgress = std::min(std::max(0.0f,value), 100.0f) ;
 }

@@ -31,23 +31,26 @@ class HYDROCOUPLESDK_EXPORT AbstractArgument : public AbstractComponentDataItem,
     public virtual HydroCouple::IArgument
 {
     Q_OBJECT
+
     Q_INTERFACES(HydroCouple::IArgument)
+
     Q_PROPERTY(bool Optional READ isOptional NOTIFY propertyChanged)
     Q_PROPERTY(bool ReadOnly READ isReadOnly NOTIFY propertyChanged)
-    Q_PROPERTY(QStringList InputFileTypeFilters READ inputFileTypeFilters NOTIFY propertyChanged)
+    Q_PROPERTY(QStringList FileFilters READ fileFilters NOTIFY propertyChanged)
     Q_PROPERTY(bool CanReadFromFile READ canReadFromFile NOTIFY propertyChanged)
     Q_PROPERTY(bool CanReadFromString READ canReadFromString NOTIFY propertyChanged)
 
   public:
-    AbstractArgument(const QString& id,
-                     const QList<Dimension*>& dimensions,
-                     ValueDefinition* valueDefinition,
-                     AbstractModelComponent *modelComponent);
 
     AbstractArgument(const QString& id,
-                     const QString& caption,
-                     const QList<Dimension*>& dimensions,
-                     ValueDefinition* valueDefinition,
+                     const QList<Dimension*> &dimensions,
+                     ValueDefinition *valueDefinition,
+                     AbstractModelComponent *modelComponent);
+
+    AbstractArgument(const QString &id,
+                     const QString &caption,
+                     const QList<Dimension*> &dimensions,
+                     ValueDefinition *valueDefinition,
                      AbstractModelComponent *modelComponent);
 
     virtual ~AbstractArgument();
@@ -56,19 +59,21 @@ class HYDROCOUPLESDK_EXPORT AbstractArgument : public AbstractComponentDataItem,
 
     bool isReadOnly() const override;
 
-    QStringList inputFileTypeFilters() const override;
+    QStringList fileFilters() const override;
 
     bool canReadFromFile() const override;
 
     bool canReadFromString() const override;
 
-    HydroCouple::ArgumentIOType currentArgumentIOType() const override;
+    HydroCouple::IArgument::ArgumentIOType currentArgumentIOType() const override;
 
     void setIsOptional(bool isOptional);
 
     void setIsReadOnly(bool isReadOnly);
 
-    void addInputFileTypeFilter(const QString &extension);
+    void addFileFilter(const QString &extension);
+
+    virtual AbstractArgument *clone() const;
 
   protected:
 
@@ -76,16 +81,17 @@ class HYDROCOUPLESDK_EXPORT AbstractArgument : public AbstractComponentDataItem,
 
     void setCanReadFromString(bool canReadFromString);
 
-    void setArgumentIOType(HydroCouple::ArgumentIOType argumentIOType);
+    void setArgumentIOType(HydroCouple::IArgument::ArgumentIOType argumentIOType);
 
   signals:
 
     void propertyChanged(const QString &propertyName) override;
 
   private:
-    QStringList m_inputFileTypeFilters;
+
+    QStringList m_fileFilters;
     bool m_isOptional , m_isReadOnly, m_canReadFromFile, m_canReadFromString;
-    HydroCouple::ArgumentIOType m_argumentIOType;
+    HydroCouple::IArgument::ArgumentIOType m_argumentIOType;
 };
 
 Q_DECLARE_METATYPE(AbstractArgument*)

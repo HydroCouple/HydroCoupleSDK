@@ -1,98 +1,103 @@
+/*!
+ *  \file    geometryargument.h
+ *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ *  \version 1.0.0.0
+ *  \section Description
+ *  \section License
+ *  geometryargument.h, associated files and libraries are free software;
+ *  you can redistribute it and/or modify it under the terms of the
+ *  Lesser GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+ *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ *  \date 2014-2016
+ *  \pre
+ *  \bug
+ *  \todo
+ *  \warning
+ */
+
 #ifndef GEOMETRYARGUMENT_H
 #define GEOMETRYARGUMENT_H
 
 #include "core/abstractargument.h"
-#include "core/exchangeitems1d.h"
+#include "spatial/geometrycomponentdataitem.h"
 #include "hydrocouplespatial.h"
 
 #include <QFileInfo>
 
-class HCGeometryCollection;
-class QXmlStreamReader;
 class HCGeometry;
+class Envelope;
 
-class HYDROCOUPLESDK_EXPORT HCGeometryArgumentDouble : public AbstractArgument,
-    public ComponentDataItem1D<double>,
-    public virtual HydroCouple::Spatial::IGeometryArgument
+class HYDROCOUPLESDK_EXPORT GeometryArgumentDouble : public AbstractArgument,
+    public GeometryComponentDataItem<double>,
+    public virtual HydroCouple::Spatial::IGeometryComponentDataItem
 {
     Q_OBJECT
-    Q_INTERFACES(HydroCouple::Spatial::IGeometryComponentDataItem
-                 HydroCouple::Spatial::IGeometryArgument)
+    Q_INTERFACES(HydroCouple::Spatial::IGeometryComponentDataItem)
+
 
   public:
 
-    HCGeometryArgumentDouble(const QString& id,
-                             HydroCouple::Spatial::GeometryType geometryType,
-                             Dimension *geometryDimension,
-                             ValueDefinition *valueDefinition,
-                             AbstractModelComponent *modelComponent);
+    GeometryArgumentDouble(const QString& id,
+                           HydroCouple::Spatial::IGeometry::GeometryType geometryType,
+                           Dimension *geometryDimension,
+                           ValueDefinition *valueDefinition,
+                           AbstractModelComponent *modelComponent);
 
-    virtual ~HCGeometryArgumentDouble();
+    virtual ~GeometryArgumentDouble();
 
-    HydroCouple::Spatial::GeometryType geometryType() const override;
+    HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
     int geometryCount() const override;
 
     HydroCouple::Spatial::IGeometry *geometry(int geometryIndex) const override;
 
-    virtual HydroCouple::IDimension *geometryDimension() const override;
+    HydroCouple::IDimension *geometryDimension() const override;
 
-    void addGeometry(HCGeometry *geometry);
+    HydroCouple::Spatial::IEnvelope *envelope() const override;
 
-    void addGeometries(QList<HCGeometry*> geometries);
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    bool removeGeometry(HCGeometry *geometry);
+    void getValue(const std::vector<int> &dimensionIndexes,  void *data) const override;
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
-
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int geometryDimensionIndex, QVariant &data) const override;
-
-    void getValues(int geometryDimensionIndex, int stride,  QVariant data[]) const override;
+    void getValue(int geometryDimensionIndex, void *data) const override;
 
     void getValues(int geometryDimensionIndex, int stride,  void *data) const override;
 
-    void setValue(int geometryDimensionIndex, const QVariant &data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
-    void setValues(int geometryDimensionIndex, int stride, const QVariant data[]) override;
+    void setValue(int geometryDimensionIndex, const void *data) override;
 
     void setValues(int geometryDimensionIndex , int stride, const void* data) override;
 
     void readData(QXmlStreamReader &xmlReader) override;
 
-    void writeData(QXmlStreamWriter &xmlWriter) override;
+    void writeData(QXmlStreamWriter &xmlWriter) const override;
 
-    bool writeToFile() const override;
+    void saveData() override;
 
     QString toString() const override;
 
-    bool readValues(const QString &value, bool isFile = false) override;
+    bool readValues(const QString &value, QString &message, bool isFile = false) override;
 
-    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem) override;
+    bool readValues(const HydroCouple::IComponentDataItem* componentDataItem, QString &message) override;
 
-    QList<HCGeometry*> geometries() const;
+    QList<QSharedPointer<HCGeometry>> geometries() const;
+
+  signals:
+
+    void propertyChanged(const QString &propertyName) override;
 
   private:
-    HydroCouple::Spatial::GeometryType m_geometryType;
-    QList<HCGeometry*> m_geometries;
     QString m_gdalDriverName;
     QFileInfo m_geometryFile;
     QString m_geometryFileDataField;
-    bool m_writeToFile, m_overWriteFile;
+    bool m_readFromFile, m_saveFile;
     Dimension *m_geometryDimension;
 };
 
-Q_DECLARE_METATYPE(HCGeometryArgumentDouble*)
+Q_DECLARE_METATYPE(GeometryArgumentDouble*)
 
 #endif // GEOMETRYARGUMENT_H

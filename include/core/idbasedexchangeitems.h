@@ -10,18 +10,23 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem :
 {
   public:
 
-    IdBasedComponentDataItem(const QStringList& identifiers,
+    IdBasedComponentDataItem(const QString &id,
+                             const QStringList& identifiers,
                              const T& defaultValue);
 
     virtual ~IdBasedComponentDataItem();
 
-    bool addIdentifier(const QString &identifier, bool resetDataArray = true);
+    bool addIdentifier(const QString &identifier);
 
-    void addIdentifiers(const QList<QString> &identifiers, bool resetDataArray = true);
+    void addIdentifiers(const QList<QString> &identifiers);
 
-    bool removeIdentifier(const QString &identifier, bool resetDataArray = true);
+    bool removeIdentifier(const QString &identifier);
+
+    bool containsIdentifier(const QString& identifier) const;
 
     T &operator[](const QString &id);
+
+    const T &operator [](const QString &id) const;
 
   protected:
 
@@ -45,6 +50,9 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputInt : public AbstractInput,
     Q_PROPERTY(QStringList Identifiers READ identifiers)
     Q_PROPERTY(HydroCouple::IDimension* IdentifierDimension READ identifierDimension)
 
+    using IComponentDataItem::getValue;
+    using IComponentDataItem::setValue;
+
   public:
 
     IdBasedInputInt(const QString& id,
@@ -59,35 +67,23 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputInt : public AbstractInput,
 
     HydroCouple::IDimension* identifierDimension() const override;
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    void getValue(const std::vector<int> &dimensionIndexes, void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int idIndex, QVariant& data) const override;
-
-    void getValues(int idIndex, int stride, QVariant data[]) const override;
+    void getValue(int idIndex, void* data) const override;
 
     void getValues(int idIndex, int stride, void *data) const override;
 
-    void setValue(int idIndex, const QVariant &data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
-    void setValues(int idIndex, int stride, const QVariant data[]) override;
+    void setValue(int idIndex, const void * data) override;
 
     void setValues(int idIndex, int stride, const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
-    void writeData(QXmlStreamWriter &xmlWriter) override;
+    void writeData(QXmlStreamWriter &xmlWriter) const override;
 
   private:
     Dimension* m_identifierDimension;
@@ -119,35 +115,23 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputDouble : public AbstractInput,
 
     HydroCouple::IDimension* identifierDimension() const override;
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    void getValue(const std::vector<int> &dimensionIndexes, void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int idIndex, QVariant& data) const override;
-
-    void getValues(int idIndex, int stride, QVariant data[]) const override;
+    void getValue(int idIndex, void* data) const override;
 
     void getValues(int idIndex, int stride, void *data) const override;
 
-    void setValue(int idIndex, const QVariant &data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
-    void setValues(int idIndex, int stride, const QVariant data[]) override;
+    void setValue(int idIndex, const void * data) override;
 
     void setValues(int idIndex, int stride, const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
-    void writeData(QXmlStreamWriter &xmlWriter) override;
+    void writeData(QXmlStreamWriter &xmlWriter) const override;
 
   private:
     Dimension* m_identifierDimension;
@@ -178,35 +162,23 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputString : public AbstractInput,
 
     HydroCouple::IDimension* identifierDimension() const override;
 
-    int dimensionLength(int dimensionIndexes[] , int dimensionIndexesLength) const override;
+    int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
-    void getValue(int dimensionIndexes[], QVariant &data) const override;
+    void getValue(const std::vector<int> &dimensionIndexes, void *data) const override;
 
-    void getValues(int dimensionIndexes[], int stride[],  QVariant data[]) const override;
-
-    void getValues(int dimensionIndexes[], int stride[],  void *data) const override;
-
-    void setValue(int dimensionIndexes[], const QVariant &data) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const QVariant data[]) override;
-
-    void setValues(int dimensionIndexes[], int stride[], const void *data) override;
-
-    void getValue(int idIndex, QVariant& data) const override;
-
-    void getValues(int idIndex, int stride, QVariant data[]) const override;
+    void getValue(int idIndex, void* data) const override;
 
     void getValues(int idIndex, int stride, void *data) const override;
 
-    void setValue(int idIndex, const QVariant &data) override;
+    void setValue(const std::vector<int> &dimensionIndexes, const void *data) override;
 
-    void setValues(int idIndex, int stride, const QVariant data[]) override;
+    void setValue(int idIndex, const void * data) override;
 
     void setValues(int idIndex, int stride, const void *data) override;
 
     void readData(QXmlStreamReader &reader) override;
 
-    void writeData(QXmlStreamWriter &xmlWriter) override;
+    void writeData(QXmlStreamWriter &xmlWriter) const override;
 
   private:
     Dimension* m_identifierDimension;

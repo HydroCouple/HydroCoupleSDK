@@ -80,7 +80,7 @@ void AbstractComponentDataItem::readData(QXmlStreamReader &xmlReader)
   xmlReader.readNext();
 }
 
-void AbstractComponentDataItem::writeData(QXmlStreamWriter &xmlWriter)
+void AbstractComponentDataItem::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeTextElement("Empty" ,"");
 }

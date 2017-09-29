@@ -27,6 +27,8 @@ class HYDROCOUPLESDK_EXPORT Unit : public Description,
 
       HydroCouple::IUnitDimensions* dimensions() const override;
 
+      UnitDimensions* dimensionsInternal() const;
+
       double conversionFactorToSI() const override;
 
       void setConversionFactorToSI(double conversionFactor);
@@ -35,30 +37,31 @@ class HYDROCOUPLESDK_EXPORT Unit : public Description,
 
       void setOffsetToSI(double offsetToSI);
 
-      static Unit* lengthInMeters(QObject *parent = nullptr);
+      static Unit *copy(const HydroCouple::IUnit* unit, QObject *parent = nullptr);
 
-      static Unit* lengthInFeet(QObject *parent = nullptr);
+      static Unit *lengthInMeters(QObject *parent = nullptr);
 
-      static Unit* areaInSquareMeters(QObject *parent = nullptr);
+      static Unit *lengthInFeet(QObject *parent = nullptr);
 
-      static Unit* areaInSquareFeet(QObject *parent = nullptr);
+      static Unit *areaInSquareMeters(QObject *parent = nullptr);
 
-      static Unit* volumeInCubicMeters(QObject *parent = nullptr);
+      static Unit *areaInSquareFeet(QObject *parent = nullptr);
 
-      static Unit* volumeInCubicFeet(QObject *parent = nullptr);
+      static Unit *volumeInCubicMeters(QObject *parent = nullptr);
 
-      static Unit* flowInCMS(QObject *parent = nullptr);
+      static Unit *volumeInCubicFeet(QObject *parent = nullptr);
 
-      static Unit* flowInCFS(QObject *parent = nullptr);
+      static Unit *flowInCMS(QObject *parent = nullptr);
 
-      static Unit* unitlessCoefficient(QObject *parent = nullptr);
+      static Unit *flowInCFS(QObject *parent = nullptr);
+
+      static Unit *unitlessCoefficient(QObject *parent = nullptr);
 
    signals:
 
       void propertyChanged(const QString &propertyName) override;
 
    private:
-
       UnitDimensions* m_dimensions;
       double m_conversionFactorToSI, m_offsetToSI;
 

@@ -39,7 +39,7 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity,
     Q_PROPERTY(QString LibraryPath READ libraryFilePath NOTIFY propertyChanged)
     Q_PROPERTY(QString IconFilePath READ iconFilePath NOTIFY propertyChanged)
     Q_PROPERTY(QString Vendor READ vendor NOTIFY propertyChanged)
-    Q_PROPERTY(QStringList Publications READ publications NOTIFY propertyChanged)
+    Q_PROPERTY(QStringList Documentation READ documentation NOTIFY propertyChanged)
     Q_PROPERTY(QString License READ license NOTIFY propertyChanged)
     Q_PROPERTY(QString Copyright READ copyright NOTIFY propertyChanged)
     Q_PROPERTY(QString Url READ url NOTIFY propertyChanged)
@@ -90,7 +90,7 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity,
        * \brief Publications associated with this component.
        * \returns Citations of publications related to this component.
        */
-    virtual QStringList publications() const override;
+    virtual QStringList documentation() const override;
 
     /*!
        * \brief Component license info.
@@ -130,6 +130,12 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity,
        */
     virtual QString category() const override;
 
+
+    bool hasValidLicense() const override;
+
+
+    virtual bool validateLicense(const QString& licenseInfo, QString &validationMessage) override;
+
   signals:
 
     /*!
@@ -146,7 +152,9 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity,
 
     void setVendor(const QString &vendor);
 
-    void setPublications(const QStringList &publications);
+    void setDocumentation(const QStringList &documentation);
+
+    void addDocumentation(const QString &document);
 
     void setLicense(const QString &license);
 
@@ -166,7 +174,7 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity,
     m_license, m_copyright, m_url,
     m_email, m_version, m_category,
     m_filePath;
-    QList<QString> m_publications;
+    QList<QString> m_documentation;
 };
 
 Q_DECLARE_METATYPE(ComponentInfo*)

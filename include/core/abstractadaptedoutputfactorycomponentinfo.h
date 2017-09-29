@@ -30,14 +30,10 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutputFactoryComponentInfo : public C
     Q_INTERFACES(HydroCouple::IAdaptedOutputFactoryComponentInfo)
 
   public:
+
     AbstractAdaptedOutputFactoryComponentInfo(QObject* parent);
 
     virtual ~AbstractAdaptedOutputFactoryComponentInfo();
-
-    bool validateLicense(QString &validationMessage) const override;
-
-    bool hasValidLicense() const override;
-
 
 };
 

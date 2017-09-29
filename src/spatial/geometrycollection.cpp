@@ -1,20 +1,24 @@
 #include "stdafx.h"
 #include "spatial/geometrycollection.h"
+#include "spatial/envelope.h"
+
 #include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
 
-HCGeometryCollection::HCGeometryCollection(QObject *parent)
-  :HCGeometry(parent)
+HCGeometryCollection::HCGeometryCollection(const QString &id, HCGeometry *parent)
+  :HCGeometry(id, parent)
 {
 }
 
 HCGeometryCollection::~HCGeometryCollection()
 {
+  qDeleteAll(m_geometries);
+  m_geometries.clear();
 }
 
-HydroCouple::Spatial::GeometryType HCGeometryCollection::geometryType() const
+IGeometry::GeometryType HCGeometryCollection::geometryType() const
 {
   if(geometryFlags().testFlag(GeometryFlag::HasZ) &&
      geometryFlags().testFlag(GeometryFlag::HasM))
@@ -37,12 +41,24 @@ HydroCouple::Spatial::GeometryType HCGeometryCollection::geometryType() const
 
 int HCGeometryCollection::dimension() const
 {
+   int dimension = 0;
 
+   for(HCGeometry *geometry : m_geometries)
+   {
+     dimension = std::max(dimension, geometry->dimension());
+   }
+
+   return dimension;
 }
 
-IGeometry *HCGeometryCollection::envelope() const
+Envelope *HCGeometryCollection::envelopeInternal() const
 {
-  return nullptr;
+  m_envelope->resetExtentsToInfinity();
+
+  for(HCGeometry *geometry : m_geometries)
+    m_envelope->merge(geometry->envelopeInternal());
+
+  return m_envelope;
 }
 
 int HCGeometryCollection::geometryCount() const
@@ -56,37 +72,47 @@ IGeometry* HCGeometryCollection::geometry(int index) const
   return m_geometries[index];
 }
 
-void HCGeometryCollection::initializeData(int length, double defaultValue)
+HCGeometry* HCGeometryCollection::geometryInternal(int index) const
 {
-  for(HCGeometry *geometry : m_geometries)
-  {
-    geometry->initializeData(length,defaultValue);
-  }
-
-  initializeData(length);
+  assert(index < m_geometries.length());
+  return m_geometries[index];
 }
+
+//void HCGeometryCollection::initializeData(int length, double defaultValue)
+//{
+//  for(HCGeometry *geometry : m_geometries)
+//  {
+//    geometry->initializeData(length,defaultValue);
+//  }
+
+//  initializeData(length);
+//}
 
 QList<HCGeometry*> HCGeometryCollection::geometries() const
 {
   return m_geometries;
 }
 
-void HCGeometryCollection::addGeometry(HCGeometry *geometry)
+bool HCGeometryCollection::addGeometry(HCGeometry *geometry)
 {
-  assert(geometry->spatialReferenceSystem()->authSRID() == spatialReferenceSystem()->authSRID());
-  assert(!geometry->spatialReferenceSystem()->authName().compare(spatialReferenceSystem()->authName()));
-
-  if(!m_geometries.contains(geometry))
+  if(geometry->geometryFlags().testFlag(GeometryFlag::HasZ) == this->is3D() &&
+     geometry->geometryFlags().testFlag(GeometryFlag::HasM) == this->isMeasured() &&
+     !m_geometries.contains(geometry))
   {
     geometry->setIndex(m_geometries.length());
     m_geometries.append(geometry);
-    emit propertyChanged("Geometries");
+
+    return true;
   }
+  else
+  {
+    return false;
+  }
+
 }
 
 bool HCGeometryCollection::removeGeometry(HCGeometry *geometry)
 {
-  emit propertyChanged("Geometries");
   return m_geometries.removeOne(geometry);
 }
 

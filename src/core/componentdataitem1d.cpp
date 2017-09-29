@@ -1,56 +1,40 @@
 #include "stdafx.h"
-#include "core/exchangeitems1d.h"
+#include "core/componentdataitem.h"
 #include "core/valuedefinition.h"
 #include "core/dimension.h"
 
 #include <QDebug>
 #include <assert.h>
+#include <QDateTime>
 
 using namespace HydroCouple;
 
 template<class T>
-ComponentDataItem1D<T>::ComponentDataItem1D(int length, const T& defaultValue)
+ComponentDataItem1D<T>::ComponentDataItem1D(const QString &id, int length, const T& defaultValue)
   : m_length(length),
     m_defaultValue(defaultValue),
-    m_data(nullptr)
+    m_id(id)
+
 {
-  createData();
+  resetDataArray();
 }
 
 template<class T>
 ComponentDataItem1D<T>::~ComponentDataItem1D()
 {
-  deleteData();
 }
 
 template<class T>
-void ComponentDataItem1D<T>::getValueT(int dimensionIndexes[], QVariant & data) const
+QString ComponentDataItem1D<T>::getId() const
 {
-  data = QVariant::fromValue(m_data[dimensionIndexes[0]]);
+  return m_id;
 }
 
 template<class T>
-void ComponentDataItem1D<T>::getValueT(int dimensionIndex, QVariant & data) const
+void ComponentDataItem1D<T>::getValueT(const std::vector<int> &dimensionIndexes, void *data) const
 {
-  data = QVariant::fromValue(m_data[dimensionIndex]);
-}
-
-template<class T>
-void ComponentDataItem1D<T>::getValuesT(int dimensionIndexes[], int stride[], QVariant* data) const
-{
-  for(int i = 0 ; i < stride[0] ; i++)
-  {
-    data[i] = QVariant::fromValue(m_data[dimensionIndexes[0] + i]);
-  }
-}
-
-template<class T>
-void ComponentDataItem1D<T>::getValuesT(int dimensionIndex, int stride, QVariant* data) const
-{
-  for(int i = 0 ; i < stride ; i++)
-  {
-    data[i] = QVariant::fromValue(m_data[dimensionIndex + i]);
-  }
+  T* dataCast = (T*) data;
+  (*dataCast) = m_data[dimensionIndexes[0]];
 }
 
 template<class T>
@@ -76,34 +60,10 @@ void ComponentDataItem1D<T>::getValuesT(int dimensionIndex, int stride, void *da
 }
 
 template<class T>
-void ComponentDataItem1D<T>::setValueT(int dimensionIndexes[], const QVariant &data)
+void ComponentDataItem1D<T>::setValueT(const std::vector<int> &dimensionIndexes, const void *data)
 {
-  m_data[dimensionIndexes[0]] = qvariant_cast<T>(data);
-}
-
-template<class T>
-void ComponentDataItem1D<T>::setValueT(int dimensionIndex, const QVariant &data)
-{
-  m_data[dimensionIndex] = qvariant_cast<T>(data);
-}
-
-
-template<class T>
-void ComponentDataItem1D<T>::setValuesT(int dimensionIndexes[], int stride[], const QVariant data[])
-{
-  for(int i = 0 ; i < stride[0] ; i++)
-  {
-    m_data[dimensionIndexes[0] + i] = qvariant_cast<T>(data[i]);
-  }
-}
-
-template<class T>
-void ComponentDataItem1D<T>::setValuesT(int dimensionIndex, int stride, const QVariant data[])
-{
-  for(int i = 0 ; i < stride ; i++)
-  {
-    m_data[dimensionIndex + i] = qvariant_cast<T>(data[i]);
-  }
+  T* dataCast = (T*) data;
+  m_data[dimensionIndexes[0]] = *dataCast;
 }
 
 template<class T>
@@ -129,28 +89,21 @@ void ComponentDataItem1D<T>::setValuesT(int dimensionIndex, int stride, const vo
 }
 
 template<class T>
-void ComponentDataItem1D<T>::resetDataArray()
-{
-  createData();
-}
-
-template<class T>
-void ComponentDataItem1D<T>::resetDataArray(int length)
-{
-  m_length = length;
-  createData();
-}
-
-template<class T>
 T ComponentDataItem1D<T>::defaultValue() const
 {
   return m_defaultValue;
 }
 
 template<class T>
-void ComponentDataItem1D<T>::setDefaultValue(const T &defaultValue)
+T &ComponentDataItem1D<T>::operator [](int index)
 {
-  m_defaultValue = defaultValue;
+  return m_data[index];
+}
+
+template<class T>
+const T &ComponentDataItem1D<T>::operator [](int index) const
+{
+  return m_data[index];
 }
 
 template<class T>
@@ -159,20 +112,13 @@ int ComponentDataItem1D<T>::length() const
   return m_length;
 }
 
-template<class T>
-void ComponentDataItem1D<T>::setLength(int length)
-{
-  m_length = length;
-}
 
 template<class T>
-void ComponentDataItem1D<T>::createData()
+void ComponentDataItem1D<T>::resetDataArray()
 {
-  deleteData();
-
-  if(m_length > 0)
+  if(m_length >= 0 )
   {
-    m_data = new T[m_length];
+    m_data.resize(m_length);
 
     for(int i = 0 ; i < m_length ; i++)
     {
@@ -182,21 +128,43 @@ void ComponentDataItem1D<T>::createData()
 }
 
 template<class T>
-void ComponentDataItem1D<T>::deleteData()
+void ComponentDataItem1D<T>::resizeDataArray(int length , bool initializeNewWithDefault)
 {
-  if(m_data)
+  if(length >= 0)
   {
-    delete[] m_data;
-    m_data = nullptr;
+    m_data.resize(length);
+
+    if(length > m_length && m_length > 0 && initializeNewWithDefault)
+    {
+      for(int i = m_length; i <  length ; i++)
+      {
+        m_data[i] = m_defaultValue;
+      }
+    }
+
+    m_length = length;
+  }
+  else
+  {
+    m_data.clear();
   }
 }
 
 template<class T>
-T &ComponentDataItem1D<T>::operator [](int index)
+void ComponentDataItem1D<T>::removeItemAt(int i)
 {
-  return m_data[index];
+  m_data.erase(m_data.begin() + i);
+  m_length = m_data.size();
 }
+
+template<class T>
+void ComponentDataItem1D<T>::setDefaultValue(const T &defaultValue)
+{
+  m_defaultValue = defaultValue;
+}
+
 
 template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<int>;
 template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<double>;
 template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<QString>;
+template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<QDateTime>;

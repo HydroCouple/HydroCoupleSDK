@@ -19,3 +19,16 @@ Dimension::~Dimension()
 {
 }
 
+Dimension *Dimension::copy(QObject *parent)
+{
+  return copy(this, parent);
+}
+
+Dimension *Dimension::copy(const HydroCouple::IDimension *dimension, QObject *parent)
+{
+  Dimension *oDimension = new Dimension(dimension->id(),parent);
+  oDimension->setCaption(dimension->caption());
+  oDimension->setDescription(dimension->description());
+
+  return oDimension;
+}

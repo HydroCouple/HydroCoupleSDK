@@ -4,278 +4,258 @@
 #include "core/valuedefinition.h"
 #include "core/dimension.h"
 #include "core/abstractmodelcomponent.h"
+#include "spatial/envelope.h"
 
 #include <assert.h>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
 
-HCGeometryInputDouble::HCGeometryInputDouble(const QString &id,
-                                             GeometryType geometryType,
-                                             Dimension *geometryDimension,
-                                             ValueDefinition *valueDefinition,
-                                             AbstractModelComponent *modelComponent)
+GeometryInputDouble::GeometryInputDouble(const QString &id,
+                                         IGeometry::GeometryType geometryType,
+                                         Dimension *geometryDimension,
+                                         ValueDefinition *valueDefinition,
+                                         AbstractModelComponent *modelComponent)
   : AbstractInput(id, QList<Dimension*>({geometryDimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<double>(0, valueDefinition->defaultValue().toDouble()),
-    m_geometryType(geometryType)
+    ComponentDataItem1D<double>(id, 0, valueDefinition->defaultValue().toDouble()),
+    m_geometryType(geometryType),
+    m_envelope(nullptr)
 {
+  m_envelope = new Envelope();
 }
 
-HCGeometryInputDouble::~HCGeometryInputDouble()
+GeometryInputDouble::~GeometryInputDouble()
 {
+  delete m_envelope;
 }
 
-GeometryType HCGeometryInputDouble::geometryType() const
+IGeometry::GeometryType GeometryInputDouble::geometryType() const
 {
   return m_geometryType;
 }
 
-int HCGeometryInputDouble::geometryCount() const
+int GeometryInputDouble::geometryCount() const
 {
   return m_geometries.length();
 }
 
-IGeometry *HCGeometryInputDouble::geometry(int geometryIndex) const
+IGeometry *GeometryInputDouble::geometry(int geometryIndex) const
 {
-  return m_geometries[geometryIndex];
+  return m_geometries[geometryIndex].data();
 }
 
-IDimension *HCGeometryInputDouble::geometryDimension() const
+IDimension *GeometryInputDouble::geometryDimension() const
 {
   return dimensionsInternal()[0];
 }
 
-void HCGeometryInputDouble::addGeometry(HCGeometry *geometry)
+IEnvelope *GeometryInputDouble::envelope() const
 {
-  m_geometries.append(geometry);
-  resetDataArray(m_geometries.length());
+  return m_envelope;
 }
 
-void HCGeometryInputDouble::addGeometries(QList<HCGeometry*> geometries)
+void GeometryInputDouble::addGeometry(const QSharedPointer<HCGeometry> &geometry)
 {
-  for(HCGeometry *geometry :geometries)
+  m_geometries.append(geometry);
+  resizeDataArray(m_geometries.length());
+  emit propertyChanged("Geometries");
+}
+
+void GeometryInputDouble::addGeometries(const QList<QSharedPointer<HCGeometry>> & geometries)
+{
+  for(QSharedPointer<HCGeometry> geometry :geometries)
   {
     assert(geometry->geometryType() == geometryType());
     m_geometries.append(geometry);
   }
 
-  resetDataArray(m_geometries.length());
+  resizeDataArray(m_geometries.length());
+  emit propertyChanged("Geometries");
 }
 
 
-bool HCGeometryInputDouble::removeGeometry(HCGeometry *geometry)
+bool GeometryInputDouble::removeGeometry(const QSharedPointer<HCGeometry> &geometry)
 {
-  bool removed = m_geometries.removeOne(geometry);
+  int index = m_geometries.indexOf(geometry);
 
-  if(removed)
+  if(index >= 0)
   {
-    resetDataArray(m_geometries.length());
+    m_geometries.removeAt(index);
+    removeItemAt(index);
+    emit propertyChanged("Geometries");
+
+    return true;
+
   }
+
+  return false;
 }
 
-int HCGeometryInputDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int GeometryInputDouble::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert((int)dimensionIndexes.size() == 0);
+
   return length();
 }
 
-void HCGeometryInputDouble::getValue(int dimensionIndexes[], QVariant & data) const
+void GeometryInputDouble::getValue(const std::vector<int> &dimensionIndexes,  void *data) const
 {
   ComponentDataItem1D<double>::getValueT(dimensionIndexes,data);
 }
 
-void HCGeometryInputDouble::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+void GeometryInputDouble::getValue(int geometryDimensionIndex, void *data) const
 {
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::getValuesT(geometryDimensionIndex,1,data);
 }
 
-void HCGeometryInputDouble::getValues(int dimensionIndexes[], int stride[], void *data) const
+void GeometryInputDouble::getValues(int geometryDimensionIndex, int stride,  void *data) const
 {
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::getValuesT(geometryDimensionIndex,stride,data);
 }
 
-void HCGeometryInputDouble::setValue(int dimensionIndexes[], const QVariant &data)
+void GeometryInputDouble::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
 }
 
-void HCGeometryInputDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
+void GeometryInputDouble::setValue(int geometryDimensionIndex, const void *data)
 {
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::setValuesT(geometryDimensionIndex,1,data);
 }
 
-void HCGeometryInputDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
+void GeometryInputDouble::setValues(int geometryDimensionIndex , int stride, const void* data)
 {
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::setValuesT(geometryDimensionIndex,stride,data);
 }
 
-void HCGeometryInputDouble::getValue(int geometryDimensionIndex, QVariant & data) const
-{
-  ComponentDataItem1D<double>::getValueT(&geometryDimensionIndex,data);
-}
-
-void HCGeometryInputDouble::getValues(int geometryDimensionIndex, int stride, QVariant* data) const
-{
-  ComponentDataItem1D<double>::getValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryInputDouble::getValues(int geometryDimensionIndex, int stride, void *data) const
-{
-  ComponentDataItem1D<double>::getValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryInputDouble::setValue(int geometryDimensionIndex, const QVariant &data)
-{
-  ComponentDataItem1D<double>::setValueT(&geometryDimensionIndex,data);
-}
-
-void HCGeometryInputDouble::setValues(int geometryDimensionIndex, int stride, const QVariant data[])
-{
-  ComponentDataItem1D<double>::setValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryInputDouble::setValues(int geometryDimensionIndex, int stride, const void *data)
-{
-  ComponentDataItem1D<double>::setValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-QList<HCGeometry*> HCGeometryInputDouble::geometries() const
+QList<QSharedPointer<HCGeometry>> GeometryInputDouble::geometries() const
 {
   return m_geometries;
 }
 
 //==============================================================================================================================
 
-HCGeometryOutputDouble::HCGeometryOutputDouble(const QString &id,
-                                               GeometryType geometryType,
-                                               Dimension *geometryDimension,
-                                               ValueDefinition *valueDefinition,
-                                               AbstractModelComponent *modelComponent)
+GeometryOutputDouble::GeometryOutputDouble(const QString &id,
+                                           IGeometry::GeometryType geometryType,
+                                           Dimension *geometryDimension,
+                                           ValueDefinition *valueDefinition,
+                                           AbstractModelComponent *modelComponent)
   : AbstractOutput(id, QList<Dimension*>({geometryDimension}),valueDefinition,modelComponent),
-    ComponentDataItem1D<double>(0, valueDefinition->defaultValue().toDouble()),
-    m_geometryType(geometryType)
+    ComponentDataItem1D<double>(id, 0, valueDefinition->defaultValue().toDouble()),
+    m_geometryType(geometryType),
+    m_envelope(nullptr)
 {
+  m_envelope = new Envelope();
 }
 
-HCGeometryOutputDouble::~HCGeometryOutputDouble()
+GeometryOutputDouble::~GeometryOutputDouble()
 {
+  delete m_envelope;
 }
 
-GeometryType HCGeometryOutputDouble::geometryType() const
+IGeometry::GeometryType GeometryOutputDouble::geometryType() const
 {
   return m_geometryType;
 }
 
-int HCGeometryOutputDouble::geometryCount() const
+int GeometryOutputDouble::geometryCount() const
 {
   return m_geometries.length();
 }
 
-IGeometry *HCGeometryOutputDouble::geometry(int geometryIndex) const
+IGeometry *GeometryOutputDouble::geometry(int geometryIndex) const
 {
-  return m_geometries[geometryIndex];
+  return m_geometries[geometryIndex].data();
 }
 
-IDimension *HCGeometryOutputDouble::geometryDimension() const
+IDimension *GeometryOutputDouble::geometryDimension() const
 {
   return dimensionsInternal()[0];
 }
 
-void HCGeometryOutputDouble::addGeometry(HCGeometry *geometry)
+IEnvelope *GeometryOutputDouble::envelope() const
+{
+  return m_envelope;
+}
+
+void GeometryOutputDouble::addGeometry(const QSharedPointer<HCGeometry> &geometry)
 {
   assert(geometry->geometryType() == geometryType());
   m_geometries.append(geometry);
-  resetDataArray(m_geometries.length());
+  resizeDataArray(m_geometries.length());
+  emit propertyChanged("Geometries");
 }
 
-void HCGeometryOutputDouble::addGeometries(QList<HCGeometry*> geometries)
+void GeometryOutputDouble::addGeometries(const QList<QSharedPointer<HCGeometry>> &geometries)
 {
-  for(HCGeometry *geometry :geometries)
+  for(QSharedPointer<HCGeometry> geometry :geometries)
   {
     assert(geometry->geometryType() == geometryType());
     m_geometries.append(geometry);
   }
 
-  resetDataArray(m_geometries.length());
+  resizeDataArray(m_geometries.length());
+  emit propertyChanged("Geometries");
 }
 
-bool HCGeometryOutputDouble::removeGeometry(HCGeometry *geometry)
+bool GeometryOutputDouble::removeGeometry(const QSharedPointer<HCGeometry> &geometry)
 {
-  bool removed = m_geometries.removeOne(geometry);
+  int index = m_geometries.indexOf(geometry);
 
-  if(removed)
+  if(index >= 0)
   {
-    resetDataArray(m_geometries.length());
+    m_geometries.removeAt(index);
+    removeItemAt(index);
+    emit propertyChanged("Geometries");
+    return true;
   }
+
+  return false;
 }
 
-int HCGeometryOutputDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
+int GeometryOutputDouble::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  assert(dimensionIndexesLength == 0);
+  assert((int)dimensionIndexes.size() == 0);
+
   return length();
 }
 
-void HCGeometryOutputDouble::getValue(int dimensionIndexes[], QVariant & data) const
+void GeometryOutputDouble::getValue(const std::vector<int> &dimensionIndexes,  void *data) const
 {
   ComponentDataItem1D<double>::getValueT(dimensionIndexes,data);
 }
 
-void HCGeometryOutputDouble::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+void GeometryOutputDouble::getValue(int geometryDimensionIndex, void *data) const
 {
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::getValuesT(geometryDimensionIndex,1,data);
 }
 
-void HCGeometryOutputDouble::getValues(int dimensionIndexes[], int stride[], void *data) const
+void GeometryOutputDouble::getValues(int geometryDimensionIndex, int stride,  void *data) const
 {
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::getValuesT(geometryDimensionIndex,stride,data);
 }
 
-void HCGeometryOutputDouble::setValue(int dimensionIndexes[], const QVariant &data)
+void GeometryOutputDouble::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
 }
 
-void HCGeometryOutputDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
+void GeometryOutputDouble::setValue(int geometryDimensionIndex, const void *data)
 {
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::setValuesT(geometryDimensionIndex,1,data);
 }
 
-void HCGeometryOutputDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
+void GeometryOutputDouble::setValues(int geometryDimensionIndex , int stride, const void* data)
 {
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::setValuesT(geometryDimensionIndex,stride,data);
 }
 
-void HCGeometryOutputDouble::getValue(int geometryDimensionIndex, QVariant & data) const
-{
-  ComponentDataItem1D<double>::getValueT(&geometryDimensionIndex,data);
-}
-
-void HCGeometryOutputDouble::getValues(int geometryDimensionIndex, int stride, QVariant* data) const
-{
-  ComponentDataItem1D<double>::getValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryOutputDouble::getValues(int geometryDimensionIndex, int stride, void *data) const
-{
-  ComponentDataItem1D<double>::getValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryOutputDouble::setValue(int geometryDimensionIndex, const QVariant &data)
-{
-  ComponentDataItem1D<double>::setValueT(&geometryDimensionIndex,data);
-}
-
-void HCGeometryOutputDouble::setValues(int geometryDimensionIndex, int stride, const QVariant data[])
-{
-  ComponentDataItem1D<double>::setValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryOutputDouble::setValues(int geometryDimensionIndex, int stride, const void *data)
-{
-  ComponentDataItem1D<double>::setValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-QList<HCGeometry*> HCGeometryOutputDouble::geometries() const
+QList<QSharedPointer<HCGeometry>> GeometryOutputDouble::geometries() const
 {
   return m_geometries;
+}
+
+void GeometryOutputDouble::updateValues()
+{
+
 }

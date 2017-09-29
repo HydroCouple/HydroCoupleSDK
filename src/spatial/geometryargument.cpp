@@ -5,154 +5,102 @@
 #include "spatial/geometrycollection.h"
 #include "spatial/geometryfactory.h"
 #include "core/abstractmodelcomponent.h"
+#include "spatial/envelope.h"
 
 #include <QFileInfo>
 #include <QDir>
 #include <assert.h>
 #include <QXmlStreamReader>
+#include <QVariant>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
 
-HCGeometryArgumentDouble::HCGeometryArgumentDouble(const QString &id,
-                                                   GeometryType geometryType,
-                                                   Dimension *geometryDimension,
-                                                   ValueDefinition *valueDefinition,
-                                                   AbstractModelComponent *modelComponent)
+GeometryArgumentDouble::GeometryArgumentDouble(const QString &id,
+                                               IGeometry::GeometryType geometryType,
+                                               Dimension *geometryDimension,
+                                               ValueDefinition *valueDefinition,
+                                               AbstractModelComponent *modelComponent)
   : AbstractArgument(id , QList<Dimension*>({geometryDimension}) , valueDefinition,modelComponent),
-    ComponentDataItem1D<double>(0, valueDefinition->defaultValue().toDouble()),
-    m_geometryType(geometryType),
+    GeometryComponentDataItem<double>(id, geometryType, valueDefinition->defaultValue().toDouble()),
     m_gdalDriverName("ESRI Shapefile"),
-    m_geometryDimension(geometryDimension),
-    m_geometryFileDataField("DataField"),
-    m_overWriteFile(false)
+    m_geometryFileDataField(""),
+    m_readFromFile(false),
+    m_geometryDimension(geometryDimension)
 {
+  setIsReadOnly(true);
   setCanReadFromFile(true);
   setCanReadFromString(true);
-  addInputFileTypeFilter("");
+  addFileFilter("");
 }
 
-HCGeometryArgumentDouble::~HCGeometryArgumentDouble()
+GeometryArgumentDouble::~GeometryArgumentDouble()
 {
 }
 
-GeometryType HCGeometryArgumentDouble::geometryType() const
+IGeometry::GeometryType GeometryArgumentDouble::geometryType() const
 {
-  return m_geometryType;
+  return getGeometryType();
 }
 
-int HCGeometryArgumentDouble::geometryCount() const
+int GeometryArgumentDouble::geometryCount() const
 {
   return m_geometries.length();
 }
 
-IGeometry *HCGeometryArgumentDouble::geometry(int geometryIndex) const
+IGeometry *GeometryArgumentDouble::geometry(int geometryIndex) const
 {
-  return m_geometries[geometryIndex];
+  return m_geometries[geometryIndex].data();
 }
 
-IDimension *HCGeometryArgumentDouble::geometryDimension() const
+IDimension *GeometryArgumentDouble::geometryDimension() const
 {
   return dimensionsInternal()[0];
 }
 
-void HCGeometryArgumentDouble::addGeometry(HCGeometry *geometry )
+IEnvelope *GeometryArgumentDouble::envelope() const
 {
-  assert(geometry->geometryType() == m_geometryType);
-  m_geometries.append(geometry);
-  resetDataArray(m_geometries.length());
+  return envelopeInternal();
 }
 
-void HCGeometryArgumentDouble::addGeometries(QList<HCGeometry*> geometries)
+int GeometryArgumentDouble::dimensionLength(const std::vector<int> &dimensionIndexes) const
 {
-  for(HCGeometry *geometry :geometries)
-  {
-    assert(geometry->geometryType() == geometryType());
-    m_geometries.append(geometry);
-  }
+  assert((int)dimensionIndexes.size() == 0);
 
-  resetDataArray(m_geometries.length());
-}
-
-bool HCGeometryArgumentDouble::removeGeometry(HCGeometry *geometry)
-{
-  bool removed = m_geometries.removeOne(geometry);
-
-  if(removed)
-  {
-    resetDataArray(m_geometries.length());
-  }
-
-  return removed;
-}
-
-int HCGeometryArgumentDouble::dimensionLength(int dimensionIndexes[], int dimensionIndexesLength) const
-{
-  assert(dimensionIndexesLength == 0);
   return length();
 }
 
-void HCGeometryArgumentDouble::getValue(int dimensionIndexes[], QVariant & data) const
+void GeometryArgumentDouble::getValue(const std::vector<int> &dimensionIndexes,  void *data) const
 {
   ComponentDataItem1D<double>::getValueT(dimensionIndexes,data);
 }
 
-void HCGeometryArgumentDouble::getValues(int dimensionIndexes[], int stride[], QVariant* data) const
+void GeometryArgumentDouble::getValue(int geometryDimensionIndex, void *data) const
 {
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::getValuesT(geometryDimensionIndex,1,data);
 }
 
-void HCGeometryArgumentDouble::getValues(int dimensionIndexes[], int stride[], void *data) const
+void GeometryArgumentDouble::getValues(int geometryDimensionIndex, int stride,  void *data) const
 {
-  ComponentDataItem1D<double>::getValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::getValuesT(geometryDimensionIndex,stride,data);
 }
 
-void HCGeometryArgumentDouble::setValue(int dimensionIndexes[], const QVariant &data)
+void GeometryArgumentDouble::setValue(const std::vector<int> &dimensionIndexes, const void *data)
 {
   ComponentDataItem1D<double>::setValueT(dimensionIndexes,data);
 }
 
-void HCGeometryArgumentDouble::setValues(int dimensionIndexes[], int stride[], const QVariant data[])
+void GeometryArgumentDouble::setValue(int geometryDimensionIndex, const void *data)
 {
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::setValuesT(geometryDimensionIndex,1,data);
 }
 
-void HCGeometryArgumentDouble::setValues(int dimensionIndexes[], int stride[], const void *data)
+void GeometryArgumentDouble::setValues(int geometryDimensionIndex , int stride, const void* data)
 {
-  ComponentDataItem1D<double>::setValuesT(dimensionIndexes,stride,data);
+  ComponentDataItem1D<double>::setValuesT(geometryDimensionIndex,stride,data);
 }
 
-void HCGeometryArgumentDouble::getValue(int geometryDimensionIndex, QVariant & data) const
-{
-  ComponentDataItem1D<double>::getValueT(&geometryDimensionIndex,data);
-}
-
-void HCGeometryArgumentDouble::getValues(int geometryDimensionIndex, int stride, QVariant* data) const
-{
-  ComponentDataItem1D<double>::getValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryArgumentDouble::getValues(int geometryDimensionIndex, int stride, void *data) const
-{
-  ComponentDataItem1D<double>::getValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryArgumentDouble::setValue(int geometryDimensionIndex, const QVariant &data)
-{
-  ComponentDataItem1D<double>::setValueT(&geometryDimensionIndex,data);
-}
-
-void HCGeometryArgumentDouble::setValues(int geometryDimensionIndex, int stride, const QVariant data[])
-{
-  ComponentDataItem1D<double>::setValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryArgumentDouble::setValues(int geometryDimensionIndex, int stride, const void *data)
-{
-  ComponentDataItem1D<double>::setValuesT(&geometryDimensionIndex,&stride,data);
-}
-
-void HCGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
+void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 {
   if(!xmlReader.name().compare("GeometryArgument", Qt::CaseInsensitive)
      && !xmlReader.hasError()
@@ -216,8 +164,8 @@ void HCGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 
         if(!fromFile.compare("True",Qt::CaseInsensitive))
         {
-          m_writeToFile = true;
-          m_geometryFile = modelComponentInternal()->getRelativeFilePath(xmlReader.readElementText().trimmed());
+          m_readFromFile = true;
+          m_geometryFile = modelComponentInternal()->getAbsoluteFilePath(xmlReader.readElementText().trimmed());
 
           if(attributes.hasAttribute("GeometryFileDataField"))
           {
@@ -226,45 +174,50 @@ void HCGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 
           if(attributes.hasAttribute("OverwriteInputGeometryFile"))
           {
-            m_geometryFileDataField = !attributes.value("OverwriteInputGeometryFile").toString().compare("True" , Qt::CaseInsensitive) ? true : false;
+            m_saveFile = !attributes.value("OverwriteInputGeometryFile").toString().compare("True" , Qt::CaseInsensitive) ? true : false;
           }
 
-          if(!m_geometryFile.exists())
+          if(m_geometryFile.isFile() && m_geometryFile.exists())
           {
-            throw std::invalid_argument("Geometry file {" + m_geometryFile.filePath().toStdString() + "} could not be found");
-          }
-
-          QString message;
-
-          if(!GeometryFactory::readGeometryDataItemFromFile(m_geometryFile.absoluteFilePath(), m_geometryFileDataField, this, message))
-          {
-            throw std::invalid_argument("Geometry file {" + m_geometryFile.absoluteFilePath().toStdString() + "} could not be read; Message: " + message.toStdString());
+            QString message;
+            if(!GeometryFactory::readGeometryFromFile(m_geometryFile.absoluteFilePath(), m_geometryFileDataField, this, *envelopeInternal() , message))
+            {
+              //throw std::invalid_argument("Geometry file {" + m_geometryFile.absoluteFilePath().toStdString() + "} could not be read; Message: " + message.toStdString());
+            }
           }
         }
         else
         {
-          m_writeToFile = false;
+          m_readFromFile = false;
 
           while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
           {
             if(!xmlReader.name().compare("Geometry", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
             {
-              HCGeometry* geometry = GeometryFactory::importFromWkt(xmlReader.readElementText().trimmed());
+              QString wktText = xmlReader.readElementText().trimmed();
 
-              assert(m_geometryType == geometry->geometryType());
-              m_geometries.append(geometry);
-
-              while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometry", Qt::CaseInsensitive)) && !xmlReader.hasError())
+              if(!wktText.isNull() && !wktText.isEmpty())
               {
-                xmlReader.readNext();
+                
+                HCGeometry* geometry = GeometryFactory::importFromWkt(wktText);
+
+                assert(getGeometryType() == geometry->geometryType());
+                m_geometries.append( QSharedPointer<HCGeometry>(geometry));
+
+                while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometry", Qt::CaseInsensitive)) && !xmlReader.hasError())
+                {
+                  xmlReader.readNext();
+                }
               }
             }
 
             xmlReader.readNext();
           }
 
-          resetDataArray(m_geometries.length());
+          resizeDataArray(m_geometries.length());
         }
+
+        emit propertyChanged("Geometries");
 
         while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
@@ -288,9 +241,7 @@ void HCGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 
         if((int)values.size() == length())
         {
-          int ind[1] ={0};
-          int str[1] = {length()};
-          setValues(ind,str,values.data());
+          ComponentDataItem1D<double>::setValuesT(0,length(),values.data());
         }
       }
       xmlReader.readNext();
@@ -298,7 +249,7 @@ void HCGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
   }
 }
 
-void HCGeometryArgumentDouble::writeData(QXmlStreamWriter &xmlWriter)
+void GeometryArgumentDouble::writeData(QXmlStreamWriter &xmlWriter) const
 {
   xmlWriter.writeStartElement("GeometryArgument");
   {
@@ -326,14 +277,15 @@ void HCGeometryArgumentDouble::writeData(QXmlStreamWriter &xmlWriter)
 
     xmlWriter.writeStartElement("Geometries");
     {
-      xmlWriter.writeAttribute("GeometryType" , HCGeometry::geometryTypeToString(m_geometryType));
+      xmlWriter.writeAttribute("GeometryType" , HCGeometry::geometryTypeToString(getGeometryType()));
 
-      if(m_writeToFile)
+      if(m_readFromFile)
       {
         xmlWriter.writeAttribute("IsFromFile", "True");
         xmlWriter.writeAttribute("GeometryFileDataField", m_geometryFileDataField);
-        xmlWriter.writeAttribute("OverwriteInputGeometryFile", m_overWriteFile ? "True" :  "False");
-        xmlWriter.writeCharacters(QFileInfo(modelComponent()->componentInfo()->libraryFilePath()).absoluteDir().relativeFilePath(m_geometryFile.absoluteFilePath()));
+        xmlWriter.writeAttribute("GDALDriver", m_gdalDriverName);
+        xmlWriter.writeAttribute("OverwriteInputGeometryFile", m_saveFile ? "True" :  "False");
+        xmlWriter.writeCharacters(modelComponentInternal()->getRelativeFilePath(m_geometryFile.absoluteFilePath()).filePath());
       }
       else
       {
@@ -347,15 +299,12 @@ void HCGeometryArgumentDouble::writeData(QXmlStreamWriter &xmlWriter)
     }
     xmlWriter.writeEndElement();
 
-    if(!m_writeToFile)
+    if(m_geometryFileDataField.isEmpty() || m_geometryFileDataField.isNull())
     {
       xmlWriter.writeStartElement("Values");
       {
-        int ind[1] = {0};
-        int str[1] = {length()};
         double* values = new double[length()];
-        getValues(ind,str,values);
-
+        getValues(0,length(),values);
 
         for(int i = 0 ; i < length() ; i++)
         {
@@ -374,39 +323,35 @@ void HCGeometryArgumentDouble::writeData(QXmlStreamWriter &xmlWriter)
   xmlWriter.writeEndElement();
 }
 
-bool HCGeometryArgumentDouble::writeToFile() const
+void GeometryArgumentDouble::saveData()
 {
-  if((currentArgumentIOType() == HydroCouple::File ||
-     m_writeToFile) && m_overWriteFile)
+  if(!isReadOnly())
   {
-
     QString errMsg;
 
     if(m_geometryFile.absoluteDir().exists())
     {
-      if(!GeometryFactory::writeGeometryDataItemToFile(this,m_geometryFileDataField, m_gdalDriverName,m_geometryFile.absoluteFilePath(),errMsg))
+      if(!GeometryFactory::writeGeometryToFile(this,m_geometryFileDataField, m_gdalDriverName,m_geometryFile.absoluteFilePath(),errMsg))
       {
         throw std::invalid_argument("Geometry file {" + m_geometryFile.filePath().toStdString() + "} could not be written; Message: " + errMsg.toStdString());
       }
       else
       {
-        return true;
+        return;
       }
     }
     else
     {
-       throw std::invalid_argument("Geometry file {" + m_geometryFile.filePath().toStdString() + "} could not be written because directory does not exist" );
+      throw std::invalid_argument("Geometry file {" + m_geometryFile.filePath().toStdString() + "} could not be written because directory does not exist" );
     }
   }
-
-  return false;
 }
 
-QString HCGeometryArgumentDouble::toString() const
+QString GeometryArgumentDouble::toString() const
 {
-  if(currentArgumentIOType() == HydroCouple::File)
+  if(currentArgumentIOType() == IArgument::File)
   {
-    return  QFileInfo(modelComponent()->componentInfo()->libraryFilePath()).absoluteDir().relativeFilePath(m_geometryFile.absoluteFilePath());
+    return  modelComponentInternal()->getRelativeFilePath(m_geometryFile.absoluteFilePath()).filePath();
   }
   else
   {
@@ -416,77 +361,8 @@ QString HCGeometryArgumentDouble::toString() const
 
     xmlWriter.writeStartDocument();
     {
-      xmlWriter.writeStartElement("GeometryArgument");
-      {
-        xmlWriter.writeAttribute("Id" , id());
-        xmlWriter.writeAttribute("Caption" , caption());
-        xmlWriter.writeAttribute("IsOptional" , isOptional() ? "True" : "False");
+      writeData(xmlWriter);
 
-        for(const QString& comment : comments())
-        {
-          xmlWriter.writeComment(comment);
-        }
-
-        //write value definition;
-        valueDefinitionInternal()->writeData(xmlWriter);
-
-        xmlWriter.writeStartElement("Dimensions");
-        {
-          xmlWriter.writeStartElement("Dimension");
-          {
-            xmlWriter.writeAttribute("Id" , m_geometryDimension->id());
-            xmlWriter.writeAttribute("Caption" , m_geometryDimension->caption());
-          }
-          xmlWriter.writeEndElement();
-        }
-        xmlWriter.writeEndElement();
-
-        xmlWriter.writeStartElement("Geometries");
-        {
-          xmlWriter.writeAttribute("GeometryType" , HCGeometry::geometryTypeToString(m_geometryType));
-
-          if(m_writeToFile)
-          {
-            xmlWriter.writeAttribute("IsFromFile", "True");
-            xmlWriter.writeAttribute("GeometryFileDataField", m_geometryFileDataField);
-            xmlWriter.writeCharacters(QFileInfo(modelComponent()->componentInfo()->libraryFilePath()).absoluteDir().relativeFilePath(m_geometryFile.absoluteFilePath()));
-          }
-          else
-          {
-            xmlWriter.writeAttribute("IsFromFile", "False");
-
-            for(int i =0 ; i < m_geometries.length() ; i++)
-            {
-              xmlWriter.writeTextElement("Geometry", m_geometries[i]->getWKT());
-            }
-          }
-        }
-        xmlWriter.writeEndElement();
-
-        if(!m_writeToFile)
-        {
-          xmlWriter.writeStartElement("Values");
-          {
-            int ind[1] = {0};
-            int str[1] = {length()};
-            double *values = new double[length()];
-            getValues(ind,str,values);
-
-            for(int i = 0 ; i < length() ; i++)
-            {
-              xmlWriter.writeStartElement("Value");
-              {
-                xmlWriter.writeCharacters(QString::fromStdString(std::to_string(values[i])));
-              }
-              xmlWriter.writeEndElement();
-            }
-
-            delete [] values;
-          }
-          xmlWriter.writeEndElement();
-        }
-      }
-      xmlWriter.writeEndElement();
     }
     xmlWriter.writeEndDocument();
 
@@ -494,25 +370,30 @@ QString HCGeometryArgumentDouble::toString() const
   }
 }
 
-bool HCGeometryArgumentDouble::readValues(const QString &value, bool isFile)
+bool GeometryArgumentDouble::readValues(const QString &value, QString &message, bool isFile)
 {
+  message = "";
+
   if(isFile)
   {
-    m_geometryFile = modelComponentInternal()->getRelativeFilePath(value);
+    m_geometryFile = modelComponentInternal()->getAbsoluteFilePath(value);
 
-    if(m_geometryFile.exists())
+    if(m_geometryFile.exists() && m_geometryFile.isFile())
     {
       QString errMsg;
 
       m_geometries.clear();
       m_geometryFileDataField = "";
 
-      if(!GeometryFactory::readGeometryDataItemFromFile(m_geometryFile.absoluteFilePath(), m_geometryFileDataField , this,errMsg))
+      if(!GeometryFactory::readGeometryFromFile(m_geometryFile.absoluteFilePath(), m_geometryFileDataField, this, *envelopeInternal(), errMsg))
       {
-         throw std::invalid_argument("Geometry file {" + m_geometryFile.absoluteFilePath().toStdString() + "} could not be read: Message: " + errMsg.toStdString());
+        emit propertyChanged("Geometries");
+        return false;
       }
       else
       {
+        setArgumentIOType(IArgument::File);
+        emit propertyChanged("Geometries");
         return true;
       }
     }
@@ -534,7 +415,7 @@ bool HCGeometryArgumentDouble::readValues(const QString &value, bool isFile)
 
     if(!xmlReader.hasError())
     {
-      setArgumentIOType(HydroCouple::String);
+      setArgumentIOType(IArgument::String);
       return true;
     }
   }
@@ -542,13 +423,14 @@ bool HCGeometryArgumentDouble::readValues(const QString &value, bool isFile)
   return false;
 }
 
-bool HCGeometryArgumentDouble::readValues(const IComponentDataItem *componentDataItem)
+bool GeometryArgumentDouble::readValues(const IComponentDataItem *componentDataItem, QString &message)
 {
+  message = "";
 
   return false;
 }
 
-QList<HCGeometry*> HCGeometryArgumentDouble::geometries() const
+QList<QSharedPointer<HCGeometry>> GeometryArgumentDouble::geometries() const
 {
   return m_geometries;
 }

@@ -17,7 +17,7 @@ AbstractArgument::AbstractArgument(const QString& id,
     m_canReadFromString(true),
     m_argumentIOType(ArgumentIOType::String)
 {
-
+  m_fileFilters.append("All files (*.*)");
 }
 
 AbstractArgument::AbstractArgument(const QString& id,
@@ -50,9 +50,9 @@ bool AbstractArgument::isReadOnly() const
   return m_isReadOnly;
 }
 
-QStringList AbstractArgument::inputFileTypeFilters() const
+QStringList AbstractArgument::fileFilters() const
 {
-  return m_inputFileTypeFilters;
+  return m_fileFilters;
 }
 
 bool AbstractArgument::canReadFromFile() const
@@ -65,17 +65,22 @@ bool AbstractArgument::canReadFromString() const
   return m_canReadFromString;
 }
 
-HydroCouple::ArgumentIOType AbstractArgument::currentArgumentIOType() const
+IArgument::ArgumentIOType AbstractArgument::currentArgumentIOType() const
 {
   return m_argumentIOType;
 }
 
-void AbstractArgument::addInputFileTypeFilter(const QString &extension)
+AbstractArgument *AbstractArgument::clone()  const
 {
-  if(!m_inputFileTypeFilters.contains(extension))
+  return nullptr;
+}
+
+void AbstractArgument::addFileFilter(const QString &extension)
+{
+  if(!m_fileFilters.contains(extension))
   {
-    m_inputFileTypeFilters.append(extension);
-    emit propertyChanged("InputFileTypeFilters");
+    m_fileFilters.append(extension);
+    emit propertyChanged("FileFilters");
   }
 }
 

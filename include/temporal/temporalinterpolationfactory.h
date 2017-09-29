@@ -6,7 +6,7 @@
 
 
 
-class TemporalInterpolationFactory : public AbstractAdaptedOutputFactory
+class HYDROCOUPLESDK_EXPORT TemporalInterpolationFactory : public AbstractAdaptedOutputFactory
 {
     Q_OBJECT
 
@@ -26,7 +26,7 @@ class TemporalInterpolationFactory : public AbstractAdaptedOutputFactory
 
 //******************************************************************************************************************************************************
 
-class TemporalInterpolationFactoryComponent : public AbstractAdaptedOutputFactoryComponent,
+class HYDROCOUPLESDK_EXPORT TemporalInterpolationFactoryComponent : public AbstractAdaptedOutputFactoryComponent,
     public virtual HydroCouple::IAdaptedOutputFactoryComponent
 {
 
@@ -48,7 +48,7 @@ class TemporalInterpolationFactoryComponent : public AbstractAdaptedOutputFactor
 
 //******************************************************************************************************************************************************
 
-class TemporalInterpolationFactoryComponentInfo : public AbstractAdaptedOutputFactoryComponentInfo
+class HYDROCOUPLESDK_EXPORT TemporalInterpolationFactoryComponentInfo : public AbstractAdaptedOutputFactoryComponentInfo
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "TemporalInterpolationComponentInfo")

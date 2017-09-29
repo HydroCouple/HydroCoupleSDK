@@ -1,44 +1,80 @@
 #include "stdafx.h"
+#include "spatial/envelope.h"
 #include "spatial/geometry.h"
 #include "spatial/spatialreferencesystem.h"
 #include "spatial/geometryfactory.h"
 
 #include "hydrocoupleexceptions.h"
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 
 #include <QFlags>
 
 using namespace HydroCouple;
 using namespace HydroCouple::Spatial;
 
-HCGeometry::HCGeometry(QObject *parent)
-  :Identity(QUuid::createUuid().toString(),parent),
-    m_index(-1),
-    m_isEmpty(true),
-    dataLength(0),
-    data(nullptr),
-    m_geomFlags(GeometryFlag::None)
+HCGeometry::HCGeometry(const QString &id, HCGeometry *parent):
+  m_envelope(nullptr),
+  m_id(id),
+  m_marker(-1),
+  m_index(-1),
+  m_isEmpty(true),
+  m_srs(nullptr),
+  m_geomFlags(GeometryFlag::None),
+  m_parent(parent)
 {
-  m_srs = new SpatialReferenceSystem("Default SRS" , "EPSG" , 4326 , this);
-}
+  if(m_parent != nullptr)
+  {
+    m_parent->m_children.insert(this);
+  }
+  else
+  {
+    m_srs = new SpatialReferenceSystem();
+  }
 
-HCGeometry::HCGeometry(const QString &id, QObject *parent)
-  :Identity(id,parent),
-    m_index(-1),
-    m_isEmpty(true),
-    dataLength(0),
-    data(nullptr),
-    m_geomFlags(GeometryFlag::None)
-{
-  m_srs = new SpatialReferenceSystem("Default SRS" , "EPSG" , 4326 , this);
+  m_envelope = new Envelope();
 }
 
 HCGeometry::~HCGeometry()
 {
-  if(data)
+
+  if(m_envelope)
   {
-    delete[] data;
+    delete m_envelope;
+    m_envelope = nullptr;
   }
+
+  if(m_srs)
+  {
+    delete m_srs;
+    m_srs = nullptr;
+  }
+
+  if(m_parent && m_parent->m_children.size())
+  {
+    std::set<HCGeometry*>::iterator it =  m_parent->m_children.find(this);
+
+    if(it != m_parent->m_children.end())
+    {
+      m_parent->m_children.erase(it);
+    }
+  }
+
+  while(m_children.size())
+  {
+    HCGeometry *geometry = *m_children.begin();
+    m_children.erase(m_children.begin());
+    delete geometry;
+  }
+}
+
+QString HCGeometry::id() const
+{
+  return m_id;
+}
+
+void HCGeometry::setId(const QString &id)
+{
+  m_id = id;
 }
 
 unsigned int HCGeometry::index() const
@@ -61,7 +97,7 @@ int HCGeometry::coordinateDimension() const
     return 2;
 }
 
-HydroCouple::Spatial::GeometryType HCGeometry::geometryType() const
+HydroCouple::Spatial::IGeometry::GeometryType HCGeometry::geometryType() const
 {
   if(m_geomFlags.testFlag(GeometryFlag::HasZ) &&
      m_geomFlags.testFlag(GeometryFlag::HasM))
@@ -84,12 +120,12 @@ HydroCouple::Spatial::GeometryType HCGeometry::geometryType() const
 
 ISpatialReferenceSystem* HCGeometry::spatialReferenceSystem() const
 {
-  return m_srs;
+  return spatialReferenceSystemInternal();
 }
 
 SpatialReferenceSystem *HCGeometry::spatialReferenceSystemInternal() const
 {
-  return m_srs;
+  return m_parent != nullptr ? m_parent->m_srs : m_srs;
 }
 
 QString HCGeometry::getWKT() const
@@ -140,6 +176,11 @@ bool HCGeometry::is3D() const
 bool HCGeometry::isMeasured() const
 {
   return m_geomFlags.testFlag(GeometryFlag::HasM);
+}
+
+IEnvelope *HCGeometry::envelope() const
+{
+  return envelopeInternal();
 }
 
 IGeometry* HCGeometry::boundary() const
@@ -318,7 +359,7 @@ IGeometry* HCGeometry::intersection(const IGeometry *geom) const
   delete gthis;
   delete inpGeom;
 
-  IGeometry* outIntersection =GeometryFactory::importFromOGRGeometry(ogrIntersection);
+  IGeometry* outIntersection = GeometryFactory::importFromOGRGeometry(ogrIntersection);
 
   delete ogrIntersection;
 
@@ -383,30 +424,35 @@ void HCGeometry::setGeometryFlag(GeometryFlag flag, bool on)
   m_geomFlags = on ? m_geomFlags |= flag : m_geomFlags &= ~flag;
 }
 
-void HCGeometry::initializeData(int length, double defaultValue)
-{
-  dataLength = length;
-
-  if(data)
-  {
-    delete[] data;
-    data = nullptr;
-  }
-
-  if(length > 0)
-  {
-    data = new double[length];
-
-    for(int i = 0; i< length; i++)
-    {
-      data[i] = defaultValue;
-    }
-  }
-}
-
 void HCGeometry::setIsEmpty(bool isEmpty)
 {
   m_isEmpty = isEmpty;
+}
+
+int HCGeometry::marker() const
+{
+  return m_marker;
+}
+
+void HCGeometry::setMarker(int index)
+{
+  m_marker = index;
+}
+
+std::set<HCGeometry*> HCGeometry::children() const
+{
+  return m_children;
+}
+
+void HCGeometry::setParent(HCGeometry *parent)
+{
+  if(m_parent)
+  {
+    m_parent->m_children.erase(this);
+  }
+
+  m_parent = parent;
+  m_parent->m_children.insert(this);
 }
 
 QString HCGeometry::geometryTypeToString(GeometryType type)
@@ -414,7 +460,7 @@ QString HCGeometry::geometryTypeToString(GeometryType type)
   switch (type)
   {
     case GeometryType::Geometry:
-      return "Geometry";
+      return "HCGeometry";
       break;
     case GeometryType::Point:
       return "Point";
@@ -426,6 +472,10 @@ QString HCGeometry::geometryTypeToString(GeometryType type)
       break;
     case GeometryType::Polygon:
       return "Polygon";
+
+      break;
+    case GeometryType::Triangle:
+      return "Triangle";
 
       break;
     case GeometryType::MultiPoint:
@@ -496,6 +546,10 @@ QString HCGeometry::geometryTypeToString(GeometryType type)
       return "PolygonZ";
 
       break;
+    case GeometryType::TriangleZ:
+      return "TriangleZ";
+
+      break;
     case GeometryType::MultiPointZ:
       return "MultiPointZ";
 
@@ -562,6 +616,10 @@ QString HCGeometry::geometryTypeToString(GeometryType type)
       break;
     case GeometryType::PolygonM:
       return "PolygonM";
+
+      break;
+    case GeometryType::TriangleM:
+      return "TriangleM";
 
       break;
     case GeometryType::MultiPointM :
@@ -632,6 +690,10 @@ QString HCGeometry::geometryTypeToString(GeometryType type)
       return "PolygonZM";
 
       break;
+    case GeometryType::TriangleZM:
+      return "TriangleZM";
+
+      break;
     case GeometryType::MultiPointZM :
       return "MultiPointZM";
 
@@ -687,7 +749,6 @@ QString HCGeometry::geometryTypeToString(GeometryType type)
   }
 }
 
-
 OGRwkbGeometryType HCGeometry::toOGRDataType(GeometryType type)
 {
   switch (type)
@@ -706,13 +767,15 @@ OGRwkbGeometryType HCGeometry::toOGRDataType(GeometryType type)
       return wkbPolygon;
 
       break;
+    case GeometryType::Triangle:
+      return wkbTriangle;
+
+      break;
     case GeometryType::MultiPoint:
       return wkbMultiPoint;
-
       break;
     case GeometryType::MultiLineString:
       return wkbMultiLineString;
-
       break;
     case GeometryType::MultiPolygon:
       return wkbMultiPolygon;
@@ -772,6 +835,10 @@ OGRwkbGeometryType HCGeometry::toOGRDataType(GeometryType type)
       break;
     case GeometryType::PolygonZ:
       return wkbPolygon25D;
+
+      break;
+    case GeometryType::TriangleZ:
+      return wkbTriangleZ;
 
       break;
     case GeometryType::MultiPointZ:
@@ -842,6 +909,10 @@ OGRwkbGeometryType HCGeometry::toOGRDataType(GeometryType type)
       return wkbPolygonM;
 
       break;
+    case GeometryType::TriangleM:
+      return wkbTriangleM;
+
+      break;
     case GeometryType::MultiPointM :
       return wkbMultiPointM;
 
@@ -908,6 +979,10 @@ OGRwkbGeometryType HCGeometry::toOGRDataType(GeometryType type)
       break;
     case GeometryType::PolygonZM :
       return wkbPolygonZM;
+
+      break;
+    case GeometryType::TriangleZM:
+      return wkbTriangleZM;
 
       break;
     case GeometryType::MultiPointZM :
