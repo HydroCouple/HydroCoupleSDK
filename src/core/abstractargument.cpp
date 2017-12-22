@@ -110,3 +110,4 @@ void AbstractArgument::setCanReadFromString(bool canReadFromString)
 {
   m_canReadFromString = canReadFromString;
 }
+

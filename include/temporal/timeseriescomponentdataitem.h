@@ -57,8 +57,6 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesComponentDataItem
 
     DataCursor *timeCursor() const;
 
-  protected:
-
     std::vector<SDKTemporal::DateTime*> timesInternal() const;
 
     SDKTemporal::DateTime *timeInternal(int timeIndex) const;

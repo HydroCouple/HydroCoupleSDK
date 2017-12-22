@@ -595,3 +595,8 @@ void Vect::print()
 {
   printf("x:%f\ty:%f\tz:%f\n",v[0],v[1],v[2]);
 }
+
+void Vect::zero()
+{
+   v[0] = v[1] = v[2] = 0.0;
+}

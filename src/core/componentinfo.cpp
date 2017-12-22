@@ -5,7 +5,6 @@
 
 ComponentInfo::ComponentInfo(QObject *parent)
   : Identity("1.0.00000.11","Abstract Component must not be used directly", parent),
-    m_iconFilePath(":/HydroCoupleComposer/hydrocouplecomposer"),
     m_vendor("Insuyo LLC"),
     m_license("License Information"),
     m_copyright("Copyright &copy; 2014 Insuyo LLC"),
@@ -13,6 +12,7 @@ ComponentInfo::ComponentInfo(QObject *parent)
     m_email("support@insuyo.com"),
     m_version("1.0.0.1 ")
 {
+  m_filePath ="";
   setId(QUuid::createUuid().toString());
 }
 
@@ -80,6 +80,12 @@ bool ComponentInfo::hasValidLicense() const
 bool ComponentInfo::validateLicense(const QString& licenseInfo, QString& message)
 {
   m_license = licenseInfo;
+  message = id() + " | " + version() + "'s license has been validated";
+  return true;
+}
+
+bool ComponentInfo::validateLicense(QString& message)
+{
   message = id() + " | " + version() + "'s license has been validated";
   return true;
 }

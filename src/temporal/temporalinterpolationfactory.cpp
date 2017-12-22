@@ -219,6 +219,7 @@ IAdaptedOutput* TemporalInterpolationFactoryComponent::createAdaptedOutput(IIden
 TemporalInterpolationFactoryComponentInfo::TemporalInterpolationFactoryComponentInfo(QObject *parent)
   :AbstractAdaptedOutputFactoryComponentInfo(parent)
 {
+  setId("HydroCoupleSDK Temporal Interpolation AdaptedOutput Factory Component");
   setCaption("Temporal Interpolation Factory");
   setIconFilePath(":/HydroCoupleSDK/timeseriesinterpolator");
 }

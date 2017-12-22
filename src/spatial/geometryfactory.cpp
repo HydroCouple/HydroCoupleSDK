@@ -20,7 +20,7 @@
 #include <iostream>
 #include <QFile>
 
-#include "netcdf"
+#include <netcdf>
 #include "ogrsf_frmts.h"
 
 using namespace HydroCouple;

@@ -32,7 +32,7 @@ namespace  SDKTemporal
 
       QDateTime dateTime() const;
 
-      void setModifiedJulianDay(double modifiedJD) override;
+      void setModifiedJulianDay(double modifiedJD);
 
       void setDateTime(const QDateTime &dateTime);
 

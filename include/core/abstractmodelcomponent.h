@@ -31,15 +31,22 @@
 #include <QXmlStreamReader>
 #include <tuple>
 
-class ModelComponentInfo;
+class AbstractModelComponentInfo;
 class AbstractOutput;
 class AbstractInput;
 class AbstractArgument;
 class ComponentStatusChangeEventArgs;
-class AbstractAdaptedOutputFactory;
 class IdBasedArgumentString;
 class ProgressChecker;
 struct SerializedData;
+
+#ifdef USE_MPI
+#include <mpi.h>
+#else
+typedef int MPI_Comm;
+typedef int MPI_Group;
+#endif
+
 
 /*!
  * \brief  AbstractModelComponent class.
@@ -48,7 +55,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     public virtual HydroCouple::IModelComponent
 {
 
-    friend class ModelComponentInfo;
+    friend class AbstractModelComponentInfo;
 
     Q_OBJECT
 
@@ -57,15 +64,14 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     Q_PROPERTY(QList<HydroCouple::IArgument*> Arguments READ arguments NOTIFY propertyChanged)
     Q_PROPERTY(QList<HydroCouple::IInput*> Inputs READ inputs NOTIFY propertyChanged)
     Q_PROPERTY(QList<HydroCouple::IOutput*> Outputs READ outputs NOTIFY propertyChanged)
-    Q_PROPERTY(QList<HydroCouple::IAdaptedOutputFactory*> AdaptedOutputFactories READ adaptedOutputFactories NOTIFY propertyChanged)
     Q_PROPERTY(QString ReferenceDirectory READ referenceDirectory WRITE setReferenceDirectory NOTIFY propertyChanged)
     Q_PROPERTY(int Index READ index NOTIFY propertyChanged)
 
   public:
 
-    AbstractModelComponent(const QString &id, ModelComponentInfo *modelComponentInfo = nullptr);
+    AbstractModelComponent(const QString &id, AbstractModelComponentInfo *modelComponentInfo = nullptr);
 
-    AbstractModelComponent(const QString &id, const QString &caption, ModelComponentInfo *modelComponentInfo = nullptr);
+    AbstractModelComponent(const QString &id, const QString &caption, AbstractModelComponentInfo *modelComponentInfo = nullptr);
 
     virtual ~AbstractModelComponent();
 
@@ -91,11 +97,11 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
 
     virtual void createOutputs() = 0;
 
-    QList<HydroCouple::IAdaptedOutputFactory*> adaptedOutputFactories() const override final;
-
-    virtual void createAdaptedOutputFactories() = 0;
-
     void initialize() override;
+
+    const HydroCouple::IWorkflowComponent *workflow() const override;
+
+    void setWorkflow(const HydroCouple::IWorkflowComponent *workflow) override;
 
     bool isInitialized() const;
 
@@ -107,6 +113,8 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
 
     virtual void initializeAdaptedOutputs();
 
+    int mpiNumOfProcesses() const override;
+
     int mpiProcessRank() const override;
 
     void mpiSetProcessRank(int processRank) override;
@@ -116,10 +124,6 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     void mpiAllocateProcesses(const QSet<int> &allocatedProcessors) override;
 
     void mpiClearAllocatedProcesses() override;
-
-#ifdef QT_DEBUG
-    void mpiProcessMessage(const SerializableData &data) override;
-#endif
 
     int gpuPlatform(int processor) const override;
 
@@ -140,8 +144,6 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     QFileInfo getRelativeFilePath(const QString &filePath) const;
 
     void readArguments(QXmlStreamReader &xmlReader);
-
-    static void serializedDataToRawBytes(SerializableData &serializedData, char* &rawBytesData, int &length);
 
   signals:
 
@@ -175,16 +177,6 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
 
     QHash<QString,AbstractOutput*> outputsInternal() const;
 
-
-    void addAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory);
-
-    bool removeAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory);
-
-    void clearAdaptedOutputFactories();
-
-    QHash<QString,AbstractAdaptedOutputFactory*> adaptedOutputFactoriesInternal() const;
-
-
     void addArgument(AbstractArgument *argument);
 
     bool removeArgument(AbstractArgument *argument);
@@ -192,7 +184,6 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     void clearArguments();
 
     QHash<QString,AbstractArgument*> argumentsInternal() const;
-
 
     void setStatus(HydroCouple::IModelComponent::ComponentStatus status);
 
@@ -204,29 +195,43 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
 
     static QString statusToString(HydroCouple::IModelComponent::ComponentStatus status);
 
+    MPI_Comm mpiCommunicator() const;
+
   private:
 
     void createIdentifierArguments();
 
     bool initializeIdentifierArguments(QString &message);
 
+    bool initializeMPIResources(QString &message);
+
   private:
 
     HydroCouple::IModelComponent::ComponentStatus m_status;
     QHash<QString, AbstractInput*> m_inputs;
     QHash<QString, AbstractOutput*> m_outputs;
-    QHash<QString, AbstractAdaptedOutputFactory*> m_adaptedOutputFactories;
     QHash<QString, AbstractArgument*> m_arguments;
     QList<AbstractArgument*> m_argumentsInsertionOrdered;
-    ModelComponentInfo *m_modelComponentInfo;
+    AbstractModelComponentInfo *m_modelComponentInfo;
     bool m_initialized, m_prepared;
     IdBasedArgumentString *m_identifiersArgument = nullptr;
     QDir m_referenceDir;
     ProgressChecker *m_progressChecker;
-    int m_mpiProcess, m_index;
-    QHash<int,std::tuple<int,int,int>>  m_gpuAllocation;
-    QSet<int> m_mpiAllocatedProcesses;
+    int m_index;
+    const HydroCouple::IWorkflowComponent *m_workflowComponent;
 
+    //GPU and MPI stuff
+    MPI_Group m_worldGroup;
+    MPI_Group m_ComponentMPIGroup;
+    bool m_mpiResourcesInitialized = false;
+
+  protected:
+
+    int m_mpiProcess = 0;
+    MPI_Comm m_ComponentMPIComm;
+    QSet<int> m_mpiAllocatedProcesses;
+    std::vector<int> m_mpiAllocatedProcessesArray;
+    QHash<int,std::tuple<int,int,int>>  m_gpuAllocation;
 };
 
 Q_DECLARE_METATYPE(AbstractModelComponent*)

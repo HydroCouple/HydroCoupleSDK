@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "core/abstractmodelcomponent.h"
-#include "core/modelcomponentinfo.h"
+#include "core/abstractmodelcomponentinfo.h"
 #include "core/componentstatuschangeeventargs.h"
 #include "core/abstractargument.h"
 #include "core/abstractinput.h"
@@ -18,39 +18,55 @@
 using namespace HydroCouple;
 
 
-AbstractModelComponent::AbstractModelComponent(const QString &id, ModelComponentInfo *modelComponentInfo)
+AbstractModelComponent::AbstractModelComponent(const QString &id, AbstractModelComponentInfo *modelComponentInfo)
   : Identity(id, modelComponentInfo),
     m_status(IModelComponent::Created),
     m_modelComponentInfo(modelComponentInfo),
     m_initialized(false),
     m_prepared(false),
-    m_mpiProcess(0),
-    m_index(0)
+    m_index(0),
+    m_mpiProcess(0)
 {
+  m_workflowComponent = nullptr;
   m_progressChecker = new ProgressChecker(0,100,100,this);
   m_referenceDir = QFileInfo(m_modelComponentInfo->libraryFilePath()).dir();
   emit componentStatusChanged(QSharedPointer<IComponentStatusChangeEventArgs>(new ComponentStatusChangeEventArgs(IModelComponent::Created,
                                                                                                                  IModelComponent::Created,
                                                                                                                  "Created SWMM Model" , 0 , this)));
-  createIdentifierArguments();
 
+#ifdef USE_MPI
+  MPI_Comm_group(MPI_COMM_WORLD, &m_worldGroup);
+  int worldGroupSize = 0;
+  MPI_Group_size(m_worldGroup, &worldGroupSize);
+  printf("World Group Size: %i\n", worldGroupSize);
+#endif
+
+  createIdentifierArguments();
 }
 
-AbstractModelComponent::AbstractModelComponent(const QString &id, const QString &caption, ModelComponentInfo *modelComponentInfo)
+AbstractModelComponent::AbstractModelComponent(const QString &id, const QString &caption, AbstractModelComponentInfo *modelComponentInfo)
   : Identity(id,caption,modelComponentInfo),
     m_status(HydroCouple::IModelComponent::Created),
     m_modelComponentInfo(modelComponentInfo),
     m_initialized(false),
     m_prepared(false),
-    m_mpiProcess(0),
-    m_index(0)
+    m_index(0),
+    m_mpiProcess(0)
 {
+  m_workflowComponent = nullptr;
   m_progressChecker = new ProgressChecker(0,100,100,this);
   m_referenceDir = QFileInfo(m_modelComponentInfo->libraryFilePath()).dir();
   emit componentStatusChanged(QSharedPointer<IComponentStatusChangeEventArgs>(new ComponentStatusChangeEventArgs(IModelComponent::Created,
                                                                                                                  IModelComponent::Created,
                                                                                                                  "Created SWMM Model",
                                                                                                                  0,this)));
+#ifdef USE_MPI
+  MPI_Comm_group(MPI_COMM_WORLD, &m_worldGroup);
+  int worldGroupSize = 0;
+  MPI_Group_size(m_worldGroup, &worldGroupSize);
+  printf("World Group Size: %i\n", worldGroupSize);
+#endif
+
   createIdentifierArguments();
 }
 
@@ -62,11 +78,21 @@ AbstractModelComponent::~AbstractModelComponent()
   qDeleteAll(m_outputs.values());
   m_outputs.clear();
 
-  qDeleteAll(m_adaptedOutputFactories.values());
-  m_adaptedOutputFactories.clear();
-
   qDeleteAll(m_arguments.values());
   m_arguments.clear();
+
+#ifdef USE_MPI
+
+  if(m_mpiResourcesInitialized)
+  {
+    MPI_Group_free(&m_ComponentMPIGroup);
+    MPI_Comm_free(&m_ComponentMPIComm);
+  }
+
+  MPI_Group_free(&m_worldGroup);
+
+#endif
+
 }
 
 int AbstractModelComponent::index() const
@@ -136,19 +162,6 @@ void AbstractModelComponent::createOutputs()
 
 }
 
-QList<IAdaptedOutputFactory*> AbstractModelComponent::adaptedOutputFactories() const
-{
-
-  QList<IAdaptedOutputFactory*> factories;
-
-  for(AbstractAdaptedOutputFactory* factory : m_adaptedOutputFactories)
-  {
-    factories.append(factory);
-  }
-
-  return factories;
-}
-
 void AbstractModelComponent::initialize()
 {
   if(status() == IModelComponent::Created || status() == IModelComponent::Initialized || status() == IModelComponent::Failed)
@@ -161,6 +174,7 @@ void AbstractModelComponent::initialize()
     clearOutputs();
 
     if(initializeIdentifierArguments(message) &&
+       initializeMPIResources(message) &&
        initializeArguments(message))
     {
       createInputs();
@@ -177,6 +191,16 @@ void AbstractModelComponent::initialize()
       m_prepared = false;
     }
   }
+}
+
+const HydroCouple::IWorkflowComponent *AbstractModelComponent::workflow() const
+{
+  return m_workflowComponent;
+}
+
+void AbstractModelComponent::setWorkflow(const HydroCouple::IWorkflowComponent *workflow)
+{
+  m_workflowComponent = workflow;
 }
 
 bool AbstractModelComponent::isInitialized() const
@@ -239,6 +263,11 @@ void AbstractModelComponent::initializeAdaptedOutputs()
   }
 }
 
+int AbstractModelComponent::mpiNumOfProcesses() const
+{
+  return m_mpiAllocatedProcesses.size();
+}
+
 int AbstractModelComponent::mpiProcessRank() const
 {
   return m_mpiProcess;
@@ -263,13 +292,6 @@ void AbstractModelComponent::mpiClearAllocatedProcesses()
 {
   m_mpiAllocatedProcesses.clear();
 }
-
-#ifdef QT_DEBUG
-void AbstractModelComponent::mpiProcessMessage(const SerializableData &data)
-{
-
-}
-#endif
 
 int AbstractModelComponent::gpuPlatform(int processor) const
 {
@@ -431,53 +453,6 @@ void AbstractModelComponent::readArgument(QXmlStreamReader &xmlReader)
   }
 }
 
-void AbstractModelComponent::serializedDataToRawBytes(SerializableData &serializedData, char *&rawBytesData, int &length)
-{
-  QDataStream stream;
-  stream.setByteOrder((QDataStream::ByteOrder)serializedData.byteOrder);
-  stream << (qint32)serializedData.byteOrder;
-  stream << (qint64)serializedData.parentMPIProcessRank;
-  stream << (qint64)serializedData.componentIndex;
-  stream << (qint64)serializedData.numAllocatedMPIProcesses;
-
-  if(serializedData.numAllocatedMPIProcesses > 0)
-  {
-    for(int i = 0; i < serializedData.numAllocatedMPIProcesses ; i++)
-    {
-      stream <<  (qint64)serializedData.allocatedMPIProcesses[i];
-    }
-  }
-
-  stream << (qint64)serializedData.dataSize;
-
-  if(serializedData.dataSize > 0 && serializedData.data != nullptr)
-  {
-    stream.writeRawData(serializedData.data, serializedData.dataSize);
-  }
-  //  else
-  //  {
-  //    serializedData.size = 0;
-  //    stream << serializedData.size;
-  //  }
-
-  char* tempRaw = nullptr;
-  uint tempLength = 0;
-
-  stream.readBytes(tempRaw, tempLength);
-
-  rawBytesData = new char[tempLength - 4];
-
-#ifdef USE_OPENMP
-#pragma omp parallel for
-#endif
-  for(int i = 3; i < tempLength; i++)
-  {
-    rawBytesData[i - 3] = tempRaw[i];
-  }
-
-  delete[] tempRaw;
-}
-
 void AbstractModelComponent::setInitialized(bool initialized)
 {
   m_initialized = initialized;
@@ -549,40 +524,6 @@ void AbstractModelComponent::clearOutputs()
   m_outputs.clear();
 
   emit propertyChanged("Outputs");
-}
-
-QHash<QString,AbstractAdaptedOutputFactory*> AbstractModelComponent::adaptedOutputFactoriesInternal() const
-{
-  return m_adaptedOutputFactories;
-}
-
-void AbstractModelComponent::addAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory)
-{
-  if(m_adaptedOutputFactories.find(adaptedOutputFactory->id()) == m_adaptedOutputFactories.end())
-  {
-    m_adaptedOutputFactories[adaptedOutputFactory->id()] = adaptedOutputFactory;
-    emit propertyChanged("AdaptedOutputFactories");
-  }
-}
-
-bool AbstractModelComponent::removeAdaptedOutputFactory(AbstractAdaptedOutputFactory* adaptedOutputFactory)
-{
-  if(m_adaptedOutputFactories.contains(adaptedOutputFactory->id()) == true)
-  {
-    m_adaptedOutputFactories.remove(adaptedOutputFactory->id());
-    emit propertyChanged("AdaptedOutputFactories");
-    return true;
-  }
-
-  return false;
-}
-
-void AbstractModelComponent::clearAdaptedOutputFactories()
-{
-  qDeleteAll(m_adaptedOutputFactories);
-  m_adaptedOutputFactories.clear();
-
-  emit propertyChanged("AdaptedOutputFactories");
 }
 
 QHash<QString,AbstractOutput*> AbstractModelComponent::outputsInternal() const
@@ -723,6 +664,11 @@ QString AbstractModelComponent::statusToString(IModelComponent::ComponentStatus 
   }
 }
 
+MPI_Comm AbstractModelComponent::mpiCommunicator() const
+{
+  return m_ComponentMPIComm;
+}
+
 void AbstractModelComponent::createIdentifierArguments()
 {
   Dimension *identifierDimension = new Dimension("IdentifierDimension","Dimension for identifiers", this);
@@ -773,4 +719,109 @@ bool AbstractModelComponent::initializeIdentifierArguments(QString &message)
   setDescription((*m_identifiersArgument)["Description"]);
 
   return true;
+}
+
+bool AbstractModelComponent::initializeMPIResources(QString &message)
+{
+
+  message = "";
+
+#ifdef USE_MPI
+
+  if(m_mpiProcess == 0)
+  {
+    if(m_mpiResourcesInitialized)
+    {
+      MPI_Group_free(&m_ComponentMPIGroup);
+      MPI_Comm_free(&m_ComponentMPIComm);
+      m_mpiResourcesInitialized = false;
+    }
+
+    printf("Preparing MPI Communicator on MPI Processor: %i for Component: %s\n", mpiProcessRank(), qPrintable(id()));
+
+    m_mpiAllocatedProcessesArray.clear();
+
+    m_mpiAllocatedProcessesArray.push_back(0);
+
+    for(int proc : m_mpiAllocatedProcesses)
+    {
+      if(proc != 0)
+      {
+        m_mpiAllocatedProcessesArray.push_back(proc);
+      }
+    }
+
+    if(m_mpiAllocatedProcessesArray.size() > 1)
+    {
+      //Send message to children
+      for(int proc : m_mpiAllocatedProcessesArray)
+      {
+        if(proc != 0)
+        {
+          printf("Slave to worker: %i to initialize communicator\n", proc);
+          MPI_Send(&m_mpiAllocatedProcessesArray[0], m_mpiAllocatedProcessesArray.size(), MPI_INT, proc, 1000, MPI_COMM_WORLD);
+        }
+      }
+
+      printf("Initializing comm group\n");
+      MPI_Group_incl(m_worldGroup, m_mpiAllocatedProcessesArray.size(), &m_mpiAllocatedProcessesArray[0], &m_ComponentMPIGroup);
+      MPI_Comm_create_group(MPI_COMM_WORLD, m_ComponentMPIGroup, 0, &m_ComponentMPIComm);
+
+      printf("Initializing comm group\n");
+
+      m_mpiResourcesInitialized = true;
+    }
+    else
+    {
+      m_ComponentMPIComm = MPI_COMM_SELF;
+    }
+
+    return true;
+
+  }
+  else
+  {
+    MPI_Status status;
+    int result = 0;
+
+    printf("worker receiving communicator\n");
+
+    if((result = MPI_Probe(MPI_ANY_SOURCE, 1000, MPI_COMM_WORLD, &status)) == MPI_SUCCESS)
+    {
+      int dataSize = 0;
+      MPI_Get_count(&status, MPI_INT, &dataSize);
+
+      if(dataSize)
+      {
+        if(m_mpiResourcesInitialized)
+        {
+          MPI_Group_free(&m_ComponentMPIGroup);
+          MPI_Comm_free(&m_ComponentMPIComm);
+          m_mpiResourcesInitialized = false;
+        }
+
+        printf("Preparing MPI Communicator on MPI Processor: %i for Component: %s\n", mpiProcessRank(), qPrintable(id()));
+        int *procs = new int[dataSize];
+
+        MPI_Recv(procs,dataSize,MPI_INT,status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD,&status);
+        MPI_Group_incl(m_worldGroup, dataSize, procs, &m_ComponentMPIGroup);
+        MPI_Comm_create_group(MPI_COMM_WORLD, m_ComponentMPIGroup, 0, &m_ComponentMPIComm);
+
+        m_mpiResourcesInitialized = true;
+
+        delete[] procs;
+        printf("Finished Preparing MPI Communicator on MPI Processor: %i for Component: %s\n", mpiProcessRank(), qPrintable(id()));
+      }
+    }
+
+    return true;
+  }
+#else
+  {
+    m_ComponentMPIComm = 0;
+    return true;
+  }
+#endif
+
+  return false;
 }

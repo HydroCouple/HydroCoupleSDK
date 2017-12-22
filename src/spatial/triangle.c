@@ -8186,15 +8186,15 @@ void triInterpCentVertAttribs(vertex newVert, int i, vertex torg, vertex tdest, 
   double y2 = tdest[1];
   double y3 = tapex[1];
 
-  double v1[3] = { tdest[0] - torg[0] , tdest[1] - torg[1] , tdest[i] - torg[i]};
-  double v2[3] = { tapex[0] - torg[0] , tapex[1] - torg[1] , tapex[i] - torg[i]};
+  double v1[3] = { x2 - x1 , y2 - y1 , tdest[i] - torg[i]};
+  double v2[3] = { x3 - x1 , y3 - y1 , tapex[i] - torg[i]};
 
   double norm[3] = {0,0,0};
   crossProduct(v1,v2,norm);
   normalize(norm);
 
-  double d = -norm[0] * torg[0] - norm[1] * torg[1] - norm[2] * torg[i];
-  double z = (norm[0] * newVert[0] + norm[1]*newVert[1] + d) / -norm[2];
+  double d = -norm[0] * x1 - norm[1] * y1 - norm[2] * torg[i];
+  double z = (norm[0] * xx + norm[1]*yy + d) / -norm[2];
 
   double min = torg[i] < tdest[i] ? torg[i] : tdest[i];
   min = min < tapex[i] ? min : tapex[i];

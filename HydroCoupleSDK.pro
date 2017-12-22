@@ -1,4 +1,4 @@
-c#Author Caleb Amoa Buahin
+#Author Caleb Amoa Buahin
 #Email caleb.buahin@gmail.com
 #Date 2016
 #License GNU General Public License (see <http://www.gnu.org/licenses/> for details).
@@ -10,8 +10,8 @@ QT -= gui
 
 DEFINES += HYDROCOUPLESDK_LIBRARY
 DEFINES += UTAH_CHPC
-#DEFINES += USE_OPENMP
-#DEFINES += USE_MPI
+DEFINES += USE_OPENMP
+DEFINES += USE_MPI
 
 CONFIG += c++11
 CONFIG += debug_and_release
@@ -40,7 +40,7 @@ HEADERS += ./include/stdafx.h \
            ./include/core/identity.h \
            ./include/core/description.h \
            ./include/core/componentinfo.h \
-           ./include/core/modelcomponentinfo.h \
+           ./include/core/abstractmodelcomponentinfo.h \
            ./include/core/abstractmodelcomponent.h \
            ./include/core/componentstatuschangeeventargs.h \
            ./include/core/dimension.h \
@@ -101,7 +101,8 @@ HEADERS += ./include/stdafx.h \
            ./include/spatiotemporal/timegeometryinterpolationadaptedoutput.h \
            ./include/spatiotemporal/timetininterpolationadaptedoutput.h \
            ./include/spline.h \
-           ./include/specialmap.h
+           ./include/specialmap.h \
+           ./include/temporal/abstracttimemodelcomponent.h
 
 HEADERS += ./include/tests/geometrytest.h \
            ./include/tests/polyhedralsurfacetest.h
@@ -110,7 +111,7 @@ SOURCES += ./src/stdafx.cpp \
            ./src/core/description.cpp \
            ./src/core/identity.cpp \
            ./src/core/componentinfo.cpp \
-           ./src/core/modelcomponentinfo.cpp \
+           ./src/core/abstractmodelcomponentinfo.cpp \
            ./src/core/abstractmodelcomponent.cpp \
            ./src/core/componentstatuschangeeventargs.cpp \
            ./src/core/dimension.cpp \
@@ -182,7 +183,8 @@ SOURCES += ./src/stdafx.cpp \
            ./src/progresschecker.cpp \
            ./src/splineinterpolator.cpp \
            ./src/spatiotemporal/timegeometryinterpolationadaptedoutput.cpp \
-           ./src/spatiotemporal/timetininterpolationadaptedoutput.cpp
+           ./src/spatiotemporal/timetininterpolationadaptedoutput.cpp \
+           ./src/temporal/abstracttimemodelcomponent.cpp
 
 macx{
 
@@ -192,50 +194,43 @@ INCLUDEPATH += /usr/local \
                /usr/X11/include
 
 LIBS += -L/usr/local/lib -lgdal \
-        -L/usr/local/lib -lnetcdf_c++4
-
-    contains(DEFINES,USE_MPI){
-
-        QMAKE_CC = mpicc
-        QMAKE_CXX = mpic++
-        QMAKE_LINK = mpic++
-
-        QMAKE_CFLAGS += $$system(mpicc --showme:compile)
-        QMAKE_CXXFLAGS += $$system(mpic++ --showme:compile)
-        QMAKE_LFLAGS += $$system(mpic++ --showme:link)
-
-        LIBS += -L$$PWD/../../../../../usr/local/lib/ -lmpi
-
-        message("MPI enabled")
-
-    } else {
-      message("MPI disabled")
-    }
+        -L/usr/local/lib -lnetcdf-cxx4
 
     contains(DEFINES,USE_OPENMP){
 
-        QMAKE_CC = clang-omp
-        QMAKE_CXX = clang-omp++
-        QMAKE_LINK = $$QMAKE_CXX
+        QMAKE_CC = /usr/local/opt/llvm/bin/clang
+        QMAKE_CXX = /usr/local/opt/llvm/bin/clang++
+        QMAKE_LINK = /usr/local/opt/llvm/bin/clang++
 
+        QMAKE_CFLAGS+= -fopenmp
+        QMAKE_LFLAGS+= -fopenmp
+        QMAKE_CXXFLAGS+= -fopenmp
 
-        QMAKE_CFLAGS += -fopenmp
-        QMAKE_LFLAGS += -fopenmp
-        QMAKE_CXXFLAGS += -fopenmp
-        QMAKE_LIBS += -liomp5
-        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS
-        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS
-
-
-        LIBS += -L$$PWD/../../../../../usr/local/Cellar/libiomp/20150701/lib/ -liomp5
-        INCLUDEPATH += $$PWD/../../../../../usr/local/Cellar/libiomp/20150701/include
-        DEPENDPATH += $$PWD/../../../../../usr/local/Cellar/libiomp/20150701/include
+        INCLUDEPATH += /usr/local/opt/llvm/lib/clang/5.0.0/include
+        LIBS += -L /usr/local/opt/llvm/lib -lomp
 
       message("OpenMP enabled")
     } else {
       message("OpenMP disabled")
     }
 
+    contains(DEFINES,USE_MPI){
+
+        QMAKE_CC = /usr/local/bin/mpicc
+        QMAKE_CXX = /usr/local/bin/mpicxx
+        QMAKE_LINK = /usr/local/bin/mpicxx
+
+        QMAKE_CFLAGS += $$system(mpicc --showme:compile)
+        QMAKE_CXXFLAGS += $$system(mpic++ --showme:compile)
+        QMAKE_LFLAGS += $$system(mpic++ --showme:link)
+
+        LIBS += -L/usr/local/lib -lmpi
+
+        message("MPI enabled")
+
+    } else {
+      message("MPI disabled")
+    }
 }
 
 win32{
@@ -272,7 +267,7 @@ LIBS += -L/usr/lib/ogdi -lgdal \
         QMAKE_CXXFLAGS += $$system(mpic++ --showme:compile)
         QMAKE_LFLAGS += $$system(mpic++ --showme:link)
 
-        LIBS += -L$$PWD/../../../../../usr/local/lib/ -lmpi
+        LIBS += -L/usr/local/lib/ -lmpi
 
       message("MPI enabled")
     } else {
@@ -303,7 +298,42 @@ CONFIG(debug, debug|release) {
 }
 
 CONFIG(release, debug|release) {
-    DESTDIR = lib
+
+     contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
+
+         #MacOS
+         macx{
+             DESTDIR = lib/macx
+         }
+
+         #Linux
+         linux{
+             DESTDIR = lib/linux
+         }
+
+         #Windows
+         win32{
+             DESTDIR = lib/win32
+         }
+     } else {
+
+         #MacOS
+         macx{
+             DESTDIR = bin/macx
+         }
+
+         #Linux
+         linux{
+             DESTDIR = bin/linux
+         }
+
+         #Windows
+         win32{
+             DESTDIR = bin/win32
+         }
+     }
+
+
     RELEASE_EXTRAS = ./build/release 
     OBJECTS_DIR = $$RELEASE_EXTRAS/.obj
     MOC_DIR = $$RELEASE_EXTRAS/.moc
@@ -311,6 +341,5 @@ CONFIG(release, debug|release) {
     UI_DIR = $$RELEASE_EXTRAS/.ui
 }   
 
-RESOURCES += \
-    hydrocouplesdk.qrc
+RESOURCES += hydrocouplesdk.qrc
 

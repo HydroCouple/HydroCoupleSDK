@@ -234,6 +234,8 @@ struct HYDROCOUPLESDK_EXPORT Vect
 
     void print();
 
+    void zero();
+
     double *v = nullptr;
 
 };
