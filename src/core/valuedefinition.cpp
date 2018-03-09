@@ -1,3 +1,23 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
+
 #include "stdafx.h"
 #include "core/valuedefinition.h"
 #include "core/unit.h"
@@ -146,7 +166,7 @@ void Quality::setIsOrdered(bool isOrdered)
 
 void Quality::readData(QXmlStreamReader &xmlReader)
 {
-  if(!xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive)
+  if(!xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive)
      && !xmlReader.hasError()
      &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
   {
@@ -167,11 +187,11 @@ void Quality::readData(QXmlStreamReader &xmlReader)
     }
 
     while (!(xmlReader.isEndElement()
-             && !xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive))
+             && !xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive))
            && !xmlReader.hasError())
     {
 
-      if(!xmlReader.name().compare("Categories", Qt::CaseInsensitive)
+      if(!xmlReader.name().toString().compare("Categories", Qt::CaseInsensitive)
          && !xmlReader.hasError()
          &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
@@ -186,11 +206,11 @@ void Quality::readData(QXmlStreamReader &xmlReader)
         m_categories.clear();
 
         while (!(xmlReader.isEndElement()
-                 && !xmlReader.name().compare("Categories", Qt::CaseInsensitive))
+                 && !xmlReader.name().toString().compare("Categories", Qt::CaseInsensitive))
                && !xmlReader.hasError())
         {
 
-          if(!xmlReader.name().compare("Category", Qt::CaseInsensitive)
+          if(!xmlReader.name().toString().compare("Category", Qt::CaseInsensitive)
              && !xmlReader.hasError()
              &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
@@ -289,7 +309,7 @@ void Quantity::setMaxValue(const QVariant &maxValue)
 
 void Quantity::readData(QXmlStreamReader &xmlReader)
 {
-  if(!xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive)
+  if(!xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive)
      && !xmlReader.hasError()
      &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
   {
@@ -310,11 +330,11 @@ void Quantity::readData(QXmlStreamReader &xmlReader)
     }
 
     while (!(xmlReader.isEndElement()
-             && !xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive))
+             && !xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive))
            && !xmlReader.hasError())
     {
 
-      if(!xmlReader.name().compare("Unit", Qt::CaseInsensitive)
+      if(!xmlReader.name().toString().compare("Unit", Qt::CaseInsensitive)
          && !xmlReader.hasError()
          &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
@@ -333,7 +353,7 @@ void Quantity::readData(QXmlStreamReader &xmlReader)
         }
 
         while (!(xmlReader.isEndElement()
-                 && !xmlReader.name().compare("Unit", Qt::CaseInsensitive))
+                 && !xmlReader.name().toString().compare("Unit", Qt::CaseInsensitive))
                && !xmlReader.hasError())
         {
 

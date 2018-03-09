@@ -1,3 +1,23 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
+
 #include "stdafx.h"
 #include "spatial/geometry.h"
 #include "spatial/edge.h"
@@ -18,18 +38,8 @@ class QuadEdge
 {
   public:
 
-    QuadEdge(HCPolyhedralSurface *parent)
+    QuadEdge()
     {
-      m_edges[0].setGeometryFlag(HCGeometry::HasZ , parent->is3D());
-      m_edges[1].setGeometryFlag(HCGeometry::HasZ , parent->is3D());
-      m_edges[2].setGeometryFlag(HCGeometry::HasZ , parent->is3D());
-      m_edges[3].setGeometryFlag(HCGeometry::HasZ , parent->is3D());
-
-      m_edges[0].setGeometryFlag(HCGeometry::HasM , parent->isMeasured());
-      m_edges[1].setGeometryFlag(HCGeometry::HasM , parent->isMeasured());
-      m_edges[2].setGeometryFlag(HCGeometry::HasM , parent->isMeasured());
-      m_edges[3].setGeometryFlag(HCGeometry::HasM , parent->isMeasured());
-
       m_edges[0].m_index = 0;
       m_edges[1].m_index = 1;
       m_edges[2].m_index = 2;
@@ -59,21 +69,23 @@ class QuadEdge
 
 Edge::Edge():
   m_marker(-1),
+  m_dataLength(0),
+  m_data(nullptr),
   m_next(nullptr),
   m_vertex(nullptr),
-  m_face(nullptr),
-  m_geomFlags(HCGeometry::None)
+  m_face(nullptr)
 {
 }
 
 Edge::~Edge()
 {
-
+  if(m_data)
+    delete[] m_data;
 }
 
-Edge *Edge::createEdge(HCPolyhedralSurface *parent)
+Edge *Edge::createEdge()
 {
-  return (new QuadEdge(parent))->m_edges;
+  return (new QuadEdge())->m_edges;
 }
 
 void Edge::deleteEdge(Edge *edge)
@@ -145,21 +157,6 @@ void Edge::setIndex(unsigned int index)
   m_id = index;
 }
 
-HCGeometry::GeometryFlags Edge::geometryFlags() const
-{
-  return m_geomFlags;
-}
-
-bool Edge::is3D() const
-{
-  return m_geomFlags.testFlag(HCGeometry::HasZ);
-}
-
-bool Edge::isMeasured() const
-{
-  return m_geomFlags.testFlag(HCGeometry::HasM);
-}
-
 HCVertex *Edge::point(int index)
 {
   if(index == 0)
@@ -185,9 +182,6 @@ void Edge::setOrig(HCVertex *origin)
 
   if(m_vertex)
   {
-    origin->setGeometryFlag(HCGeometry::HasZ , this->is3D());
-    origin->setGeometryFlag(HCGeometry::HasM , this->isMeasured());
-
     m_vertex->addEdge(this);
   }
 }
@@ -209,9 +203,6 @@ void Edge::setDest(HCVertex *destination)
 
   if(destination)
   {
-    destination->setGeometryFlag(HCGeometry::HasZ , this->is3D());
-    destination->setGeometryFlag(HCGeometry::HasM , this->isMeasured());
-
     destination->addEdge(symInternal());
   }
 }
@@ -376,11 +367,6 @@ Edge *Edge::rightPrevInternal()
   return symInternal()->origNextInternal();
 }
 
-void Edge::setGeometryFlag(HCGeometry::GeometryFlag flag, bool on)
-{
-  m_geomFlags = on ? m_geomFlags |= flag : m_geomFlags &= ~flag;
-}
-
 double  Edge::length()
 {
   if(m_vertex && destInternal())
@@ -411,5 +397,32 @@ unsigned int Edge::getNextId()
   m_nextId++;
   return tid;
 }
+
+void Edge::initializeData(int dataLength)
+{
+  if(m_data)
+  {
+    delete[] m_data;
+    m_data = nullptr;
+  }
+
+  if(dataLength > 0)
+  {
+    m_data =  new double[dataLength];
+    m_dataLength = dataLength;
+  }
+
+}
+
+int Edge::dataLength() const
+{
+  return m_dataLength;
+}
+
+double &Edge::data(int index)
+{
+  return m_data[index];
+}
+
 
 

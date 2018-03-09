@@ -1,10 +1,11 @@
 #Author Caleb Amoa Buahin
 #Email caleb.buahin@gmail.com
-#Date 2016
-#License GNU General Public License (see <http://www.gnu.org/licenses/> for details).
+#Date 2014-2018
+#License GNU General Public License (see <http: //www.gnu.org/licenses/> for details).
+#Copyright 2014-2018, Caleb Buahin, All rights reserved.
 
-VERSION = 1.0.0.0
 TARGET = HydroCoupleSDK
+VERSION = 1.0.0
 QT += core testlib concurrent
 QT -= gui
 
@@ -16,16 +17,19 @@ DEFINES += USE_MPI
 CONFIG += c++11
 CONFIG += debug_and_release
 
+#Added for faster compilation
+*msvc* { # visual studio spec filter
+      QMAKE_CXXFLAGS += /MP /O2
+}
+
 contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
 
   TEMPLATE = lib
-
   message("Compiling as library")
 } else {
 
   TEMPLATE = app
   CONFIG-=app_bundle
-
   message("Compiling as application")
 }
 
@@ -102,7 +106,9 @@ HEADERS += ./include/stdafx.h \
            ./include/spatiotemporal/timetininterpolationadaptedoutput.h \
            ./include/spline.h \
            ./include/specialmap.h \
-           ./include/temporal/abstracttimemodelcomponent.h
+           ./include/temporal/abstracttimemodelcomponent.h \
+           ./include/spatial/network.h \
+           ./binary_find.h
 
 HEADERS += ./include/tests/geometrytest.h \
            ./include/tests/polyhedralsurfacetest.h
@@ -184,7 +190,8 @@ SOURCES += ./src/stdafx.cpp \
            ./src/splineinterpolator.cpp \
            ./src/spatiotemporal/timegeometryinterpolationadaptedoutput.cpp \
            ./src/spatiotemporal/timetininterpolationadaptedoutput.cpp \
-           ./src/temporal/abstracttimemodelcomponent.cpp
+           ./src/temporal/abstracttimemodelcomponent.cpp \
+           ./src/spatial/network.cpp
 
 macx{
 
@@ -209,9 +216,10 @@ LIBS += -L/usr/local/lib -lgdal \
         INCLUDEPATH += /usr/local/opt/llvm/lib/clang/5.0.0/include
         LIBS += -L /usr/local/opt/llvm/lib -lomp
 
-      message("OpenMP enabled")
+        message("OpenMP enabled")
     } else {
-      message("OpenMP disabled")
+
+        message("OpenMP disabled")
     }
 
     contains(DEFINES,USE_MPI){
@@ -227,14 +235,58 @@ LIBS += -L/usr/local/lib -lgdal \
         LIBS += -L/usr/local/lib -lmpi
 
         message("MPI enabled")
-
     } else {
-      message("MPI disabled")
+
+        message("MPI disabled")
     }
 }
 
+
+
 win32{
 
+#Windows vspkg package manager installation path
+VSPKGDIR = C:/vcpkg/installed/x64-windows
+
+INCLUDEPATH += $${VSPKGDIR}/include \
+               $${VSPKGDIR}/include/gdal
+
+message ($$(VSPKGDIR))
+
+CONFIG(debug, debug|release) {
+
+LIBS += -L$${VSPKGDIR}/debug/lib -lgdald \
+        -L$${VSPKGDIR}/debug/lib -lnetcdf \
+        -L$${VSPKGDIR}/debug/lib -lnetcdf-cxx4
+
+    } else {
+
+LIBS += -L$${VSPKGDIR}/lib -lgdal \
+        -L$${VSPKGDIR}/lib -lnetcdf \
+        -L$${VSPKGDIR}/lib -lnetcdf-cxx4
+
+}
+
+    contains(DEFINES,USE_OPENMP){
+
+        QMAKE_CFLAGS += /openmp
+        QMAKE_LFLAGS += /openmp
+        QMAKE_CXXFLAGS += /openmp
+        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS
+        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS
+        message("OpenMP enabled")
+    } else {
+
+        message("OpenMP disabled")
+    }
+
+    contains(DEFINES,USE_MPI){
+       LIBS += -L$$(MSMPI_LIB64)/ -lmsmpi
+       message("MPI enabled")
+    } else {
+
+      message("MPI disabled")
+    }
 }
 
 linux{
@@ -304,34 +356,34 @@ CONFIG(release, debug|release) {
          #MacOS
          macx{
              DESTDIR = lib/macx
-         }
+        }
 
          #Linux
          linux{
              DESTDIR = lib/linux
-         }
+        }
 
          #Windows
          win32{
              DESTDIR = lib/win32
-         }
-     } else {
+        }
+    } else {
 
          #MacOS
          macx{
              DESTDIR = bin/macx
-         }
+        }
 
          #Linux
          linux{
              DESTDIR = bin/linux
-         }
+        }
 
          #Windows
          win32{
              DESTDIR = bin/win32
-         }
-     }
+        }
+    }
 
 
     RELEASE_EXTRAS = ./build/release 

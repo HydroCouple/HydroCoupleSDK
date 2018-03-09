@@ -1,22 +1,21 @@
 /*!
- *  \file    point.h
- *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
- *  \version 1.0.0.0
- *  \section Description
- *  \section License
- *  point.h, associated files and libraries are free software;
- *  you can redistribute it and/or modify it under the terms of the
- *  Lesser GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
- *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
- *  \date 2014-2017
- *  \pre
- *  \bug
- *  \todo
- *  \warning
- *  \copyright Copyright 2017 Caleb Buahin
+ * \file  point.h
+ * \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
  */
 
 #ifndef POINT_H
@@ -27,6 +26,7 @@
 class HCVertex;
 class HCPolyhedralSurface;
 class Edge;
+class Network;
 
 class HYDROCOUPLESDK_EXPORT HCPoint: public HCGeometry,
     public virtual HydroCouple::Spatial::IPoint
@@ -110,28 +110,37 @@ class HYDROCOUPLESDK_EXPORT HCVertex : public HCPoint,
 {
     friend class HCPolyhedralSurface;
     friend class HCTIN;
+    friend class Network;
 
     Q_INTERFACES(HydroCouple::Spatial::IVertex)
 
   public:
 
-    explicit HCVertex(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
+    explicit HCVertex(const QString &id, HCGeometry *parent = nullptr);
 
     explicit HCVertex(bool hasZ = false,bool hasM = false, const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
-    explicit HCVertex(const QString &id, HCPolyhedralSurface* parentPolyhSurface);
+    explicit HCVertex(const QString &id, HCPolyhedralSurface* parent);
 
-    explicit HCVertex(double x, double y, const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
+    explicit HCVertex(const QString &id, Network *parent);
 
-    explicit HCVertex(double x, double y, const QString &id, HCPolyhedralSurface* parentPolyhSurface);
+    explicit HCVertex(double x, double y, const QString &id, HCGeometry *parent = nullptr);
+
+    explicit HCVertex(double x, double y, const QString &id, HCPolyhedralSurface* parent);
+
+    explicit HCVertex(double x, double y, const QString &id, Network *parent);
 
     explicit HCVertex(double x, double y, double z, const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
-    explicit HCVertex(double x, double y, double z,  const QString &id, HCPolyhedralSurface* parentPolyhSurface);
+    explicit HCVertex(double x, double y, double z,  const QString &id, HCPolyhedralSurface* parent);
+
+    explicit HCVertex(double x, double y, double z,  const QString &id, Network *parent);
 
     explicit HCVertex(double x, double y, double z, double m, const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
-    explicit HCVertex(double x, double y, double z, double m, const QString &id, HCPolyhedralSurface* parentPolyhSurface);
+    explicit HCVertex(double x, double y, double z, double m, const QString &id, HCPolyhedralSurface* parent);
+
+    explicit HCVertex(double x, double y, double z, double m, const QString &id, Network *parent);
 
     virtual ~HCVertex();
 
@@ -146,8 +155,9 @@ class HYDROCOUPLESDK_EXPORT HCVertex : public HCPoint,
     HCPolyhedralSurface *polyhydralSurfaceInternal() const;
 
   private:
-    Edge* m_edge;
-    HCPolyhedralSurface* m_polyhedralSurface;
+    Edge *m_edge;
+    HCPolyhedralSurface *m_polyhedralSurface;
+    Network *m_network;
 };
 
 

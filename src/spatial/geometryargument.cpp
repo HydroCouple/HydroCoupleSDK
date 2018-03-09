@@ -1,3 +1,23 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
+
 #include "stdafx.h"
 #include "spatial/geometryargument.h"
 #include "core/valuedefinition.h"
@@ -102,7 +122,7 @@ void GeometryArgumentDouble::setValues(int geometryDimensionIndex , int stride, 
 
 void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 {
-  if(!xmlReader.name().compare("GeometryArgument", Qt::CaseInsensitive)
+  if(!xmlReader.name().toString().compare("GeometryArgument", Qt::CaseInsensitive)
      && !xmlReader.hasError()
      &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
   {
@@ -118,13 +138,13 @@ void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
       }
     }
 
-    while (!(xmlReader.isEndElement() && !xmlReader.name().compare("GeometryArgument", Qt::CaseInsensitive)) && !xmlReader.hasError())
+    while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("GeometryArgument", Qt::CaseInsensitive)) && !xmlReader.hasError())
     {
-      if(!xmlReader.name().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      if(!xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        while (!(xmlReader.isEndElement()  && !xmlReader.name().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement()  && !xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QXmlStreamAttributes attributes = xmlReader.attributes();
 
@@ -138,7 +158,7 @@ void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
               }
             }
 
-            while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
+            while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
             {
               xmlReader.readNext();
             }
@@ -146,16 +166,16 @@ void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         valueDefinitionInternal()->readData(xmlReader);
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("Geometries", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("Geometries", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         m_geometries.clear();
 
@@ -190,9 +210,9 @@ void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
         {
           m_readFromFile = false;
 
-          while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
+          while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
           {
-            if(!xmlReader.name().compare("Geometry", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+            if(!xmlReader.name().toString().compare("Geometry", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
             {
               QString wktText = xmlReader.readElementText().trimmed();
 
@@ -204,7 +224,7 @@ void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
                 assert(getGeometryType() == geometry->geometryType());
                 m_geometries.append( QSharedPointer<HCGeometry>(geometry));
 
-                while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometry", Qt::CaseInsensitive)) && !xmlReader.hasError())
+                while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Geometry", Qt::CaseInsensitive)) && !xmlReader.hasError())
                 {
                   xmlReader.readNext();
                 }
@@ -219,18 +239,18 @@ void GeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 
         emit propertyChanged("Geometries");
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         std::vector<double> values;
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QString value = xmlReader.readElementText();
             values.push_back(value.toDouble());
@@ -405,7 +425,7 @@ bool GeometryArgumentDouble::readValues(const QString &value, QString &message, 
 
     while(!xmlReader.isEndDocument() && !xmlReader.hasError())
     {
-      if(!xmlReader.name().compare("GeometryArgument", Qt::CaseInsensitive) && !xmlReader.hasError() && xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      if(!xmlReader.name().toString().compare("GeometryArgument", Qt::CaseInsensitive) && !xmlReader.hasError() && xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         readData(xmlReader);
       }

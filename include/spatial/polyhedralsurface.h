@@ -1,22 +1,23 @@
 /*!
- *  \file    polyhedralsurface.h
- *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
- *  \version 1.0.0.0
- *  \section Description
- *  \section License
- *  polyhedralsurface.h, associated files and libraries are free software;
- *  you can redistribute it and/or modify it under the terms of the
- *  Lesser GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
- *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
- *  \date 2014-2016
- *  \pre
- *  \bug
- *  \todo
- *  \warning
+ * \file  polyhedralsurface.h
+ * \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
  */
+
 #ifndef POLYHEDRALSURFACE_H
 #define POLYHEDRALSURFACE_H
 
@@ -130,20 +131,20 @@ class HYDROCOUPLESDK_EXPORT HCPolyhedralSurface : public HCGeometry,
      * Return the edge with a given origin vertex in the face orbit of a given
      * edge.
      * edge -> an edge of the orbit to look for the vertex in;
-     *         must be nonnull
+     *       must be nonnull
      * org  -> the origin vertex to look for;
-     *         must be nonnull
+     *       must be nonnull
      * <- the edge in the same face orbit as _edge_ with origin vertex _org_;
-     *    null if not found
+     *  null if not found
      */
     static Edge *getOrbitOrg(Edge *edge, HCVertex *org) ;
 
     /*
      * Set the origin of the vertex orbit of a given edge to a given vertex.
      * edge -> an edge of the orbit to set the origin vertex of;
-     *         must be nonnull
+     *       must be nonnull
      * org  -> the new origin vertex;
-     *         must be nonnull
+     *       must be nonnull
      */
     static void setOrbitOrg(Edge *edge, HCVertex *org);
 
@@ -151,11 +152,11 @@ class HYDROCOUPLESDK_EXPORT HCPolyhedralSurface : public HCGeometry,
      * Return the edge with a given left face in the vertex orbit of a given
      * edge.
      * edge -> an edge of the orbit to look for the face in;
-     *         must be nonnull
+     *       must be nonnull
      * left -> the left face to look for;
-     *         must be nonnull
+     *       must be nonnull
      * <- the edge in the same vertex orbit as _edge_ with left face _left_;
-     *    null if not found
+     *  null if not found
      */
     static Edge *getOrbitLeft(Edge *edge, HCPolygon *left);
 
@@ -178,16 +179,18 @@ class HYDROCOUPLESDK_EXPORT HCPolyhedralSurface : public HCGeometry,
     /*
      * Set the left face of the face orbit of a given edge to a given face.
      * edge -> an edge of the orbit to set the left face of;
-     *         must be nonnull
+     *       must be nonnull
      * left -> the new left face;
-     *         must be nonnull
+     *       must be nonnull
      */
     static void setOrbitLeft(Edge *edge, HCPolygon *left);
 
   protected:
+
     std::vector<HCPolygon*> m_patches;
     std::vector<HCVertex*>  m_vertices;
-    int64_t m_patchCntr = 0, m_vertexCntr = 0;
+    int64_t m_patchCntr = 0,
+    m_vertexCntr = 0;
 };
 
 class HYDROCOUPLESDK_EXPORT HCTIN : public HCPolyhedralSurface,

@@ -1,3 +1,23 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
+
 #include "stdafx.h"
 #include "core/exchangeitems1d.h"
 #include "core/valuedefinition.h"
@@ -41,7 +61,7 @@ void Input1DInt::setValue(const std::vector<int> &dimensionIndexes, const void *
 
 void Input1DInt::readData(QXmlStreamReader &xmlReader)
 {
-  if(!xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)
+  if(!xmlReader.name().toString().compare("ComponentDataItem", Qt::CaseInsensitive)
      && !xmlReader.hasError()
      &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
   {
@@ -52,13 +72,13 @@ void Input1DInt::readData(QXmlStreamReader &xmlReader)
       QString id = attributes.value("Id").toString();
     }
     
-    while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)) && !xmlReader.hasError())
+    while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("ComponentDataItem", Qt::CaseInsensitive)) && !xmlReader.hasError())
     {
-      if(!xmlReader.name().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      if(!xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        while (!(xmlReader.isEndElement()  && !xmlReader.name().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement()  && !xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QXmlStreamAttributes attributes = xmlReader.attributes();
             
@@ -73,7 +93,7 @@ void Input1DInt::readData(QXmlStreamReader &xmlReader)
               }
             }
             
-            while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
+            while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
             {
               xmlReader.readNext();
             }
@@ -81,13 +101,13 @@ void Input1DInt::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         std::vector<int> indexes(1);
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QXmlStreamAttributes attributes = xmlReader.attributes();
             
@@ -139,7 +159,7 @@ void Input1DInt::writeData(QXmlStreamWriter &xmlWriter) const
     {
       int ind[1] = {0};
       int str[1] = {length()};
-      int values[length()];
+      int *values = new int[length()];
       ComponentDataItem1D<int>::getValuesT(ind,str,values);
       
       for(int i = 0 ; i < length() ; i++)
@@ -151,6 +171,8 @@ void Input1DInt::writeData(QXmlStreamWriter &xmlWriter) const
         }
         xmlWriter.writeEndElement();
       }
+
+      delete[] values;
     }
     xmlWriter.writeEndElement();
   }
@@ -193,7 +215,7 @@ void Input1DDouble::setValue(const std::vector<int> &dimensionIndexes, const voi
 
 void Input1DDouble::readData(QXmlStreamReader &xmlReader)
 {
-  if(!xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)
+  if(!xmlReader.name().toString().compare("ComponentDataItem", Qt::CaseInsensitive)
      && !xmlReader.hasError()
      &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
   {
@@ -204,13 +226,13 @@ void Input1DDouble::readData(QXmlStreamReader &xmlReader)
       QString id = attributes.value("Id").toString();
     }
     
-    while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)) && !xmlReader.hasError())
+    while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("ComponentDataItem", Qt::CaseInsensitive)) && !xmlReader.hasError())
     {
-      if(!xmlReader.name().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      if(!xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        while (!(xmlReader.isEndElement()  && !xmlReader.name().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement()  && !xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QXmlStreamAttributes attributes = xmlReader.attributes();
             
@@ -225,7 +247,7 @@ void Input1DDouble::readData(QXmlStreamReader &xmlReader)
               }
             }
             
-            while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
+            while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
             {
               xmlReader.readNext();
             }
@@ -233,13 +255,13 @@ void Input1DDouble::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         std::vector<int> indexes(1);
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QXmlStreamAttributes attributes = xmlReader.attributes();
             
@@ -288,7 +310,7 @@ void Input1DDouble::writeData(QXmlStreamWriter &xmlWriter) const
     {
       int ind[1] = {0};
       int str[1] = {length()};
-      int values[length()];
+      int *values = new int[length()];
       ComponentDataItem1D<double>::getValuesT(ind,str,values);
       
       for(int i = 0 ; i < length() ; i++)
@@ -300,6 +322,8 @@ void Input1DDouble::writeData(QXmlStreamWriter &xmlWriter) const
         }
         xmlWriter.writeEndElement();
       }
+
+      delete[] values;
     }
     xmlWriter.writeEndElement();
   }
@@ -341,7 +365,7 @@ void Input1DString::setValue(const std::vector<int> &dimensionIndexes, const voi
 
 void Input1DString::readData(QXmlStreamReader &xmlReader)
 {
-  if(!xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)
+  if(!xmlReader.name().toString().compare("ComponentDataItem", Qt::CaseInsensitive)
      && !xmlReader.hasError()
      &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
   {
@@ -353,13 +377,13 @@ void Input1DString::readData(QXmlStreamReader &xmlReader)
     }
     
 
-    while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ComponentDataItem", Qt::CaseInsensitive)) && !xmlReader.hasError())
+    while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("ComponentDataItem", Qt::CaseInsensitive)) && !xmlReader.hasError())
     {
-      if(!xmlReader.name().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      if(!xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        while (!(xmlReader.isEndElement()  && !xmlReader.name().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement()  && !xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QXmlStreamAttributes attributes = xmlReader.attributes();
             
@@ -374,7 +398,7 @@ void Input1DString::readData(QXmlStreamReader &xmlReader)
               }
             }
             
-            while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
+            while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
             {
               xmlReader.readNext();
             }
@@ -382,13 +406,13 @@ void Input1DString::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         std::vector<int> indexes(1);
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
             QXmlStreamAttributes attributes = xmlReader.attributes();
             

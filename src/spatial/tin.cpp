@@ -1,3 +1,23 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
+
 #include "stdafx.h"
 #include "spatial/polyhedralsurface.h"
 #include "spatial/polygon.h"
@@ -88,7 +108,7 @@ Edge *HCTIN::createFaceEdge(HCPolygon *face, HCVertex *org, HCVertex *dest)
 
   // create a new (non-loop) edge
 
-  Edge *edgeNew = Edge::createEdge(this);
+  Edge *edgeNew = Edge::createEdge();
 
   // connect the destination of the new edge to the origin of _edge2_
   // both faces of the edge are now _face_
@@ -123,9 +143,9 @@ HCTriangle *HCTIN::createTriangle(HCVertex *v1, HCVertex *v2, HCVertex *v3)
   if(v1->edge() == nullptr && v2->edge() == nullptr && v3->edge() == nullptr)
   {
 
-    Edge* edge1 = Edge::createEdge(this);
-    Edge* edge2 = Edge::createEdge(this);
-    Edge* edge3 = Edge::createEdge(this);
+    Edge* edge1 = Edge::createEdge();
+    Edge* edge2 = Edge::createEdge();
+    Edge* edge3 = Edge::createEdge();
 
     Edge::splice(edge1 , edge3->symInternal());
     Edge::splice(edge1->symInternal() , edge2);

@@ -1,23 +1,23 @@
 /*****************************************************************************/
-/*                                                                           */
-/*  (tricall.c)                                                              */
-/*                                                                           */
+/*                                                                          */
+/* (tricall.c)                                                              */
+/*                                                                          */
 /*  Example program that demonstrates how to call Triangle.                  */
-/*                                                                           */
+/*                                                                          */
 /*  Accompanies Triangle Version 1.6                                         */
 /*  July 19, 1996                                                            */
-/*                                                                           */
+/*                                                                          */
 /*  This file is placed in the public domain (but the file that it calls     */
 /*  is still copyrighted!) by                                                */
 /*  Jonathan Richard Shewchuk                                                */
 /*  2360 Woolsey #H                                                          */
 /*  Berkeley, California  94705-1927                                         */
 /*  jrs@cs.berkeley.edu                                                      */
-/*                                                                           */
+/*                                                                          */
 /*****************************************************************************/
 
 /* If SINGLE is defined when triangle.o is compiled, it should also be       */
-/*   defined here.  If not, it should not be defined here.                   */
+/*  defined here.  If not, it should not be defined here.                   */
 
 /* #define SINGLE */
 
@@ -32,9 +32,9 @@
 #include "spatial/triangle.h"
 
 /*****************************************************************************/
-/*                                                                           */
+/*                                                                          */
 /*  report()   Print the input or output.                                    */
-/*                                                                           */
+/*                                                                          */
 /*****************************************************************************/
 
 void report(struct triangulateio *io, int markers, int reporttriangles, int reportneighbors, int reportsegments, int reportedges, int reportnorms)
@@ -125,9 +125,9 @@ void report(struct triangulateio *io, int markers, int reporttriangles, int repo
 }
 
 /*****************************************************************************/
-/*                                                                           */
+/*                                                                          */
 /*  main()   Create and refine a mesh.                                       */
-/*                                                                           */
+/*                                                                          */
 /*****************************************************************************/
 
 //int main()
@@ -173,7 +173,7 @@ void report(struct triangulateio *io, int markers, int reporttriangles, int repo
 //  report(&in, 1, 0, 0, 0, 0, 0);
 
 //  /* Make necessary initializations so that Triangle can return a */
-//  /*   triangulation in `mid' and a voronoi diagram in `vorout'.  */
+//  /*  triangulation in `mid' and a voronoi diagram in `vorout'.  */
 
 //  mid.pointlist = (REAL *) NULL;            /* Not needed if -N switch used. */
 //  /* Not needed if -N switch used or number of point attributes is zero: */
@@ -197,10 +197,10 @@ void report(struct triangulateio *io, int markers, int reporttriangles, int repo
 //  vorout.normlist = (REAL *) NULL;         /* Needed only if -v switch used. */
 
 //  /* Triangulate the points.  Switches are chosen to read and write a  */
-//  /*   PSLG (p), preserve the convex hull (c), number everything from  */
-//  /*   zero (z), assign a regional attribute to each element (A), and  */
-//  /*   produce an edge list (e), a Voronoi diagram (v), and a triangle */
-//  /*   neighbor list (n).                                              */
+//  /*  PSLG (p), preserve the convex hull (c), number everything from  */
+//  /*  zero (z), assign a regional attribute to each element (A), and  */
+//  /*  produce an edge list (e), a Voronoi diagram (v), and a triangle */
+//  /*  neighbor list (n).                                              */
 
 //  triangulate("pczAevn", &in, &mid, &vorout);
 
@@ -210,7 +210,7 @@ void report(struct triangulateio *io, int markers, int reporttriangles, int repo
 //  report(&vorout, 0, 0, 0, 0, 1, 1);
 
 //  /* Attach area constraints to the triangles in preparation for */
-//  /*   refining the triangulation.                               */
+//  /*  refining the triangulation.                               */
 
 //  /* Needed only if -r and -a switches used: */
 //  mid.trianglearealist = (REAL *) malloc(mid.numberoftriangles * sizeof(REAL));
@@ -218,7 +218,7 @@ void report(struct triangulateio *io, int markers, int reporttriangles, int repo
 //  mid.trianglearealist[1] = 1.0;
 
 //  /* Make necessary initializations so that Triangle can return a */
-//  /*   triangulation in `out'.                                    */
+//  /*  triangulation in `out'.                                    */
 
 //  out.pointlist = (REAL *) NULL;            /* Not needed if -N switch used. */
 //  /* Not needed if -N switch used or number of attributes is zero: */
@@ -228,7 +228,7 @@ void report(struct triangulateio *io, int markers, int reporttriangles, int repo
 //  out.triangleattributelist = (REAL *) NULL;
 
 //  /* Refine the triangulation according to the attached */
-//  /*   triangle area constraints.                       */
+//  /*  triangle area constraints.                       */
 
 //  triangulate("prazBP", &mid, &out, (struct triangulateio *) NULL);
 

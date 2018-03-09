@@ -1,3 +1,22 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
 #include "stdafx.h"
 #include "spatial/polyhedralsurface.h"
 #include "spatial/polygon.h"
@@ -5,11 +24,11 @@
 #include "spatial/edge.h"
 #include "spatial/envelope.h"
 #include "spatial/linestring.h"
+#include "binary_find.h"
 
 #include <math.h>
 #include <assert.h>
 #include <qdebug.h>
-#include <set>
 
 using namespace HydroCouple::Spatial;
 
@@ -23,7 +42,8 @@ HCPolyhedralSurface::~HCPolyhedralSurface()
   //fast delete all elements
   while(m_patches.size())
   {
-    delete m_patches[0];
+    HCPolygon *patch = patchInternal(0);
+    delete patch;
   }
 }
 
@@ -127,9 +147,9 @@ HCVertex *HCPolyhedralSurface::vertexInternal(int index) const
   return m_vertices[index];
 }
 
-const std::vector<HCVertex *> &HCPolyhedralSurface::vertices() const
+const std::vector<HCVertex*> &HCPolyhedralSurface::vertices() const
 {
-   return m_vertices;
+  return m_vertices;
 }
 
 IMultiPolygon* HCPolyhedralSurface::boundingPolygons(const IPolygon *polygon) const
@@ -219,7 +239,7 @@ Edge *HCPolyhedralSurface::createVertexEdge(HCVertex *vertex, HCVertex *destinat
   }
 
   // create a new edge and rotate it to make a clockwise loop
-  Edge *edgeNew = Edge::createEdge(this)->rotInternal();
+  Edge *edgeNew = Edge::createEdge()->rotInternal();
 
   // connect the origin (and destination) of the new edge to _vertex_ so that
   // the left face of the edge is _left_
@@ -256,7 +276,7 @@ Edge *HCPolyhedralSurface::createVertexEdge(HCVertex *origin, HCVertex *destinat
   }
   else
   {
-    newEdge = Edge::createEdge(this);
+    newEdge = Edge::createEdge();
 
     if(origin->edgeInternal())
     {
@@ -359,7 +379,7 @@ Edge *HCPolyhedralSurface::createFaceEdge(HCPolygon *face, HCVertex *org, HCVert
 
   // create a new (non-loop) edge
 
-  Edge *edgeNew = Edge::createEdge(this);
+  Edge *edgeNew = Edge::createEdge();
 
   // connect the destination of the new edge to the origin of _edge2_
   // both faces of the edge are now _face_
@@ -487,16 +507,20 @@ Edge *HCPolyhedralSurface::findEdge(HCVertex *origin, HCVertex *destination) con
 
 void HCPolyhedralSurface::reIndexVerticesAndPatches()
 {
-  for(size_t i = 0 ; i < m_patches.size(); i++)
+  unsigned int i = 0;
+
+  for(HCPolygon *patch : m_patches)
   {
-    HCPolygon *patch = m_patches[i];
     patch->setIndex(i);
+    i++;
   }
 
-  for(size_t i = 0; i < m_vertices.size() ; i++)
+  i = 0;
+
+  for(HCVertex *vertex : m_vertices)
   {
-    HCVertex *vertex = m_vertices[i];
     vertex->setIndex(i);
+    i++;
   }
 }
 
@@ -655,8 +679,6 @@ Edge *HCPolyhedralSurface::getOrbitLeft(Edge *edge, HCPolygon *left)
 
 Edge* HCPolyhedralSurface::getClosestOrbitLeftNull(HCVertex *origin, HCVertex *destination)
 {
-  //  assert(origin!=0);
-  //  assert(destination!=0);
 
   Edge *closestEdge = nullptr;
 

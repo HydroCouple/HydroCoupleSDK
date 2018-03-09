@@ -1,3 +1,22 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
 #include "stdafx.h"
 #include "temporal/timedata.h"
 
@@ -61,7 +80,9 @@ bool DateTime::compare(DateTime *time1, DateTime *time2)
 
 double DateTime::toJulianDays(const QDateTime &dateTime)
 {
-  double jd = dateTime.date().toJulianDay() * 1.0 + dateTime.time().msecsSinceStartOfDay() * 1.0 / (24.0 * 60.0 * 60.0 * 1000.0);
+  double jd = dateTime.date().toJulianDay() * 1.0 + 
+  dateTime.time().msecsSinceStartOfDay() * 1.0 / (24.0 * 60.0 * 60.0 * 1000.0);
+  
   return jd;
 }
 
@@ -156,6 +177,21 @@ const QList<QString> DateTime::m_dateTimeFormats({
                                                    "M-d-yy h:mm:ss A",
                                                    "M-d-yyyy h:mm:ss A",
                                                    "MM-dd-yyyy hh:mm:ss",
+
+                                                   "M/d/yy h/mm/ss",
+                                                   "MM/dd/yyyy h/mm/ss",
+                                                   "MM/dd/yy hh/mm/ss",
+                                                   "MM/dd/yyyy hh/mm/ss",
+                                                   "M/d/yy h/mm/ss A",
+                                                   "M/d/yyyy h/mm/ss A",
+                                                   "MM/dd/yyyy hh/mm/ss",
+                                                   "M-d-yy h/mm/ss",
+                                                   "MM-dd-yyyy h/mm/ss",
+                                                   "MM-dd-yy hh/mm/ss",
+                                                   "MM-dd-yyyy hh/mm/ss",
+                                                   "M-d-yy h/mm/ss A",
+                                                   "M-d-yyyy h/mm/ss A",
+                                                   "MM-dd-yyyy hh/mm/ss",
 
                                                    "M/d/yy h:mm",
                                                    "MM/dd/yyyy h:mm",

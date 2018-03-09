@@ -1,3 +1,23 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
+
 #include "stdafx.h"
 #include "core/abstractmodelcomponent.h"
 #include "core/valuedefinition.h"
@@ -142,7 +162,7 @@ void TimeGeometryArgumentDouble::setValues(int timeIndex, int geometryIndex,
 
 void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 {
-  if(!xmlReader.name().compare("TimeGeometryArgument", Qt::CaseInsensitive)
+  if(!xmlReader.name().toString().compare("TimeGeometryArgument", Qt::CaseInsensitive)
      && !xmlReader.hasError()
      &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
   {
@@ -158,15 +178,15 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
       }
     }
 
-    while (!(xmlReader.isEndElement() && !xmlReader.name().compare("TimeGeometryArgument", Qt::CaseInsensitive)) && !xmlReader.hasError())
+    while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("TimeGeometryArgument", Qt::CaseInsensitive)) && !xmlReader.hasError())
     {
-      if(!xmlReader.name().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      if(!xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
-        while (!(xmlReader.isEndElement()  && !xmlReader.name().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement()  && !xmlReader.name().toString().compare("Dimensions", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
-          if(!xmlReader.name().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+          if(!xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
           {
-            while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
+            while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Dimension", Qt::CaseInsensitive)) && !xmlReader.hasError())
             {
               xmlReader.readNext();
             }
@@ -174,16 +194,16 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         valueDefinitionInternal()->readData(xmlReader);
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("ValueDefinition", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("ValueDefinition", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("Geometries", Qt::CaseInsensitive) &&
+      else if(!xmlReader.name().toString().compare("Geometries", Qt::CaseInsensitive) &&
               !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
 
@@ -225,9 +245,9 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 
           clearGeometries();
 
-          while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
+          while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
           {
-            if(!xmlReader.name().compare("Geometry", Qt::CaseInsensitive) &&
+            if(!xmlReader.name().toString().compare("Geometry", Qt::CaseInsensitive) &&
                !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
             {
               HCGeometry* geometry = GeometryFactory::importFromWkt(xmlReader.readElementText().trimmed());
@@ -237,7 +257,7 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
               m_geometries.push_back(QSharedPointer<HCGeometry>(geometry));
 
               while (!(xmlReader.isEndElement() &&
-                       !xmlReader.name().compare("Geometry", Qt::CaseInsensitive)) &&
+                       !xmlReader.name().toString().compare("Geometry", Qt::CaseInsensitive)) &&
                      !xmlReader.hasError())
               {
                 xmlReader.readNext();
@@ -249,12 +269,12 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
 
         emit propertyChanged("Geometries");
 
-        while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
+        while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Geometries", Qt::CaseInsensitive)) && !xmlReader.hasError())
         {
           xmlReader.readNext();
         }
       }
-      else if(!xmlReader.name().compare("TimeSeriesValues", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+      else if(!xmlReader.name().toString().compare("TimeSeriesValues", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         QXmlStreamAttributes attributes = xmlReader.attributes();
         QString fromFile = attributes.value("IsFromFile").toString();
@@ -315,15 +335,15 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
         {
           m_readTimeSeriesFromFile = false;
 
-          while (!(xmlReader.isEndElement() && !xmlReader.name().compare("TimeSeriesValues", Qt::CaseInsensitive)) && !xmlReader.hasError())
+          while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("TimeSeriesValues", Qt::CaseInsensitive)) && !xmlReader.hasError())
           {
-            if(!xmlReader.name().compare("DateTimes", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+            if(!xmlReader.name().toString().compare("DateTimes", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
             {
               QList<SDKTemporal::DateTime*> dateTimes;
 
-              while (!(xmlReader.isEndElement() && !xmlReader.name().compare("DateTimes", Qt::CaseInsensitive)) && !xmlReader.hasError())
+              while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("DateTimes", Qt::CaseInsensitive)) && !xmlReader.hasError())
               {
-                if(!xmlReader.name().compare("DateTime", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+                if(!xmlReader.name().toString().compare("DateTime", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
                 {
                   QDateTime tempDateTime;
 
@@ -333,7 +353,7 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
                     dateTimes.append(dateTime);
                   }
 
-                  while (!(xmlReader.isEndElement() && !xmlReader.name().compare("DateTime", Qt::CaseInsensitive)) && !xmlReader.hasError())
+                  while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("DateTime", Qt::CaseInsensitive)) && !xmlReader.hasError())
                   {
                     xmlReader.readNext();
                   }
@@ -346,11 +366,11 @@ void TimeGeometryArgumentDouble::readData(QXmlStreamReader &xmlReader)
                 addTimes(dateTimes);
               }
             }
-            else if(!xmlReader.name().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+            else if(!xmlReader.name().toString().compare("Values", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
             {
-              while (!(xmlReader.isEndElement() && !xmlReader.name().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
+              while (!(xmlReader.isEndElement() && !xmlReader.name().toString().compare("Values", Qt::CaseInsensitive)) && !xmlReader.hasError())
               {
-                if(!xmlReader.name().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
+                if(!xmlReader.name().toString().compare("Value", Qt::CaseInsensitive) && !xmlReader.hasError() &&  xmlReader.tokenType() == QXmlStreamReader::StartElement )
                 {
                   QXmlStreamAttributes attributes = xmlReader.attributes();
 
@@ -518,7 +538,7 @@ bool TimeGeometryArgumentDouble::readValues(const QString &value, QString &messa
 
     while(!xmlReader.isEndDocument() && !xmlReader.hasError())
     {
-      if(!xmlReader.name().compare("TimeGeometryArgument", Qt::CaseInsensitive) &&
+      if(!xmlReader.name().toString().compare("TimeGeometryArgument", Qt::CaseInsensitive) &&
          !xmlReader.hasError() && xmlReader.tokenType() == QXmlStreamReader::StartElement )
       {
         readData(xmlReader);

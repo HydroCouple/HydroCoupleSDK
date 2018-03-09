@@ -1,21 +1,21 @@
 /*!
- *  \file    edge.h
- *  \author  Caleb Amoa Buahin <caleb.buahin@gmail.com>
- *  \version 1.0.0.0
- *  \section Description
- *  \section License
- *  edge.h, associated files and libraries are free software;
- *  you can redistribute it and/or modify it under the terms of the
- *  Lesser GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
- *  abstractadaptedoutput.h its associated files is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
- *  \date 2014-2016
- *  \pre
- *  \bug
- *  \todo
- *  \warning
+ * \file edge.h
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
  */
 
 #ifndef EDGE
@@ -54,7 +54,7 @@ class HYDROCOUPLESDK_EXPORT Edge final:
 
   public:
 
-    static Edge *createEdge(HCPolyhedralSurface *parent);
+    static Edge *createEdge();
 
     static void deleteEdge(Edge *edge);
 
@@ -63,12 +63,6 @@ class HYDROCOUPLESDK_EXPORT Edge final:
     unsigned int index() const override;
 
     void setIndex(unsigned int index);
-
-    HCGeometry::GeometryFlags geometryFlags() const;
-
-    bool is3D() const;
-
-    bool isMeasured() const;
 
     HCVertex *point(int index);
 
@@ -152,39 +146,50 @@ class HYDROCOUPLESDK_EXPORT Edge final:
 
     static unsigned int getNextId();
 
+    void initializeData(int dataLength);
+
+    int dataLength() const;
+
+    double &data(int index);
+
+    const double &data(int index) const;
+
   private:
 
-    void setGeometryFlag(HCGeometry::GeometryFlag flag, bool on = true);
-
-  private:
 
     int m_marker;
-    unsigned int m_index, m_id;
+
+    unsigned int m_index = -1,
+    m_id = -1;
+
     static unsigned int m_nextId;
 
+    int m_dataLength;
+
+    double *m_data;
+
     /*
-      *The next ccw edge around (from) the origin of this edge.
-      *Nonnull.
+     *The next ccw edge around (from) the origin of this edge.
+     *Nonnull.
      */
     Edge *m_next;
 
     /*
-      *The origin vertex of this edge, if prime.
-      *Null if not prime.
+     *The origin vertex of this edge, if prime.
+     *Null if not prime.
      */
     HCVertex *m_vertex;
 
     /*
-      *The target face of this edge, if dual.
-      *Null if not dual.
+     *The target face of this edge, if dual.
+     *Null if not dual.
      */
     HCPolygon *m_face;
 
+    /*!
+     * \brief m_quadeEdge
+     */
     QuadEdge *m_quadeEdge;
-    HCGeometry::GeometryFlags m_geomFlags;
-
-  private:
-
 
 };
 

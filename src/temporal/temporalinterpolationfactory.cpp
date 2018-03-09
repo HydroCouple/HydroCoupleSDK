@@ -1,3 +1,23 @@
+/*!
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \description
+ * \license
+ * This file and its associated files, and libraries are free software.
+ * You can redistribute it and/or modify it under the terms of the
+ * Lesser GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ * This file and its associated files is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
+ * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
+ * \date 2014-2018
+ * \pre
+ * \bug
+ * \warning
+ * \todo
+ */
+
+
 #include "stdafx.h"
 #include "hydrocouplespatiotemporal.h"
 #include "core/dimension.h"
@@ -114,124 +134,7 @@ IAdaptedOutput* TemporalInterpolationFactory::createAdaptedOutput(IIdentity *ada
 
 }
 
-//******************************************************************************************************************************************************
 
-TemporalInterpolationFactoryComponent::TemporalInterpolationFactoryComponent(const QString &id, QObject *parent)
-  : AbstractAdaptedOutputFactoryComponent(id, parent)
-{
-
-  setCaption("Temporal Interpolation Factory");
-  setDescription("Provides a series of interpolation routines for time varying datasets");
-
-  Identity* tsInterpolatorId = new Identity("TimeSeriesInterpolator", this);
-  tsInterpolatorId->setCaption("Time Series Interpolator");
-  tsInterpolatorId->setDescription("Time Series Interpolator");
-  m_availableAdapters[tsInterpolatorId->id()] = tsInterpolatorId;
-
-  Identity* tsGeomInterpolatorId = new Identity("TimeGeometryInterpolator", this);
-  tsGeomInterpolatorId->setCaption("Time Geometry Interpolator");
-  tsGeomInterpolatorId->setDescription("Time Geometry Interpolator");
-  m_availableAdapters[tsGeomInterpolatorId->id()] = tsGeomInterpolatorId;
-
-  Identity* tsTINInterpolatorId = new Identity("TimeTINInterpolator", this);
-  tsTINInterpolatorId->setCaption("Time TIN Interpolator");
-  tsTINInterpolatorId->setDescription("Time TIN Interpolator");
-  m_availableAdapters[tsTINInterpolatorId->id()] = tsTINInterpolatorId;
-
-}
-
-TemporalInterpolationFactoryComponent::~TemporalInterpolationFactoryComponent()
-{
-
-}
-
-QList<IIdentity*> TemporalInterpolationFactoryComponent::getAvailableAdaptedOutputIds(const IOutput *provider, const IInput *consumer)
-{
-  QList<IIdentity*> available;
-
-  if(dynamic_cast<const ITimeSeriesComponentDataItem*>(provider) &&
-     (consumer == nullptr || dynamic_cast<const ITimeSeriesComponentDataItem*>(consumer)))
-  {
-    available.append(m_availableAdapters["TimeSeriesInterpolator"]);
-  }
-
-  if(dynamic_cast<const ITimeGeometryComponentDataItem*>(provider))
-  {
-    available.append(m_availableAdapters["TimeGeometryInterpolator"]);
-  }
-
-  if(dynamic_cast<const ITimeTINComponentDataItem*>(provider))
-  {
-    available.append(m_availableAdapters["TimeTINInterpolator"]);
-  }
-
-  return available;
-}
-
-IAdaptedOutput* TemporalInterpolationFactoryComponent::createAdaptedOutput(IIdentity *adaptedProviderId, IOutput *provider, IInput *consumer)
-{
-  if(!adaptedProviderId->id().compare("TimeSeriesInterpolation" , Qt::CaseInsensitive))
-  {
-    ITimeSeriesComponentDataItem* timeSeries = dynamic_cast<ITimeSeriesComponentDataItem*>(provider);
-
-    TimeSeriesInterpolationAdaptedOutput* tsAdaptedOutput = new TimeSeriesInterpolationAdaptedOutput(adaptedProviderId->id() + provider->id(),
-                                                                                                     new Quantity(QVariant::Double , Unit::unitlessCoefficient(this), this),
-                                                                                                     timeSeries, this);
-    tsAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
-    tsAdaptedOutput->setInput(consumer);
-    provider->addAdaptedOutput(tsAdaptedOutput);
-
-    return tsAdaptedOutput;
-  }
-  else if(!adaptedProviderId->id().compare("TimeGeometryInterpolator" , Qt::CaseInsensitive))
-  {
-    ITimeGeometryComponentDataItem* timeGeometryOutput = dynamic_cast<ITimeGeometryComponentDataItem*>(provider);
-    Quantity *quantity = Quantity::copy(dynamic_cast<HydroCouple::IQuantity*>(provider->valueDefinition()), this);
-    TimeGeometryInterpolationAdaptedOutput* timeGeometryAdaptedOutput = new TimeGeometryInterpolationAdaptedOutput(adaptedProviderId->id() + "->" +provider->id(),
-                                                                                                                   quantity,
-                                                                                                                   timeGeometryOutput, this);
-    timeGeometryAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
-    timeGeometryAdaptedOutput->setInput(consumer);
-    provider->addAdaptedOutput(timeGeometryAdaptedOutput);
-
-    return timeGeometryAdaptedOutput;
-  }
-  else if(!adaptedProviderId->id().compare("TimeTINInterpolator" , Qt::CaseInsensitive))
-  {
-    ITimeTINComponentDataItem *timeTINOutput = dynamic_cast<ITimeTINComponentDataItem*>(provider);
-    Quantity *quantity = Quantity::copy(dynamic_cast<HydroCouple::IQuantity*>(provider->valueDefinition()), this);
-    TimeTINInterpolationAdaptedOutput *timeTINAdaptedOutput = new TimeTINInterpolationAdaptedOutput(adaptedProviderId->id() + "->" +provider->id(),
-                                                                                                    quantity,
-                                                                                                    timeTINOutput, this);
-    timeTINAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
-    timeTINAdaptedOutput->setInput(consumer);
-    provider->addAdaptedOutput(timeTINAdaptedOutput);
-
-    return timeTINAdaptedOutput;
-  }
-
-  return nullptr;
-
-}
 
 //******************************************************************************************************************************************************
 
-TemporalInterpolationFactoryComponentInfo::TemporalInterpolationFactoryComponentInfo(QObject *parent)
-  :AbstractAdaptedOutputFactoryComponentInfo(parent)
-{
-  setId("HydroCoupleSDK Temporal Interpolation AdaptedOutput Factory Component");
-  setCaption("Temporal Interpolation Factory");
-  setIconFilePath(":/HydroCoupleSDK/timeseriesinterpolator");
-}
-
-TemporalInterpolationFactoryComponentInfo::~TemporalInterpolationFactoryComponentInfo()
-{
-
-}
-
-IAdaptedOutputFactoryComponent* TemporalInterpolationFactoryComponentInfo::createComponentInstance()
-{
-  AbstractAdaptedOutputFactoryComponent* factoryComponent = new TemporalInterpolationFactoryComponent("Temporal Interpolation Factory" , this);
-  factoryComponent->setComponentInfo(this);
-  return factoryComponent;
-}
