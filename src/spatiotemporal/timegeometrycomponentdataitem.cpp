@@ -59,7 +59,7 @@ QString TimeGeometryComponentDataItem<T>::getId() const
 template<class T>
 bool TimeGeometryComponentDataItem<T>::addTime(SDKTemporal::DateTime *time)
 {
-  if(m_times.size() && m_times[m_times.size() - 1]->dateTime() >= time->dateTime())
+  if(m_times.size() && m_times[m_times.size() - 1]->modifiedJulianDay() >= time->modifiedJulianDay())
   {
     return false;
   }
@@ -85,7 +85,7 @@ bool TimeGeometryComponentDataItem<T>::addTimes(const QList<SDKTemporal::DateTim
 
     for(SDKTemporal::DateTime* ntime : times)
     {
-      if(timesAdded[timesAdded.size() - 1]->dateTime() >= ntime->dateTime())
+      if(timesAdded[timesAdded.size() - 1]->modifiedJulianDay() >= ntime->modifiedJulianDay())
       {
         return false;
       }

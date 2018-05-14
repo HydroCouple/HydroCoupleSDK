@@ -73,7 +73,7 @@ namespace  SDKTemporal
       void propertyChanged(const QString &propertyName) override;
 
     private:
-      QDateTime m_dateTime;
+
       double m_modifiedJD;
       static const QList<QString> m_dateTimeFormats;
 
@@ -108,9 +108,8 @@ namespace  SDKTemporal
       void propertyChanged(const QString& propertyName) override;
 
     private:
-
+      double m_endDateTime;
       double m_duration;
-      QDateTime m_endDateTime;
   };
 }
 

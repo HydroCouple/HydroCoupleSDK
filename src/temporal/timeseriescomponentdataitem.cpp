@@ -174,7 +174,7 @@ bool TimeSeriesComponentDataItem<T>::removeTime(SDKTemporal::DateTime* time)
     m_times.erase(index);
 
     double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
-    m_timeSpan->setDateTime(m_times[0]->dateTime());
+    m_timeSpan->setModifiedJulianDay(m_times[0]->modifiedJulianDay());
     m_timeSpan->setDuration(duration);
 
 

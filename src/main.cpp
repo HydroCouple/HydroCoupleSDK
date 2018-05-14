@@ -363,7 +363,7 @@ void createSWMMProjectFile(const QString &projectFile , const QString& nodeShape
     writer << "" << endl;
     writer << "[XSECTIONS]" << endl;
     writer << ";;Link           Shape        Geom1            Geom2      Geom3      Geom4      Barrels" << endl;
-    writer << ";;-------------- ------------ ---------------- ---------- ---------- ---------- ----------" << endl;
+    writer << ";;-------------- ------------ ---------------- ---------- ---------- ---------- -------" << endl;
 
     QString zero("0");
 
@@ -423,7 +423,6 @@ void createSWMMProjectFile(const QString &projectFile , const QString& nodeShape
 
     writer << "" << endl;
     writer << "[MAP]" << endl;
-    //write bounds;
     writer << "DIMENSIONS " << envelope.minX() << " " << envelope.minY() << " " << envelope.maxX() << " " << envelope.maxY() << endl;// 1526037.495 3764743.440 1570678.941 3816874.269" << endl;
     writer << "Units      None" << endl;
 
@@ -968,6 +967,8 @@ int thinPoints(int argc, char* argv[])
 
   return 0;
 }
+
+int thinCrossSections(int argc, char *argv);
 
 QList<HCPoint*> perpendicularXSection(double xsLength, int numXSteps, double factor, const Vect &v1, const Vect &v2)
 {

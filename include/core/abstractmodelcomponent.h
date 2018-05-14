@@ -158,7 +158,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
 
     void setPrepared(bool prepared);
 
-    virtual void intializeFailureCleanUp() = 0;
+    virtual void initializeFailureCleanUp() = 0;
 
     void addInput(AbstractInput *input);
 

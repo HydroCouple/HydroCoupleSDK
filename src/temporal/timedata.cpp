@@ -54,22 +54,18 @@ double DateTime::modifiedJulianDay() const
 
 QDateTime DateTime::dateTime() const
 {
-  return m_dateTime;
+  return fromModifiedJulianDays(m_modifiedJD);
 }
 
 void DateTime::setModifiedJulianDay(double modifiedJD)
 {
   m_modifiedJD = modifiedJD;
-  m_dateTime = fromModifiedJulianDays(modifiedJD);
-
   emit propertyChanged("DateTime");
 }
 
 void DateTime::setDateTime(const QDateTime &dateTime)
 {
-  m_dateTime = dateTime;
   m_modifiedJD = toModifiedJulianDays(dateTime);
-
   emit propertyChanged("DateTime");
 }
 
@@ -80,7 +76,7 @@ bool DateTime::compare(DateTime *time1, DateTime *time2)
 
 double DateTime::toJulianDays(const QDateTime &dateTime)
 {
-  double jd = dateTime.date().toJulianDay() * 1.0 + 
+  double jd = dateTime.date().toJulianDay() * 1.0 - 0.5 +
   dateTime.time().msecsSinceStartOfDay() * 1.0 / (24.0 * 60.0 * 60.0 * 1000.0);
   
   return jd;
@@ -259,13 +255,12 @@ void TimeSpan::setDuration(double duration)
   if(duration >= 0)
   {
     m_duration = duration;
-    m_endDateTime = dateTime().addMSecs(std::ceil(duration * 24.0 * 60.0 * 60.0 * 1000.0));
-
+    m_endDateTime = modifiedJulianDay() + duration;
     propertyChanged("Duration");
   }
 }
 
 QDateTime TimeSpan::endDateTime() const
 {
-  return m_endDateTime;
+  return fromModifiedJulianDays(m_endDateTime);
 }
