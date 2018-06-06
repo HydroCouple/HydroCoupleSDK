@@ -148,7 +148,7 @@ void TimeTINOutputDouble::resetTimeSpan()
 {
   if(m_times.size())
   {
-    double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
+    double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
     m_timeSpan->setDateTime(m_times[0]->dateTime());
     m_timeSpan->setDuration(duration);
   }
@@ -408,7 +408,7 @@ void TimeTINOutputDouble::moveDataToPrevTime()
   {
     for(size_t i = 1; i < m_times.size(); i++)
     {
-      m_times[i-1]->setModifiedJulianDay(m_times[i]->modifiedJulianDay());
+      m_times[i-1]->setJulianDay(m_times[i]->julianDay());
       m_data[i-1] = m_data[i];
     }
   }

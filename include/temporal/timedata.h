@@ -48,11 +48,11 @@ namespace  SDKTemporal
 
       virtual ~DateTime();
 
-      double modifiedJulianDay() const override;
+      double julianDay() const override;
 
       QDateTime dateTime() const;
 
-      void setModifiedJulianDay(double modifiedJD);
+      void setJulianDay(double julianDay);
 
       void setDateTime(const QDateTime &dateTime);
 
@@ -60,11 +60,7 @@ namespace  SDKTemporal
 
       static double toJulianDays(const QDateTime &dateTime);
 
-      static double toModifiedJulianDays(const QDateTime &dateTime);
-
       static QDateTime fromJulianDays(double julianDays);
-
-      static QDateTime fromModifiedJulianDays(double modifiedJulianDays);
 
       static bool tryParse(const QString &dateTimeString, QDateTime &dateTime);
 
@@ -74,7 +70,7 @@ namespace  SDKTemporal
 
     private:
 
-      double m_modifiedJD;
+      double m_JD;
       static const QList<QString> m_dateTimeFormats;
 
   };
@@ -108,6 +104,7 @@ namespace  SDKTemporal
       void propertyChanged(const QString& propertyName) override;
 
     private:
+
       double m_endDateTime;
       double m_duration;
   };

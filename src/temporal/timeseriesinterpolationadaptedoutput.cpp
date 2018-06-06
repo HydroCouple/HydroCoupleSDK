@@ -104,7 +104,7 @@ void TimeSeriesInterpolationAdaptedOutput::updateValues(IInput *querySpecifier)
   adaptee->updateValues(querySpecifier);
 
   ITimeComponentDataItem* timeExchangeItem = dynamic_cast<ITimeComponentDataItem*>(querySpecifier);
-  double queryTime = timeExchangeItem->time(timeExchangeItem->timeCount() - 1)->modifiedJulianDay();
+  double queryTime = timeExchangeItem->time(timeExchangeItem->timeCount() - 1)->julianDay();
 
   double currentTime = *m_timesBuffer.end();// [m_timeSeriesBuffer.keys().length() - 1];
 
@@ -168,7 +168,7 @@ void TimeSeriesInterpolationAdaptedOutput::refresh()
   if(m_adaptee->timeCount())
   {
     //retrieve data into buffer and trim appropriately.
-    double time = m_adaptee->time(m_adaptee->timeCount() - 1)->modifiedJulianDay();
+    double time = m_adaptee->time(m_adaptee->timeCount() - 1)->julianDay();
     double value = 0.0;
     m_adaptee->getValue(m_adaptee->timeCount() - 1,&value);
 

@@ -24,7 +24,7 @@
 #include "spatial/edge.h"
 #include "spatial/envelope.h"
 #include "spatial/linestring.h"
-#include "binary_find.h"
+//#include "binary_find.h"
 
 #include <math.h>
 #include <assert.h>

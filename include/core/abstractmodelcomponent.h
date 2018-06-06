@@ -209,6 +209,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     HydroCouple::IModelComponent::ComponentStatus m_status;
     QHash<QString, AbstractInput*> m_inputs;
     QHash<QString, AbstractOutput*> m_outputs;
+    QList<AbstractOutput*> m_outputsList;
     QHash<QString, AbstractArgument*> m_arguments;
     QList<AbstractArgument*> m_argumentsInsertionOrdered;
     AbstractModelComponentInfo *m_modelComponentInfo;

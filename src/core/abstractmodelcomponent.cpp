@@ -183,6 +183,8 @@ void AbstractModelComponent::createOutputs()
 
 void AbstractModelComponent::initialize()
 {
+  m_outputsList.clear();
+
   if(status() == IModelComponent::Created || status() == IModelComponent::Initialized || status() == IModelComponent::Failed)
   {
     setStatus(IModelComponent::Initializing , "" );
@@ -198,6 +200,8 @@ void AbstractModelComponent::initialize()
     {
       createInputs();
       createOutputs();
+
+      m_outputsList = m_outputs.values();
 
       setStatus(IModelComponent::Initialized, "", 0);
       m_initialized = true;
@@ -245,7 +249,7 @@ void AbstractModelComponent::applyInputValues()
       input->applyData();
     }
     else if (((mInput = dynamic_cast<AbstractMultiInput*>(input))
-               && mInput->providers().length()))
+              && mInput->providers().length()))
     {
       mInput->retrieveValuesFromProvider();
       mInput->applyData();
@@ -257,8 +261,13 @@ void AbstractModelComponent::updateOutputValues(const QList<IOutput *> &required
 {
   if(requiredOutputs.length())
   {
-    for(IOutput* output : requiredOutputs)
+
+#ifdef USE_OPENMP
+   #pragma omp parallel for
+#endif
+    for(int i = 0; i < requiredOutputs.size(); i++)
     {
+      IOutput *output = requiredOutputs[i];
       AbstractOutput *abstractOutput = dynamic_cast<AbstractOutput*>(output);
 
       if(abstractOutput && (abstractOutput->consumers().length() || abstractOutput->adaptedOutputs().length() ))
@@ -269,8 +278,15 @@ void AbstractModelComponent::updateOutputValues(const QList<IOutput *> &required
   }
   else
   {
-    for(AbstractOutput* abstractOutput : m_outputs)
+
+#ifdef USE_OPENMP
+   #pragma omp parallel for
+#endif
+    for(int i = 0; i < m_outputsList.size(); i++)
     {
+      IOutput *output = m_outputsList[i];
+      AbstractOutput *abstractOutput = dynamic_cast<AbstractOutput*>(output);
+
       if(abstractOutput && (abstractOutput->consumers().length() || abstractOutput->adaptedOutputs().length() ))
       {
         abstractOutput->updateValues();

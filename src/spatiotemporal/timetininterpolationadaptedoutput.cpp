@@ -131,8 +131,8 @@ void TimeTINInterpolationAdaptedOutput::resetTimeSpan()
 {
   if(m_times.size())
   {
-    double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
-    m_timeSpan->setModifiedJulianDay(m_times[0]->modifiedJulianDay());
+    double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
+    m_timeSpan->setJulianDay(m_times[0]->julianDay());
     m_timeSpan->setDuration(duration);
   }
 }
@@ -176,7 +176,7 @@ void TimeTINInterpolationAdaptedOutput::updateValues(IInput *querySpecifier)
     IOutput *adaptee = dynamic_cast<IOutput*>(m_adaptee);
     adaptee->updateValues(querySpecifier);
 
-    double queryDateTime =  timeExchangeItem->time(timeExchangeItem->timeCount() - 1)->modifiedJulianDay();
+    double queryDateTime =  timeExchangeItem->time(timeExchangeItem->timeCount() - 1)->julianDay();
 
     if(m_bufferedDateTimes.size() > 1)
     {
@@ -204,7 +204,7 @@ void TimeTINInterpolationAdaptedOutput::updateValues(IInput *querySpecifier)
       else
       {
         moveDataToPrevTime();
-        m_times[m_times.size() - 1]->setModifiedJulianDay(queryDateTime);
+        m_times[m_times.size() - 1]->setJulianDay(queryDateTime);
         m_data[m_times.size() - 1] = values;
       }
 
@@ -458,7 +458,7 @@ void TimeTINInterpolationAdaptedOutput::refresh()
 {
   if(m_adaptee->timeCount())
   {
-    double adapteeTime = m_adaptee->time(m_adaptee->timeCount() - 1)->modifiedJulianDay();
+    double adapteeTime = m_adaptee->time(m_adaptee->timeCount() - 1)->julianDay();
     std::vector<double> values(m_dataLength);
     double value;
 
@@ -535,7 +535,7 @@ void TimeTINInterpolationAdaptedOutput::moveDataToPrevTime()
   {
     for(size_t i = 0; i < m_times.size() - 1; i++)
     {
-      m_times[i]->setModifiedJulianDay(m_times[i+1]->modifiedJulianDay());
+      m_times[i]->setJulianDay(m_times[i+1]->julianDay());
       m_data[i] = m_data[i+1];
     }
   }

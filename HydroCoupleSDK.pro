@@ -107,8 +107,7 @@ HEADERS += ./include/stdafx.h \
            ./include/spline.h \
            ./include/specialmap.h \
            ./include/temporal/abstracttimemodelcomponent.h \
-           ./include/spatial/network.h \
-           ./binary_find.h
+           ./include/spatial/network.h
 
 HEADERS += ./include/tests/geometrytest.h \
            ./include/tests/polyhedralsurfacetest.h

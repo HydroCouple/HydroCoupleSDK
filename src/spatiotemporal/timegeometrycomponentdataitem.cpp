@@ -59,7 +59,7 @@ QString TimeGeometryComponentDataItem<T>::getId() const
 template<class T>
 bool TimeGeometryComponentDataItem<T>::addTime(SDKTemporal::DateTime *time)
 {
-  if(m_times.size() && m_times[m_times.size() - 1]->modifiedJulianDay() >= time->modifiedJulianDay())
+  if(m_times.size() && m_times[m_times.size() - 1]->julianDay() >= time->julianDay())
   {
     return false;
   }
@@ -85,7 +85,7 @@ bool TimeGeometryComponentDataItem<T>::addTimes(const QList<SDKTemporal::DateTim
 
     for(SDKTemporal::DateTime* ntime : times)
     {
-      if(timesAdded[timesAdded.size() - 1]->modifiedJulianDay() >= ntime->modifiedJulianDay())
+      if(timesAdded[timesAdded.size() - 1]->julianDay() >= ntime->julianDay())
       {
         return false;
       }
@@ -140,8 +140,8 @@ void TimeGeometryComponentDataItem<T>::resetTimeSpan()
 {
   if(m_times.size())
   {
-    double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
-    m_timeSpan->setModifiedJulianDay(m_times[0]->modifiedJulianDay());
+    double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
+    m_timeSpan->setJulianDay(m_times[0]->julianDay());
     m_timeSpan->setDuration(duration);
   }
 }
@@ -246,7 +246,7 @@ void TimeGeometryComponentDataItem<T>::moveDataToPrevTime()
   {
     for(size_t i = 0; i < m_times.size() - 1; i++)
     {
-      m_times[i]->setModifiedJulianDay(m_times[i+1]->modifiedJulianDay());
+      m_times[i]->setJulianDay(m_times[i+1]->julianDay());
       m_data[i] = m_data[i+1];
     }
   }

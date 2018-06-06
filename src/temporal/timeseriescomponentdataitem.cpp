@@ -48,7 +48,7 @@ TimeSeriesComponentDataItem<T>::TimeSeriesComponentDataItem(const QString &id, c
 
   if(m_times.size())
   {
-    double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
+    double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
     m_timeSpan = new SDKTemporal::TimeSpan(m_times[0]->dateTime(), duration, nullptr);
   }
   else
@@ -65,7 +65,7 @@ TimeSeriesComponentDataItem<T>::TimeSeriesComponentDataItem(const QString &id, c
   m_timeCursor = new DataCursor(0,times.size() - 1);
 
   qSort(m_times.begin() , m_times.end() , &SDKTemporal::DateTime::compare);
-  double duration = times[0]->modifiedJulianDay() - times[times.size() -1]->modifiedJulianDay();
+  double duration = times[0]->julianDay() - times[times.size() -1]->julianDay();
   m_timeSpan = new SDKTemporal::TimeSpan(times[0]->dateTime(), duration, nullptr);
   m_data = std::vector<T>(m_times.size());
   qFill(m_data, m_defaultValue);
@@ -80,7 +80,7 @@ TimeSeriesComponentDataItem<T>::TimeSeriesComponentDataItem(const QString &id, c
   m_timeCursor = new DataCursor(0,times.size() - 1);
 
   qSort(m_times.begin() , m_times.end() , &SDKTemporal::DateTime::compare);
-  double duration = times.front()->modifiedJulianDay() - times.back()->modifiedJulianDay();
+  double duration = times.front()->julianDay() - times.back()->julianDay();
   m_timeSpan = new SDKTemporal::TimeSpan(times.front()->dateTime(), duration, nullptr);
   m_data = std::vector<T>(m_times.size());
   qFill(m_data, m_defaultValue);
@@ -113,7 +113,7 @@ bool TimeSeriesComponentDataItem<T>::addTime(SDKTemporal::DateTime* time)
   m_times.push_back(time);
   m_data.push_back(m_defaultValue);
 
-  double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
+  double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
   m_timeSpan->setDateTime(m_times[0]->dateTime());
   m_timeSpan->setDuration(duration);
 
@@ -153,7 +153,7 @@ bool TimeSeriesComponentDataItem<T>::addTimes(const QList<SDKTemporal::DateTime*
     m_data.push_back(m_defaultValue);
   }
 
-  double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
+  double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
   m_timeSpan->setDateTime(m_times[0]->dateTime());
   m_timeSpan->setDuration(duration);
 
@@ -173,8 +173,8 @@ bool TimeSeriesComponentDataItem<T>::removeTime(SDKTemporal::DateTime* time)
     int loc = std::distance(m_times.begin(), index);
     m_times.erase(index);
 
-    double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.size() -1]->modifiedJulianDay();
-    m_timeSpan->setModifiedJulianDay(m_times[0]->modifiedJulianDay());
+    double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
+    m_timeSpan->setJulianDay(m_times[0]->julianDay());
     m_timeSpan->setDuration(duration);
 
 
@@ -253,7 +253,7 @@ void TimeSeriesComponentDataItem<T>::moveDataToPrevTime()
     for(size_t i = 0; i < m_times.size() - 1; i++)
     {
       m_data[i] = m_data[i+1];
-      m_times[i]->setModifiedJulianDay(m_times[i+1]->modifiedJulianDay());
+      m_times[i]->setJulianDay(m_times[i+1]->julianDay());
     }
   }
 }

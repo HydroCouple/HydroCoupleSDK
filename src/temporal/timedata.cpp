@@ -27,7 +27,7 @@ using namespace SDKTemporal;
 DateTime::DateTime(QObject *parent)
   :QObject(parent)
 {
-  setModifiedJulianDay(0);
+  setJulianDay(0);
 }
 
 DateTime::DateTime(const QDateTime& dateTime, QObject *parent)
@@ -39,7 +39,7 @@ DateTime::DateTime(const QDateTime& dateTime, QObject *parent)
 DateTime::DateTime(double dateTime, QObject *parent)
   :QObject(parent)
 {
-  setModifiedJulianDay(dateTime);
+  setJulianDay(dateTime);
 }
 
 DateTime::~DateTime()
@@ -47,75 +47,53 @@ DateTime::~DateTime()
 
 }
 
-double DateTime::modifiedJulianDay() const
+double DateTime::julianDay() const
 {
-  return m_modifiedJD;
+  return m_JD;
 }
 
 QDateTime DateTime::dateTime() const
 {
-  return fromModifiedJulianDays(m_modifiedJD);
+  return fromJulianDays(m_JD);
 }
 
-void DateTime::setModifiedJulianDay(double modifiedJD)
+void DateTime::setJulianDay(double julianDay)
 {
-  m_modifiedJD = modifiedJD;
+  m_JD = julianDay;
   emit propertyChanged("DateTime");
 }
 
 void DateTime::setDateTime(const QDateTime &dateTime)
 {
-  m_modifiedJD = toModifiedJulianDays(dateTime);
+  m_JD = toJulianDays(dateTime);
   emit propertyChanged("DateTime");
 }
 
 bool DateTime::compare(DateTime *time1, DateTime *time2)
 {
-  return time1->modifiedJulianDay() < time2->modifiedJulianDay();
+  return time1->julianDay() < time2->julianDay();
 }
 
 double DateTime::toJulianDays(const QDateTime &dateTime)
 {
-  double jd = dateTime.date().toJulianDay() * 1.0 - 0.5 +
-  dateTime.time().msecsSinceStartOfDay() * 1.0 / (24.0 * 60.0 * 60.0 * 1000.0);
-  
-  return jd;
-}
+  double fracDayTime = (dateTime.time().msecsSinceStartOfDay() * 1.0 )/ (86400000.0);
+  double jd = 1.0 * dateTime.date().toJulianDay() - 0.5 + fracDayTime;
 
-double DateTime::toModifiedJulianDays(const QDateTime &dateTime)
-{
-  double mjd = toJulianDays(dateTime) - 2400000.5;
-  return mjd;
+  return jd;
 }
 
 QDateTime DateTime::fromJulianDays(double julianDays)
 {
-  QDateTime jd;
   long long int jday = floor(julianDays);
   QDate date = QDate::fromJulianDay(jday);
-  jd.setDate(date);
 
   double stime = julianDays - date.toJulianDay();
-  QTime time = QTime::fromMSecsSinceStartOfDay(std::ceil(stime * 24.0 * 60.0 * 60.0 * 1000.0));
-  jd.setTime(time);
+  QTime time(0,0);
+  time.addMSecs(stime * 86400000.0);
+
+  QDateTime jd = QDateTime(date,time);
 
   return jd;
-}
-
-QDateTime DateTime::fromModifiedJulianDays(double modifiedJulianDay)
-{
-  QDateTime mjd;
-
-  long long int jday = floor(modifiedJulianDay + 2400000.5);
-  QDate date = QDate::fromJulianDay(jday);
-  mjd.setDate(date);
-
-  double stime = modifiedJulianDay + 2400000.5 - date.toJulianDay();
-
-  QTime time = QTime::fromMSecsSinceStartOfDay(std::ceil(stime * 24.0 * 60.0 * 60.0 * 1000.0));
-  mjd.setTime(time);
-
-  return mjd;
 }
 
 bool DateTime::tryParse(const QString &dateTimeString, QDateTime &dateTime)
@@ -226,7 +204,7 @@ TimeSpan::TimeSpan(QObject *parent)
   :DateTime(parent),
     m_duration(0)
 {
-  setModifiedJulianDay(0);
+  setJulianDay(0);
 }
 
 TimeSpan::TimeSpan(const QDateTime &dateDateTime, double duration, QObject *parent)
@@ -255,12 +233,12 @@ void TimeSpan::setDuration(double duration)
   if(duration >= 0)
   {
     m_duration = duration;
-    m_endDateTime = modifiedJulianDay() + duration;
+    m_endDateTime = julianDay() + duration;
     propertyChanged("Duration");
   }
 }
 
 QDateTime TimeSpan::endDateTime() const
 {
-  return fromModifiedJulianDays(m_endDateTime);
+  return fromJulianDays(m_endDateTime);
 }

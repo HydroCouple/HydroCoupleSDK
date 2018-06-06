@@ -104,8 +104,8 @@ void TimeGeometryInterpolationAdaptedOutput::resetTimeSpan()
 {
   if(m_dateTimes.size())
   {
-    double duration = m_dateTimes[0]->modifiedJulianDay() - m_dateTimes[m_dateTimes.size() -1]->modifiedJulianDay();
-    m_timeSpan->setModifiedJulianDay(m_dateTimes[0]->modifiedJulianDay());
+    double duration = m_dateTimes[0]->julianDay() - m_dateTimes[m_dateTimes.size() -1]->julianDay();
+    m_timeSpan->setJulianDay(m_dateTimes[0]->julianDay());
     m_timeSpan->setDuration(duration);
   }
 }
@@ -149,7 +149,7 @@ void TimeGeometryInterpolationAdaptedOutput::updateValues(IInput *querySpecifier
     IOutput *adaptee = dynamic_cast<IOutput*>(m_adaptee);
     adaptee->updateValues(querySpecifier);
 
-    double queryDateTime =  timeExchangeItem->time(timeExchangeItem->timeCount() - 1)->modifiedJulianDay();
+    double queryDateTime =  timeExchangeItem->time(timeExchangeItem->timeCount() - 1)->julianDay();
 
     if(m_bufferedDateTimes.size() > 1)
     {
@@ -177,7 +177,7 @@ void TimeGeometryInterpolationAdaptedOutput::updateValues(IInput *querySpecifier
       else
       {
         moveDataToPrevTime();
-        m_dateTimes[m_dateTimes.size() - 1]->setModifiedJulianDay(queryDateTime);
+        m_dateTimes[m_dateTimes.size() - 1]->setJulianDay(queryDateTime);
         m_data[m_data.size() - 1] = newGeomValues;
       }
 
@@ -282,7 +282,7 @@ void TimeGeometryInterpolationAdaptedOutput::refresh()
 {
   if(m_adaptee->timeCount())
   {
-    double adapteeTime = m_adaptee->time(m_adaptee->timeCount() - 1)->modifiedJulianDay();
+    double adapteeTime = m_adaptee->time(m_adaptee->timeCount() - 1)->julianDay();
     std::vector<double> values(m_adaptee->geometryCount());
     m_adaptee->getValues(m_adaptee->timeCount() - 1, 0, 1, m_adaptee->geometryCount(), values.data());
 
@@ -318,7 +318,7 @@ void TimeGeometryInterpolationAdaptedOutput::moveDataToPrevTime()
   {
     for(size_t i = 0; i < m_dateTimes.size() -1; i++)
     {
-      m_dateTimes[i]->setModifiedJulianDay(m_dateTimes[i+1]->modifiedJulianDay());
+      m_dateTimes[i]->setJulianDay(m_dateTimes[i+1]->julianDay());
       m_data[i] = m_data[i+1];
     }
   }

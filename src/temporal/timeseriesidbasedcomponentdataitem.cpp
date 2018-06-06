@@ -40,7 +40,7 @@ TimeSeriesIdBasedComponentDataItem<T>::TimeSeriesIdBasedComponentDataItem(const 
     m_times(times)
 {
   qSort(m_times.begin() , m_times.end() , &DateTime::compare);
-  double duration = times[0]->modifiedJulianDay() - times[times.length() -1]->modifiedJulianDay();
+  double duration = times[0]->julianDay() - times[times.length() -1]->julianDay();
   m_timeSpan = new TimeSpan(times[0]->dateTime(), duration, nullptr);
 }
 
@@ -182,8 +182,8 @@ void TimeSeriesIdBasedComponentDataItem<T>::resetTimeSpan()
 {
   if(m_times.length())
   {
-    double duration = m_times[0]->modifiedJulianDay() - m_times[m_times.length() -1]->modifiedJulianDay();
-    m_timeSpan->setModifiedJulianDay(m_times[0]->modifiedJulianDay());
+    double duration = m_times[0]->julianDay() - m_times[m_times.length() -1]->julianDay();
+    m_timeSpan->setJulianDay(m_times[0]->julianDay());
     m_timeSpan->setDuration(duration);
   }
 }
