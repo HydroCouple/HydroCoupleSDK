@@ -242,3 +242,4 @@ CMakeLists.txt.user
 
 .vscode/.browse.VC.db
 *.lib
+*.lib
