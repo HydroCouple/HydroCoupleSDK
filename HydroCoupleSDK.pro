@@ -244,47 +244,53 @@ LIBS += -L/usr/local/lib -lgdal \
 
 win32{
 
-#Windows vspkg package manager installation path
-VSPKGDIR = C:/vcpkg/installed/x64-windows
-
-INCLUDEPATH += $${VSPKGDIR}/include \
-               $${VSPKGDIR}/include/gdal
-
-message ($$(VSPKGDIR))
-
-CONFIG(debug, debug|release) {
-
-LIBS += -L$${VSPKGDIR}/debug/lib -lgdald \
-        -L$${VSPKGDIR}/debug/lib -lnetcdf \
-        -L$${VSPKGDIR}/debug/lib -lnetcdf-cxx4
-
-    } else {
-
-LIBS += -L$${VSPKGDIR}/lib -lgdal \
-        -L$${VSPKGDIR}/lib -lnetcdf \
-        -L$${VSPKGDIR}/lib -lnetcdf-cxx4
-
-}
-
     contains(DEFINES,USE_OPENMP){
 
         QMAKE_CFLAGS += /openmp
         #QMAKE_LFLAGS += /openmp
         QMAKE_CXXFLAGS += /openmp
-        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS
-        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS
+        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS /MD
+        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS  /MDd
         message("OpenMP enabled")
+
     } else {
 
         message("OpenMP disabled")
     }
 
-    contains(DEFINES,USE_MPI){
-       LIBS += -L$$(MSMPI_LIB64)/ -lmsmpi
-       message("MPI enabled")
-    } else {
+    #Windows vspkg package manager installation path
+    VSPKGDIR = C:/vcpkg/installed/x64-windows
 
-      message("MPI disabled")
+    INCLUDEPATH += $${VSPKGDIR}/include \
+                   $${VSPKGDIR}/include/gdal
+
+    message ($$(VSPKGDIR))
+
+    CONFIG(debug, debug|release) {
+
+    LIBS += -L$${VSPKGDIR}/debug/lib -lgdald \
+            -L$${VSPKGDIR}/debug/lib -lnetcdf \
+            -L$${VSPKGDIR}/debug/lib -lnetcdf-cxx4
+
+            contains(DEFINES,USE_MPI){
+               LIBS += -L$${VSPKGDIR}/debug/lib -lmsmpi
+               message("MPI enabled")
+            } else {
+              message("MPI disabled")
+            }
+
+        } else {
+
+    LIBS += -L$${VSPKGDIR}/lib -lgdal \
+            -L$${VSPKGDIR}/lib -lnetcdf \
+            -L$${VSPKGDIR}/lib -lnetcdf-cxx4
+
+            contains(DEFINES,USE_MPI){
+               LIBS += -L$${VSPKGDIR}/lib -lmsmpi
+               message("MPI enabled")
+            } else {
+              message("MPI disabled")
+            }
     }
 }
 
