@@ -269,7 +269,7 @@ LIBS += -L$${VSPKGDIR}/lib -lgdal \
     contains(DEFINES,USE_OPENMP){
 
         QMAKE_CFLAGS += /openmp
-        QMAKE_LFLAGS += /openmp
+        #QMAKE_LFLAGS += /openmp
         QMAKE_CXXFLAGS += /openmp
         QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS
         QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS

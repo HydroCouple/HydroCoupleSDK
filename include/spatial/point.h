@@ -210,37 +210,37 @@ struct HYDROCOUPLESDK_EXPORT Vect
 
     const double &operator[](const int index) const;
 
-    friend Vect operator *(const Vect &v, double factor);
+    friend Vect HYDROCOUPLESDK_EXPORT operator *(const Vect &v, double factor);
 
-    friend Vect operator *(double factor, const Vect &v);
+    friend Vect HYDROCOUPLESDK_EXPORT operator *(double factor, const Vect &v);
 
-    friend Vect operator *(const Vect &v1 , const Vect &v2);
+    friend Vect HYDROCOUPLESDK_EXPORT operator *(const Vect &v1 , const Vect &v2);
 
-    friend Vect operator +(const Vect &v1 , const Vect &v2) ;
+    friend Vect HYDROCOUPLESDK_EXPORT operator +(const Vect &v1 , const Vect &v2) ;
 
-    friend Vect operator -(const Vect &v1 , const Vect &v2) ;
+    friend Vect HYDROCOUPLESDK_EXPORT operator -(const Vect &v1 , const Vect &v2) ;
 
-    friend Vect operator/(const Vect &v, double divisor);
+    friend Vect HYDROCOUPLESDK_EXPORT operator/(const Vect &v, double divisor);
 
-    friend Vect operator/(const Vect &v1 , const Vect &v2);
+    friend Vect HYDROCOUPLESDK_EXPORT operator/(const Vect &v1 , const Vect &v2);
 
 
-    static double dotProduct(const Vect& u, const Vect &v);
+    static double  dotProduct(const Vect& u, const Vect &v);
 
-    static double dotProduct(double x, double y, double z, const Vect &v);
+    static double  dotProduct(double x, double y, double z, const Vect &v);
 
-    static double dotProduct(double x1, double y1, double z1, double x2, double y2, double z2);
+    static double  dotProduct(double x1, double y1, double z1, double x2, double y2, double z2);
 
-    static Vect crossProduct(const Vect& u, const Vect &v);
+    static Vect  crossProduct(const Vect& u, const Vect &v);
 
-    static bool linesIntersect2d(const Vect &l1p1, const Vect &l1p2,
+    static bool  linesIntersect2d(const Vect &l1p1, const Vect &l1p2,
                                  const Vect &l2p1, const Vect &l2p2, Vect &outVect);
 
-    static Vect unitX();
+    static Vect  unitX();
 
-    static Vect unitY();
+    static Vect  unitY();
 
-    static Vect unitZ();
+    static Vect  unitZ();
 
     void print();
 
