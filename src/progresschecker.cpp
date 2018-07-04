@@ -20,14 +20,17 @@
 #include "stdafx.h"
 #include "progresschecker.h"
 
+
 #include <assert.h>
+#include <cmath>
 
 ProgressChecker::ProgressChecker(double begin, double end, double numSteps, QObject *parent)
   :QObject(parent),
     m_progPerformed(false),
     m_begin(begin),
     m_end(end),
-    m_nextStep(begin)
+    m_nextStep(begin),
+    m_value(begin)
 {
   assert(begin < end);
   assert(numSteps > 0);
@@ -43,18 +46,19 @@ ProgressChecker::~ProgressChecker()
 
 bool ProgressChecker::performStep(double value)
 {
-  if(value >= m_nextStep && !m_progPerformed)
+  m_value = value;
+
+  if(value >= m_nextStep /*&& !m_progPerformed*/)
   {
-    m_progPerformed = true;
+//    m_progPerformed = true;
     m_progress = std::min(100.0, std::max((value - m_begin) * 100.0 / (m_end - m_begin),0.0));
-    m_nextStep += m_step;
+    m_nextStep = m_begin + (int)((m_value - m_begin) / m_step) * m_step + m_step;
     emit progressChanged(m_progress);
     return true;
   }
   else
   {
-
-    m_progPerformed = false;
+//    m_progPerformed = false;
     return false;
   }
 }
@@ -66,6 +70,7 @@ void ProgressChecker::reset(double begin, double end, double numSteps)
 
   m_begin = begin;
   m_end = end;
+  m_value = begin;
   m_step = (m_end - m_begin) / numSteps;
   m_progPerformed = false;
   m_nextStep = m_begin;
@@ -77,12 +82,47 @@ void ProgressChecker::reset()
 {
   m_progPerformed = false;
   m_nextStep = m_begin;
+  m_value = m_begin;
   m_progress = 0;
 }
 
 double ProgressChecker::progress() const
 {
   return m_progress;
+}
+
+bool ProgressChecker::isBusy() const
+{
+  if(m_progress > m_begin && m_progress < m_end)
+  {
+    return true;
+  }
+  else if(m_begin == m_end && m_progress > m_end)
+  {
+    return true;
+  }
+
+  return false;
+}
+
+double ProgressChecker::begin() const
+{
+  return m_begin;
+}
+
+double ProgressChecker::end() const
+{
+  return m_end;
+}
+
+double ProgressChecker::currentValue() const
+{
+  return m_value;
+}
+
+bool ProgressChecker::isFinished() const
+{
+  return currentValue() >= m_end;
 }
 
 void ProgressChecker::onPerformStep(double value)

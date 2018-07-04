@@ -146,7 +146,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
 
   signals:
 
-    void componentStatusChanged(const QSharedPointer<HydroCouple::IComponentStatusChangeEventArgs> &statusChangedEvent) override ;
+    void componentStatusChanged(const QSharedPointer<HydroCouple::IComponentStatusChangeEventArgs> &statusChangedEvent) override;
 
     void propertyChanged(const QString &propertyName) override;
 
@@ -159,6 +159,8 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
     void setPrepared(bool prepared);
 
     virtual void initializeFailureCleanUp() = 0;
+
+    IdBasedArgumentString *identifierArgument() const;
 
     void addInput(AbstractInput *input);
 

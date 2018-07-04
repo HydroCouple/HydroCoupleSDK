@@ -31,7 +31,7 @@ class Envelope;
 
 //typedef void (*NotifyGeometryListChanged) (const GeometryInputDouble*);
 
-class HYDROCOUPLESDK_EXPORT GeometryInputDouble  : public AbstractInput,
+class HYDROCOUPLESDK_EXPORT GeometryInputDouble : public AbstractInput,
     public ComponentDataItem1D<double>,
     public virtual HydroCouple::Spatial::IGeometryComponentDataItem
 {

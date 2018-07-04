@@ -22,7 +22,7 @@
 #include "core/idbasedargument.h"
 #include "core/valuedefinition.h"
 #include "core/dimension.h"
-#include "core/idbasedexchangeitems.h"
+#include "core/idbasedinputs.h"
 #include "core/abstractmodelcomponent.h"
 
 #include <QString>

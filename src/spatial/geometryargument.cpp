@@ -56,6 +56,7 @@ GeometryArgumentDouble::GeometryArgumentDouble(const QString &id,
 
 GeometryArgumentDouble::~GeometryArgumentDouble()
 {
+
 }
 
 IGeometry::GeometryType GeometryArgumentDouble::geometryType() const

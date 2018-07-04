@@ -22,7 +22,7 @@
 #define IDBASEDARGUMENT_H
 
 #include "abstractargument.h"
-#include "idbasedexchangeitems.h"
+#include "idbasedcomponentdataitem.h"
 #include <QFileInfo>
 
 class AbstractArgument;

@@ -18,48 +18,11 @@
  * \todo
  */
 
-#ifndef IDBASEDCOMPONENTDATAITEM_H
-#define IDBASEDCOMPONENTDATAITEM_H
+#ifndef IDBASEDINPUTS_H
+#define IDBASEDINPUTS_H
 
-#include "abstractcomponentdataitem.h"
-#include "exchangeitems1d.h"
-
-template<class T>
-class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem :
-    public ComponentDataItem1D<T>
-{
-  public:
-
-    IdBasedComponentDataItem(const QString &id,
-                             const QStringList& identifiers,
-                             const T& defaultValue);
-
-    virtual ~IdBasedComponentDataItem();
-
-    bool addIdentifier(const QString &identifier);
-
-    void addIdentifiers(const QList<QString> &identifiers);
-
-    bool removeIdentifier(const QString &identifier);
-
-    bool containsIdentifier(const QString& identifier) const;
-
-    T &operator[](const QString &id);
-
-    const T &operator [](const QString &id) const;
-
-  protected:
-
-    QStringList identifiersInternal() const;
-
-    void clearIdentifiers();
-
-  private:
-
-    QStringList  m_identifiers;
-};
-
-//==============================================================================================================================
+#include "abstractinput.h"
+#include "idbasedcomponentdataitem.h"
 
 class HYDROCOUPLESDK_EXPORT IdBasedInputInt : public AbstractInput,
     public IdBasedComponentDataItem<int>,
@@ -106,6 +69,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputInt : public AbstractInput,
     void writeData(QXmlStreamWriter &xmlWriter) const override;
 
   private:
+
     Dimension* m_identifierDimension;
 
 };
@@ -208,5 +172,5 @@ Q_DECLARE_METATYPE(IdBasedInputInt*)
 Q_DECLARE_METATYPE(IdBasedInputDouble*)
 Q_DECLARE_METATYPE(IdBasedInputString*)
 
-#endif // IDBASEDCOMPONENTDATAITEM_H
+#endif // IDBASEDINPUTS_H
 

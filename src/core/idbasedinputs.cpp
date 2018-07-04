@@ -19,11 +19,10 @@
 
 
 #include "stdafx.h"
-#include "core/idbasedexchangeitems.h"
+#include "core/idbasedinputs.h"
 #include "core/dimension.h"
 #include "core/valuedefinition.h"
 #include "core/abstractmodelcomponent.h"
-#include <assert.h>
 
 using namespace HydroCouple;
 
@@ -593,5 +592,3 @@ void IdBasedInputString::writeData(QXmlStreamWriter &xmlWriter) const
   }
   xmlWriter.writeEndElement();
 }
-
-

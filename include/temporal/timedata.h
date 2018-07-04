@@ -72,6 +72,7 @@ namespace  SDKTemporal
 
       double m_JD;
       static const QList<QString> m_dateTimeFormats;
+      static const QRegExp m_dateTimeDelim;
 
   };
 

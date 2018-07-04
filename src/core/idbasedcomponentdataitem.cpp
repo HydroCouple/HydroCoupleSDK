@@ -17,11 +17,10 @@
  * \todo
  */
 
-
 #include "stdafx.h"
-#include "core/idbasedexchangeitems.h"
-#include <assert.h>
+#include "core/idbasedcomponentdataitem.h"
 
+#include <QDateTime>
 
 template<class T>
 IdBasedComponentDataItem<T>::IdBasedComponentDataItem(const QString &id,

@@ -57,7 +57,7 @@ bool AbstractInput::setProvider(IOutput *provider)
 {
   QString message ="";
 
-  if(canConsume(provider, message))
+  if(canConsume(provider, message) || provider == nullptr)
   {
     m_provider = provider;
     emit propertyChanged("Provider");
@@ -109,7 +109,7 @@ bool AbstractMultiInput::addProvider(IOutput *provider)
 {
   QString message = "";
 
-  if(provider  && !m_providers.contains(provider) && canConsume(provider, message))
+  if(provider && !m_providers.contains(provider) && canConsume(provider, message))
   {
     m_providers.append(provider);
     emit propertyChanged("Providers");

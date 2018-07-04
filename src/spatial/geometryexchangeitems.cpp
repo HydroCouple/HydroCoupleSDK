@@ -47,6 +47,7 @@ GeometryInputDouble::GeometryInputDouble(const QString &id,
 GeometryInputDouble::~GeometryInputDouble()
 {
   delete m_envelope;
+  m_geometries.clear();
 }
 
 IGeometry::GeometryType GeometryInputDouble::geometryType() const
@@ -171,6 +172,7 @@ GeometryOutputDouble::GeometryOutputDouble(const QString &id,
 GeometryOutputDouble::~GeometryOutputDouble()
 {
   delete m_envelope;
+  m_geometries.clear();
 }
 
 IGeometry::GeometryType GeometryOutputDouble::geometryType() const

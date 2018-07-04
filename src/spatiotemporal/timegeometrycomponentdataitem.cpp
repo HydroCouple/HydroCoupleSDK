@@ -48,6 +48,15 @@ TimeGeometryComponentDataItem<T>::~TimeGeometryComponentDataItem()
   delete m_envelope;
   delete m_timeCursor;
   delete m_timeSpan;
+
+  for(SDKTemporal::DateTime *time : m_times)
+  {
+    delete time;
+  }
+
+  m_times.clear();
+  m_data.clear();
+
 }
 
 template<class T>
@@ -117,7 +126,7 @@ bool TimeGeometryComponentDataItem<T>::addTimes(const QList<SDKTemporal::DateTim
 template<class T>
 bool TimeGeometryComponentDataItem<T>::removeTime(SDKTemporal::DateTime* time)
 {
-   int  index = std::find(m_times.begin() ,m_times.end() ,time) - m_times.begin();
+  int  index = std::find(m_times.begin() ,m_times.end() ,time) - m_times.begin();
 
   if(index > -1)
   {
@@ -232,7 +241,14 @@ bool TimeGeometryComponentDataItem<T>::moveData(int fromTimeIndex, int toTimeInd
 {
   if(fromTimeIndex < (int)m_data.size() && toTimeIndex < (int)m_data.size())
   {
-    m_data[toTimeIndex] = m_data[fromTimeIndex];
+    std::vector<T> &toData = m_data[toTimeIndex];
+    std::vector<T> &fromData = m_data[fromTimeIndex];
+
+    for(size_t j = 0 ; j < toData.size(); j++)
+    {
+      toData[j] = fromData[j];
+    }
+
     return true;
   }
 
@@ -247,7 +263,13 @@ void TimeGeometryComponentDataItem<T>::moveDataToPrevTime()
     for(size_t i = 0; i < m_times.size() - 1; i++)
     {
       m_times[i]->setJulianDay(m_times[i+1]->julianDay());
-      m_data[i] = m_data[i+1];
+
+      std::vector<T> & data = m_data[i];
+
+      for(size_t j = 0 ; j < data.size() ; j++)
+      {
+        data[j] = m_data[i+1][j];
+      }
     }
   }
 }

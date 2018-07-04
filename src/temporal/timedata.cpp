@@ -98,6 +98,45 @@ QDateTime DateTime::fromJulianDays(double julianDays)
 
 bool DateTime::tryParse(const QString &dateTimeString, QDateTime &dateTime)
 {
+
+  QStringList dateCols = dateTimeString.split(m_dateTimeDelim, QString::SkipEmptyParts);
+
+  if (dateCols.size() == 6)
+  {
+
+    bool monthOk;
+    int month = dateCols[0].toInt(&monthOk);
+
+    bool dayOk;
+    int day = dateCols[1].toInt(&dayOk);
+
+    bool yearOk;
+    int year = dateCols[2].toInt(&yearOk);
+
+    bool hourOk;
+    int hour = dateCols[3].toInt(&hourOk);
+
+    bool minuteOk;
+    int minute = dateCols[4].toInt(&minuteOk);
+
+    bool secondOk;
+    int second = dateCols[5].toInt(&secondOk);
+
+    if (monthOk && dayOk && yearOk && hourOk && minuteOk && secondOk)
+    {
+      QDate date(year, month, day);
+      QTime time = QTime(hour, minute, second);
+
+      dateTime = QDateTime(date, time);
+
+      if (dateTime.isValid())
+      {
+        return true;
+      }
+    }
+  }
+
+
   dateTime = QDateTime::fromString(dateTimeString,Qt::ISODate);
   if(dateTime.isValid()) return true;
 
@@ -197,6 +236,9 @@ const QList<QString> DateTime::m_dateTimeFormats({
                                                    "M-d-yyyy",
                                                    "MM-dd-yyyy"
                                                  });
+
+const QRegExp DateTime::m_dateTimeDelim("(\\,|\\t|\\\n|\\/|\\s+|\\:)");
+
 
 //======================================================================================================================================================================
 

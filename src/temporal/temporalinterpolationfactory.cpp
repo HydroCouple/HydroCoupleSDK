@@ -94,12 +94,29 @@ IAdaptedOutput* TemporalInterpolationFactory::createAdaptedOutput(IIdentity *ada
   {
     ITimeSeriesComponentDataItem* timeSeries = dynamic_cast<ITimeSeriesComponentDataItem*>(provider);
     Quantity *quantity = Quantity::copy(dynamic_cast<HydroCouple::IQuantity*>(provider->valueDefinition()), this);
-    TimeSeriesInterpolationAdaptedOutput* tsAdaptedOutput = new TimeSeriesInterpolationAdaptedOutput(adaptedProviderId->id() + "->" + provider->id(),
+    TimeSeriesInterpolationAdaptedOutput* tsAdaptedOutput = new TimeSeriesInterpolationAdaptedOutput(adaptedProviderId->id(),
                                                                                                      quantity,
                                                                                                      timeSeries, this);
+
+
+
     tsAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
-    tsAdaptedOutput->setInput(consumer);
+    tsAdaptedOutput->setInput(consumer);    
     provider->addAdaptedOutput(tsAdaptedOutput);
+
+    if(consumer)
+    {
+      tsAdaptedOutput->addConsumer(consumer);
+
+      if(dynamic_cast<IMultiInput*>(consumer))
+      {
+        dynamic_cast<IMultiInput*>(consumer)->addProvider(provider);
+      }
+      else
+      {
+        consumer->setProvider(provider);
+      }
+    }
 
     return tsAdaptedOutput;
   }
@@ -107,12 +124,28 @@ IAdaptedOutput* TemporalInterpolationFactory::createAdaptedOutput(IIdentity *ada
   {
     ITimeGeometryComponentDataItem* timeGeometryOutput = dynamic_cast<ITimeGeometryComponentDataItem*>(provider);
     Quantity *quantity = Quantity::copy(dynamic_cast<HydroCouple::IQuantity*>(provider->valueDefinition()), this);
-    TimeGeometryInterpolationAdaptedOutput* timeGeometryAdaptedOutput = new TimeGeometryInterpolationAdaptedOutput(adaptedProviderId->id() + "->" +provider->id(),
+    TimeGeometryInterpolationAdaptedOutput* timeGeometryAdaptedOutput = new TimeGeometryInterpolationAdaptedOutput(adaptedProviderId->id(),
                                                                                                                    quantity,
                                                                                                                    timeGeometryOutput, this);
     timeGeometryAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
     timeGeometryAdaptedOutput->setInput(consumer);
     provider->addAdaptedOutput(timeGeometryAdaptedOutput);
+
+
+    if(consumer)
+    {
+      timeGeometryAdaptedOutput->addConsumer(consumer);
+
+      if(dynamic_cast<IMultiInput*>(consumer))
+      {
+        dynamic_cast<IMultiInput*>(consumer)->addProvider(provider);
+      }
+      else
+      {
+        consumer->setProvider(provider);
+      }
+    }
+
 
     return timeGeometryAdaptedOutput;
   }
@@ -120,12 +153,27 @@ IAdaptedOutput* TemporalInterpolationFactory::createAdaptedOutput(IIdentity *ada
   {
     ITimeTINComponentDataItem *timeTINOutput = dynamic_cast<ITimeTINComponentDataItem*>(provider);
     Quantity *quantity = Quantity::copy(dynamic_cast<HydroCouple::IQuantity*>(provider->valueDefinition()), this);
-    TimeTINInterpolationAdaptedOutput *timeTINAdaptedOutput = new TimeTINInterpolationAdaptedOutput(adaptedProviderId->id() + "->" +provider->id(),
+    TimeTINInterpolationAdaptedOutput *timeTINAdaptedOutput = new TimeTINInterpolationAdaptedOutput(adaptedProviderId->id(),
                                                                                                     quantity,
                                                                                                     timeTINOutput, this);
     timeTINAdaptedOutput->setCaption(adaptedProviderId->caption() + " " + provider->id());
     timeTINAdaptedOutput->setInput(consumer);
     provider->addAdaptedOutput(timeTINAdaptedOutput);
+
+
+    if(consumer)
+    {
+      timeTINAdaptedOutput->addConsumer(consumer);
+
+      if(dynamic_cast<IMultiInput*>(consumer))
+      {
+        dynamic_cast<IMultiInput*>(consumer)->addProvider(provider);
+      }
+      else
+      {
+        consumer->setProvider(provider);
+      }
+    }
 
     return timeTINAdaptedOutput;
   }

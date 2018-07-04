@@ -41,6 +41,16 @@ class HYDROCOUPLESDK_EXPORT ProgressChecker : public QObject
 
     double progress() const;
 
+    bool isBusy() const;
+
+    double begin() const;
+
+    double end() const;
+
+    double currentValue() const;
+
+    bool isFinished() const;
+
   public slots:
 
     void onPerformStep(double value);
@@ -53,6 +63,7 @@ class HYDROCOUPLESDK_EXPORT ProgressChecker : public QObject
 
     bool m_progPerformed;
     double m_begin, m_end, m_step, m_nextStep, m_progress;
+    double m_value;
 
 };
 

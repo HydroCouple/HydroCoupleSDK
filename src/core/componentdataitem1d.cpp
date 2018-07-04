@@ -23,7 +23,6 @@
 #include "core/dimension.h"
 
 #include <QDebug>
-#include <assert.h>
 #include <QDateTime>
 
 using namespace HydroCouple;

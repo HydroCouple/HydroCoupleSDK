@@ -13,6 +13,7 @@ DEFINES += HYDROCOUPLESDK_LIBRARY
 DEFINES += UTAH_CHPC
 DEFINES += USE_OPENMP
 DEFINES += USE_MPI
+DEFINES += USE_NETCDF
 
 CONFIG += c++11
 CONFIG += debug_and_release
@@ -57,7 +58,7 @@ HEADERS += ./include/stdafx.h \
            ./include/core/abstractargument.h \
            ./include/core/exchangeitems1d.h \
            ./include/core/exchangeitems2d.h \
-           ./include/core/idbasedexchangeitems.h \
+           ./include/core/idbasedinputs.h \
            ./include/core/exchangeitemchangeeventargs.h \
            ./include/core/abstractexchangeitem.h \
            ./include/core/idbasedargument.h \
@@ -107,7 +108,14 @@ HEADERS += ./include/stdafx.h \
            ./include/spline.h \
            ./include/specialmap.h \
            ./include/temporal/abstracttimemodelcomponent.h \
-           ./include/spatial/network.h
+           ./include/spatial/network.h \
+           ./include/composition/composition.h \
+           ./include/composition/modelcomponent.h \
+           ./include/composition/exchangeitems.h \
+           ./include/threadsafencfile.h \
+           ./include/core/idbasedcomponentdataitem.h \
+           ./include/core/idbasedoutputs.h \
+           ./include/timeseries.h
 
 HEADERS += ./include/tests/geometrytest.h \
            ./include/tests/polyhedralsurfacetest.h
@@ -128,7 +136,7 @@ SOURCES += ./src/stdafx.cpp \
            ./src/core/abstractoutput.cpp \
            ./src/core/exchangeitems1d.cpp \
            ./src/core/exchangeitems2d.cpp \
-           ./src/core/idbasedexchangeitems.cpp \
+           ./src/core/idbasedinputs.cpp \
            ./src/core/abstractargument.cpp \
            ./src/core/abstractexchangeitem.cpp \
            ./src/core/exchangeitemchangeeventargs.cpp \
@@ -190,7 +198,15 @@ SOURCES += ./src/stdafx.cpp \
            ./src/spatiotemporal/timegeometryinterpolationadaptedoutput.cpp \
            ./src/spatiotemporal/timetininterpolationadaptedoutput.cpp \
            ./src/temporal/abstracttimemodelcomponent.cpp \
-           ./src/spatial/network.cpp
+           ./src/spatial/network.cpp \
+           ./src/composition/composition.cpp \
+           ./src/composition/modelcomponent.cpp \
+           ./src/composition/exchangeitems.cpp \
+           ./src/composition/input.cpp \
+           ./src/composition/output.cpp \
+           ./src/threadsafencfile.cpp \
+           ./src/core/idbasedoutputs.cpp \
+    src/timeseries.cpp
 
 macx{
 
@@ -199,8 +215,11 @@ INCLUDEPATH += /usr/local \
                /usr/local/include/gdal \
                /usr/X11/include
 
-LIBS += -L/usr/local/lib -lgdal \
-        -L/usr/local/lib -lnetcdf-cxx4
+LIBS += -L/usr/local/lib -lgdal
+
+    contains(DEFINES, USE_NETCDF){
+        LIBS += -L/usr/local/lib -lnetcdf-cxx4
+     }
 
     contains(DEFINES,USE_OPENMP){
 
@@ -268,9 +287,14 @@ win32{
 
     CONFIG(debug, debug|release) {
 
-    LIBS += -L$${VSPKGDIR}/debug/lib -lgdald \
-            -L$${VSPKGDIR}/debug/lib -lnetcdf \
-            -L$${VSPKGDIR}/debug/lib -lnetcdf-cxx4
+    LIBS += -L$${VSPKGDIR}/debug/lib -lgdald
+
+            contains(DEFINES, USE_NETCDF){
+                LIBS += -L$${VSPKGDIR}/debug/lib -lnetcdf \
+                        -L$${VSPKGDIR}/debug/lib -lnetcdf-cxx4
+             }
+
+
 
             contains(DEFINES,USE_MPI){
                LIBS += -L$${VSPKGDIR}/debug/lib -lmsmpi
@@ -304,12 +328,16 @@ LIBS += -L/usr/lib/ogdi -lgdal \
 
     contains(DEFINES,UTAH_CHPC){
 
+         contains(DEFINES, USE_NETCDF){
+
          INCLUDEPATH += /uufs/chpc.utah.edu/sys/installdir/hdf5/1.8.17-c7/include \
                         /uufs/chpc.utah.edu/sys/installdir/netcdf-c/4.3.3.1/include \
                         /uufs/chpc.utah.edu/sys/installdir/netcdf-cxx/4.3.0-c7/include
 
          LIBS += -L/uufs/chpc.utah.edu/sys/installdir/hdf5/1.8.17-c7/lib -lhdf5 \
                  -L/uufs/chpc.utah.edu/sys/installdir/netcdf-cxx/4.3.0-c7/lib -lnetcdf_c++4
+         }
+
 
          message("Compiling on CHPC")
     }

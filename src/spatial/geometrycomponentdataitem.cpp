@@ -42,6 +42,7 @@ template<class T>
 GeometryComponentDataItem<T>::~GeometryComponentDataItem()
 {
   delete m_envelope;
+  m_geometries.clear();
 }
 
 template<class T>

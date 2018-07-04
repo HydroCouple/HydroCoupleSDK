@@ -36,7 +36,6 @@
 
 using namespace HydroCouple;
 
-
 AbstractModelComponent::AbstractModelComponent(const QString &id, AbstractModelComponentInfo *modelComponentInfo)
   : Identity(id, modelComponentInfo),
     m_status(IModelComponent::Created),
@@ -99,6 +98,7 @@ AbstractModelComponent::~AbstractModelComponent()
 
   qDeleteAll(m_arguments.values());
   m_arguments.clear();
+  m_argumentsInsertionOrdered.clear();
 
 #ifdef USE_MPI
 
@@ -185,7 +185,9 @@ void AbstractModelComponent::initialize()
 {
   m_outputsList.clear();
 
-  if(status() == IModelComponent::Created || status() == IModelComponent::Initialized || status() == IModelComponent::Failed)
+  if(status() == IModelComponent::Created ||
+     status() == IModelComponent::Initialized ||
+     status() == IModelComponent::Failed)
   {
     setStatus(IModelComponent::Initializing , "" );
 
@@ -238,7 +240,6 @@ bool AbstractModelComponent::isPrepared() const
 
 void AbstractModelComponent::applyInputValues()
 {
-
   for(AbstractInput* input : m_inputs)
   {
     AbstractMultiInput* mInput = nullptr;
@@ -503,6 +504,11 @@ void AbstractModelComponent::setPrepared(bool prepared)
   m_prepared = prepared;
 }
 
+IdBasedArgumentString *AbstractModelComponent::identifierArgument() const
+{
+  return m_identifiersArgument;
+}
+
 void AbstractModelComponent::addInput(AbstractInput *input)
 {
   if(m_inputs.find(input->id()) == m_inputs.end())
@@ -562,7 +568,6 @@ void AbstractModelComponent::clearOutputs()
 {
   qDeleteAll(m_outputs.values());
   m_outputs.clear();
-
   emit propertyChanged("Outputs");
 }
 
