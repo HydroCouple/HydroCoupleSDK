@@ -94,7 +94,6 @@ void GeometryInputDouble::addGeometries(const QList<QSharedPointer<HCGeometry>> 
   emit propertyChanged("Geometries");
 }
 
-
 bool GeometryInputDouble::removeGeometry(const QSharedPointer<HCGeometry> &geometry)
 {
   int index = m_geometries.indexOf(geometry);

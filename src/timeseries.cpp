@@ -102,9 +102,9 @@ bool TimeSeries::addRow(double dateTime, const std::vector<double> &values)
   return true;
 }
 
-void TimeSeries::setValue(int row, int columnIndex, double value)
+void TimeSeries::setValue(int rowIndex, int columnIndex, double value)
 {
-  m_values[row][columnIndex] = value;
+  m_values[rowIndex][columnIndex] = value;
 }
 
 double TimeSeries::dateTime(double rowIndex) const
@@ -129,6 +129,12 @@ bool TimeSeries::removeRow(int rowIndex)
 
   return false;
 }
+
+int TimeSeries::currentCursorIndex() const
+{
+  return m_cursorLocation;
+}
+
 
 int TimeSeries::findDateTimeIndex(double dateTime)
 {
@@ -183,6 +189,36 @@ int TimeSeries::findDateTimeIndex(double dateTime, int startIndex)
 
   return -1;
 }
+
+double TimeSeries::interpolate(double dateTime, int columnIndex, bool &found)
+{
+  int index = findDateTimeIndex(dateTime);
+
+  if(index > -1)
+  {
+    double interpValue = 0.0;
+
+    if(index == (int)m_dateTimes.size() - 1)
+    {
+      interpValue = m_values[index][columnIndex];
+    }
+    else
+    {
+      double downDate = m_dateTimes[index];
+      double upDate = m_dateTimes[index + 1];
+      double downValue = m_values[index][columnIndex];
+      double upValue = m_values[index + 1][columnIndex];
+      interpValue = downValue + (upValue - downValue) / (upDate - downDate) * (dateTime -  downDate);
+    }
+
+    found = true;
+    return interpValue;
+  }
+
+  found = false;
+  return -999999999999999;
+}
+
 
 void TimeSeries::resetCursor()
 {

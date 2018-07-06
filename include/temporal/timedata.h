@@ -82,7 +82,6 @@ namespace  SDKTemporal
       Q_OBJECT
       Q_INTERFACES(HydroCouple::Temporal::ITimeSpan)
       Q_PROPERTY(double Duration READ duration WRITE setDuration NOTIFY propertyChanged)
-      Q_PROPERTY(QDateTime EndDateTime READ endDateTime NOTIFY propertyChanged)
 
     public:
 
@@ -98,7 +97,7 @@ namespace  SDKTemporal
 
       void setDuration(double duration);
 
-      QDateTime endDateTime() const;
+      double endDateTime() const;
 
     signals:
 

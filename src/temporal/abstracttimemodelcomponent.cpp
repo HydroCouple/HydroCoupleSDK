@@ -17,13 +17,13 @@
  * \todo
  */
 
-
 #include "stdafx.h"
 #include "temporal/abstracttimemodelcomponent.h"
 #include "temporal/timedata.h"
 
-using namespace SDKTemporal;
+using namespace HydroCouple;
 using namespace HydroCouple::Temporal;
+using namespace SDKTemporal;
 
 AbstractTimeModelComponent::AbstractTimeModelComponent(const QString &id, AbstractModelComponentInfo *modelComponentInfo):
   AbstractModelComponent(id,modelComponentInfo)
@@ -54,6 +54,7 @@ ITimeSpan *AbstractTimeModelComponent::timeHorizon() const
   return m_timeHorizon;
 }
 
+
 DateTime *AbstractTimeModelComponent::currentDateTimeInternal() const
 {
   return m_dateTime;
@@ -62,4 +63,52 @@ DateTime *AbstractTimeModelComponent::currentDateTimeInternal() const
 TimeSpan *AbstractTimeModelComponent::timeHorizonInternal() const
 {
   return m_timeHorizon;
+}
+
+double AbstractTimeModelComponent::getMinimumConsumerTime() const
+{
+  double m_returnDateTime = timeHorizonInternal()->endDateTime();
+
+  for(HydroCouple::IOutput * output : outputs())
+  {
+    for(IInput *input : output->consumers())
+    {
+      ITimeComponentDataItem *timeComponentDateItem = nullptr;
+
+      if((timeComponentDateItem = dynamic_cast<ITimeComponentDataItem*>(input)))
+      {
+        m_returnDateTime = std::min(m_returnDateTime, timeComponentDateItem->time(timeComponentDateItem->timeCount() -1)->julianDay());
+      }
+    }
+
+    for(HydroCouple::IAdaptedOutput *adaptedOutput : output->adaptedOutputs())
+    {
+      m_returnDateTime = std::min(m_returnDateTime, getMinimumConsumerTime(adaptedOutput));
+    }
+  }
+
+  return m_returnDateTime;
+}
+
+
+double AbstractTimeModelComponent::getMinimumConsumerTime(IAdaptedOutput *adaptedOutput) const
+{
+  double m_returnDateTime = timeHorizonInternal()->endDateTime();
+
+  for(IInput *input : adaptedOutput->consumers())
+  {
+    ITimeComponentDataItem *timeComponentDateItem = nullptr;
+
+    if((timeComponentDateItem = dynamic_cast<ITimeComponentDataItem*>(input)))
+    {
+      m_returnDateTime = std::min(m_returnDateTime, timeComponentDateItem->time(timeComponentDateItem->timeCount() -1)->julianDay());
+    }
+  }
+
+  for(HydroCouple::IAdaptedOutput *adaptedOutput : adaptedOutput->adaptedOutputs())
+  {
+    m_returnDateTime = std::min(m_returnDateTime, getMinimumConsumerTime(adaptedOutput));
+  }
+
+  return m_returnDateTime;
 }

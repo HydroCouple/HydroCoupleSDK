@@ -89,7 +89,7 @@ QDateTime DateTime::fromJulianDays(double julianDays)
 
   double stime = julianDays - date.toJulianDay();
   QTime time(0,0);
-  time.addMSecs(stime * 86400000.0);
+  time = time.addMSecs(stime * 86400000.0);
 
   QDateTime jd = QDateTime(date,time);
 
@@ -280,7 +280,7 @@ void TimeSpan::setDuration(double duration)
   }
 }
 
-QDateTime TimeSpan::endDateTime() const
+double TimeSpan::endDateTime() const
 {
-  return fromJulianDays(m_endDateTime);
+  return m_endDateTime;
 }

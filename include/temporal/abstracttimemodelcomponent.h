@@ -33,9 +33,12 @@ namespace SDKTemporal
 class HYDROCOUPLESDK_EXPORT AbstractTimeModelComponent : public AbstractModelComponent,
     public virtual HydroCouple::Temporal::ITimeModelComponent
 {
+
+    Q_OBJECT
+
     Q_INTERFACES(HydroCouple::Temporal::ITimeModelComponent)
-    Q_PROPERTY(SDKTemporal::DateTime* CurrentDateTime READ currentDateTime NOTIFY propertyChanged)
-    Q_PROPERTY(SDKTemporal::TimeSpan* TimeHorizon READ timeHorizon NOTIFY propertyChanged)
+    Q_PROPERTY(HydroCouple::Temporal::IDateTime* CurrentDateTime READ currentDateTime)
+    Q_PROPERTY(HydroCouple::Temporal::ITimeSpan* TimeHorizon READ timeHorizon)
 
   public:
 
@@ -54,6 +57,10 @@ class HYDROCOUPLESDK_EXPORT AbstractTimeModelComponent : public AbstractModelCom
     SDKTemporal::DateTime *currentDateTimeInternal() const;
 
     SDKTemporal::TimeSpan *timeHorizonInternal() const;
+
+    double getMinimumConsumerTime() const;
+
+    double getMinimumConsumerTime(HydroCouple::IAdaptedOutput *adpatedOutput) const;
 
   private:
 

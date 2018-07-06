@@ -34,17 +34,21 @@ class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
 
     bool addRow(double dateTime, const std::vector<double>& values);
 
-    void setValue(int row, int columnIndex, double value);
+    void setValue(int rowIndex, int columnIndex, double value);
 
     double dateTime(double rowIndex) const;
 
-    double value(double rowIndex, int columnIndex = 1) const;
+    double value(double rowIndex, int columnIndex = 0) const;
 
     bool removeRow(int rowIndex);
 
+    int currentCursorIndex() const;
+
     int findDateTimeIndex(double dateTime);
 
-    int findDateTimeIndex(double dateTime, int startIndex = 0);
+    int findDateTimeIndex(double dateTime, int startIndex);
+
+    double interpolate(double dateTime, int columnIndex, bool &found);
 
     void resetCursor();
 
