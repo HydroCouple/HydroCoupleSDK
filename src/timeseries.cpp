@@ -278,51 +278,56 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
 
         while (!streamReader.atEnd())
         {
-          line = file.readLine();
-          columns = line.split(commaTabDel, QString::SkipEmptyParts);
+          line = file.readLine().trimmed();
 
-          if (columns.size() > (int)(headers.size()))
+          if(!line.isEmpty())
           {
-            QDateTime dt;
+            columns = line.split(commaTabDel, QString::SkipEmptyParts);
 
-            if (SDKTemporal::DateTime::tryParse(columns[0], dt))
+            if (columns.size() > (int)(headers.size()))
             {
-              double dateTimeJD = SDKTemporal::DateTime::toJulianDays(dt);
+              QDateTime dt;
 
-              std::vector<double> values;
-              values.reserve(headers.size());
-
-              for (int i = 1; i < columns.size(); i++)
+              if (SDKTemporal::DateTime::tryParse(columns[0], dt))
               {
-                bool ok;
-                double value = columns[i].toDouble(&ok);
+                double dateTimeJD = SDKTemporal::DateTime::toJulianDays(dt);
 
-                if (ok)
+                std::vector<double> values;
+                values.reserve(headers.size());
+
+                for (int i = 1; i < columns.size(); i++)
                 {
-                  values.push_back(value);
+                  bool ok;
+                  double value = columns[i].toDouble(&ok);
+
+                  if (ok)
+                  {
+                    values.push_back(value);
+                  }
+                  else
+                  {
+                    noError = false;
+                    break;
+                  }
                 }
-                else
+
+                if (noError)
                 {
-                  noError = false;
-                  break;
+                  timeSeriesValues[dateTimeJD] = values;
                 }
               }
-
-              if (noError)
+              else
               {
-                timeSeriesValues[dateTimeJD] = values;
+                printf("%s\n", line.toStdString().c_str());
+                SDKTemporal::DateTime::tryParse(columns[0], dt);
+                noError = false;
               }
             }
             else
             {
-              SDKTemporal::DateTime::tryParse(columns[0], dt);
               noError = false;
+              break;
             }
-          }
-          else
-          {
-            noError = false;
-            break;
           }
 
           if (noError == false)

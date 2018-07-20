@@ -5,7 +5,7 @@
  * \license
  * This file and its associated files, and libraries are free software.
  * You can redistribute it and/or modify it under the terms of the
- * Lesser GNU General Public License as published by the Free Software Foundation;
+ * Lesser GNU Lesser General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  * This file and its associated files is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
@@ -52,7 +52,7 @@ bool ProgressChecker::performStep(double value)
   {
 //    m_progPerformed = true;
     m_progress = std::min(100.0, std::max((value - m_begin) * 100.0 / (m_end - m_begin),0.0));
-    m_nextStep = m_begin + (int)((m_value - m_begin) / m_step) * m_step + m_step;
+    m_nextStep = m_begin + std::floor((m_value - m_begin) / m_step) * m_step + m_step;
     emit progressChanged(m_progress);
     return true;
   }

@@ -5,6 +5,8 @@
 #include "core/valuedefinition.h"
 #include "core/abstractmodelcomponent.h"
 
+#include <assert.h>
+
 using namespace HydroCouple;
 
 IdBasedOutputDouble::IdBasedOutputDouble(const QString& id,

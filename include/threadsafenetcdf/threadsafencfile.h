@@ -3,10 +3,10 @@
 
 #ifdef USE_NETCDF
 
-   #include "hydrocouple.h"
-   #include <netcdf>
+   #include "threadsafenetcdf/threadsafencgroup.h"
 
-   class HYDROCOUPLE_EXPORT ThreadSafeNcFile
+
+   class HYDROCOUPLESDK_EXPORT ThreadSafeNcFile : public ThreadSafeNcGroup
    {
 
      public:
@@ -28,17 +28,6 @@
        void close();
 
        netCDF::NcFile *ncFile() const;
-
-       int getDimSize(const std::string &varName);
-
-       bool putVar(const std::string &varName,
-                   const std::vector<size_t> &startp,
-                   const double values);
-
-       bool putVar(const std::string &varName,
-                   const std::vector<size_t> &startp,
-                   const std::vector<size_t> &countp,
-                   const double* values);
 
      private:
 

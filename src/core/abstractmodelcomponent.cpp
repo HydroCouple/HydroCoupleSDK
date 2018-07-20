@@ -5,7 +5,7 @@
  * \license
  * This file and its associated files, and libraries are free software.
  * You can redistribute it and/or modify it under the terms of the
- * Lesser GNU General Public License as published by the Free Software Foundation;
+ * Lesser GNU Lesser General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  * This file and its associated files is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
@@ -33,11 +33,11 @@
 #include <QSharedPointer>
 #include <QDataStream>
 #include <math.h>
-
+#include <QThread>
 using namespace HydroCouple;
 
 AbstractModelComponent::AbstractModelComponent(const QString &id, AbstractModelComponentInfo *modelComponentInfo)
-  : Identity(id, modelComponentInfo),
+  : Identity(id, modelComponentInfo->thread() == QThread::currentThread() ? modelComponentInfo : nullptr),
     m_status(IModelComponent::Created),
     m_modelComponentInfo(modelComponentInfo),
     m_initialized(false),
@@ -63,7 +63,7 @@ AbstractModelComponent::AbstractModelComponent(const QString &id, AbstractModelC
 }
 
 AbstractModelComponent::AbstractModelComponent(const QString &id, const QString &caption, AbstractModelComponentInfo *modelComponentInfo)
-  : Identity(id,caption,modelComponentInfo),
+  : Identity(id,caption,modelComponentInfo->thread() == QThread::currentThread() ? modelComponentInfo : nullptr),
     m_status(HydroCouple::IModelComponent::Created),
     m_modelComponentInfo(modelComponentInfo),
     m_initialized(false),
@@ -92,9 +92,11 @@ AbstractModelComponent::~AbstractModelComponent()
 {
   qDeleteAll(m_inputs.values());
   m_inputs.clear();
+  m_orderedInputs.clear();
 
   qDeleteAll(m_outputs.values());
   m_outputs.clear();
+  m_orderedOutputs.clear();
 
   qDeleteAll(m_arguments.values());
   m_arguments.clear();
@@ -149,14 +151,14 @@ IModelComponent::ComponentStatus AbstractModelComponent::status() const
 
 QList<IInput*> AbstractModelComponent::inputs() const
 {
-  QList<IInput*> inputs;
+  QList<IInput*> returnInputs;
 
-  for(AbstractInput* input : m_inputs)
+  for(AbstractInput* input : m_orderedInputs)
   {
-    inputs.append(input);
+    returnInputs.append(input);
   }
 
-  return inputs;
+  return returnInputs;
 }
 
 void AbstractModelComponent::createInputs()
@@ -166,14 +168,14 @@ void AbstractModelComponent::createInputs()
 
 QList<IOutput*> AbstractModelComponent::outputs() const
 {
-  QList<IOutput*> outputs;
+  QList<IOutput*> returnOutputs;
 
-  for(AbstractOutput* output : m_outputs)
+  for(AbstractOutput* output : m_orderedOutputs)
   {
-    outputs.append(output);
+    returnOutputs.append(output);
   }
 
-  return outputs;
+  return returnOutputs;
 }
 
 void AbstractModelComponent::createOutputs()
@@ -183,8 +185,6 @@ void AbstractModelComponent::createOutputs()
 
 void AbstractModelComponent::initialize()
 {
-  m_outputsList.clear();
-
   if(status() == IModelComponent::Created ||
      status() == IModelComponent::Initialized ||
      status() == IModelComponent::Failed)
@@ -202,8 +202,6 @@ void AbstractModelComponent::initialize()
     {
       createInputs();
       createOutputs();
-
-      m_outputsList = m_outputs.values();
 
       setStatus(IModelComponent::Initialized, "", 0);
       m_initialized = true;
@@ -240,20 +238,19 @@ bool AbstractModelComponent::isPrepared() const
 
 void AbstractModelComponent::applyInputValues()
 {
-  for(AbstractInput* input : m_inputs)
+  //#ifdef USE_OPENMP
+  //#pragma omp parallel for
+  //#endif
+  for(int i = 0; i < (int)m_orderedInputs.size(); i++)
   {
+    AbstractInput *input = m_orderedInputs[i];
     AbstractMultiInput* mInput = nullptr;
 
-    if(input->provider() != nullptr)
+    if(((mInput = dynamic_cast<AbstractMultiInput*>(input)) != nullptr && mInput->providers().length() > 0) ||
+       input->provider() != nullptr)
     {
       input->retrieveValuesFromProvider();
       input->applyData();
-    }
-    else if (((mInput = dynamic_cast<AbstractMultiInput*>(input))
-              && mInput->providers().length()))
-    {
-      mInput->retrieveValuesFromProvider();
-      mInput->applyData();
     }
   }
 }
@@ -264,7 +261,7 @@ void AbstractModelComponent::updateOutputValues(const QList<IOutput *> &required
   {
 
 #ifdef USE_OPENMP
-   #pragma omp parallel for
+#pragma omp parallel for
 #endif
     for(int i = 0; i < requiredOutputs.size(); i++)
     {
@@ -281,11 +278,11 @@ void AbstractModelComponent::updateOutputValues(const QList<IOutput *> &required
   {
 
 #ifdef USE_OPENMP
-   #pragma omp parallel for
+#pragma omp parallel for
 #endif
-    for(int i = 0; i < m_outputsList.size(); i++)
+    for(int i = 0; i < (int)m_orderedOutputs.size(); i++)
     {
-      IOutput *output = m_outputsList[i];
+      IOutput *output = m_orderedOutputs[i];
       AbstractOutput *abstractOutput = dynamic_cast<AbstractOutput*>(output);
 
       if(abstractOutput && (abstractOutput->consumers().length() || abstractOutput->adaptedOutputs().length() ))
@@ -298,7 +295,7 @@ void AbstractModelComponent::updateOutputValues(const QList<IOutput *> &required
 
 void AbstractModelComponent::initializeAdaptedOutputs()
 {
-  for(AbstractOutput* abstractOutput : m_outputs)
+  for(AbstractOutput* abstractOutput : m_orderedOutputs)
   {
     abstractOutput->initializeAdaptedOutputs();
   }
@@ -514,6 +511,7 @@ void AbstractModelComponent::addInput(AbstractInput *input)
   if(m_inputs.find(input->id()) == m_inputs.end())
   {
     m_inputs[input->id()] = input;
+    m_orderedInputs.push_back(input);
     emit propertyChanged("Inputs");
   }
 }
@@ -523,6 +521,13 @@ bool AbstractModelComponent::removeInput(AbstractInput *input)
   if(m_inputs.contains(input->id()))
   {
     m_inputs.remove(input->id());
+    auto it = std::find(m_orderedInputs.begin(), m_orderedInputs.end(), input);
+
+    if(it != m_orderedInputs.end())
+    {
+      m_orderedInputs.erase(it);
+    }
+
     emit propertyChanged("Inputs");
     return true;
   }
@@ -535,6 +540,8 @@ void AbstractModelComponent::clearInputs()
 
   qDeleteAll(m_inputs.values());
   m_inputs.clear();
+  m_orderedInputs.clear();
+
   emit propertyChanged("Inputs");
 }
 
@@ -548,6 +555,7 @@ void AbstractModelComponent::addOutput(AbstractOutput *output)
   if(m_outputs.contains(output->id()) == false)
   {
     m_outputs[output->id()] = output;
+    m_orderedOutputs.push_back(output);
     emit propertyChanged("Outputs");
   }
 }
@@ -557,6 +565,14 @@ bool AbstractModelComponent::removeOutput(AbstractOutput *output)
   if(m_outputs.contains(output->id()))
   {
     m_outputs.remove(output->id());
+
+    auto it = std::find(m_orderedOutputs.begin() , m_orderedOutputs.end() , output);
+
+    if(it != m_orderedOutputs.end())
+    {
+      m_orderedOutputs.erase(it);
+    }
+
     emit propertyChanged("Outputs");
     return true;
   }
@@ -568,6 +584,8 @@ void AbstractModelComponent::clearOutputs()
 {
   qDeleteAll(m_outputs.values());
   m_outputs.clear();
+  m_orderedOutputs.clear();
+
   emit propertyChanged("Outputs");
 }
 
@@ -614,14 +632,16 @@ QHash<QString,AbstractArgument*> AbstractModelComponent::argumentsInternal() con
 
 void AbstractModelComponent::setStatus(HydroCouple::IModelComponent::ComponentStatus status)
 {
-  //  HydroCouple::ComponentStatus oldStatus = m_status;
   m_status = status;
 }
 
 void AbstractModelComponent::setStatus(IModelComponent::ComponentStatus status, const QString &message)
 {
+
   IModelComponent::ComponentStatus oldStatus = m_status;
   m_status = status;
+
+
   QString cStatus = statusToString(status);
   //  QString oldStat = statusToString(oldStatus);
 
@@ -634,13 +654,14 @@ void AbstractModelComponent::setStatus(IModelComponent::ComponentStatus status, 
 
   emit componentStatusChanged(QSharedPointer<IComponentStatusChangeEventArgs>(new ComponentStatusChangeEventArgs(m_status, oldStatus, outMessage, this)));
 
-  //  printf("%s \n" , outMessage.toStdString().c_str());
+
 }
 
 void AbstractModelComponent::setStatus(IModelComponent::ComponentStatus status, const QString &message, int progress)
 {
   IModelComponent::ComponentStatus oldStatus = m_status;
   m_status = status;
+
   QString cStatus = statusToString(status);
   //  QString oldStat = statusToString(oldStatus);
 

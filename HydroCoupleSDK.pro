@@ -1,7 +1,7 @@
 #Author Caleb Amoa Buahin
 #Email caleb.buahin@gmail.com
 #Date 2014-2018
-#License GNU General Public License (see <http: //www.gnu.org/licenses/> for details).
+#License GNU Lesser General Public License (see <http: //www.gnu.org/licenses/> for details).
 #Copyright 2014-2018, Caleb Buahin, All rights reserved.
 
 TARGET = HydroCoupleSDK
@@ -10,30 +10,28 @@ QT += core testlib concurrent
 QT -= gui
 
 DEFINES += HYDROCOUPLESDK_LIBRARY
-DEFINES += UTAH_CHPC
+DEFINES += USE_CHPC
 DEFINES += USE_OPENMP
 DEFINES += USE_MPI
 DEFINES += USE_NETCDF
 
 CONFIG += c++11
 CONFIG += debug_and_release
+CONFIG += optimize_full
 
-#Added for faster compilation
-*msvc* { # visual studio spec filter
-      QMAKE_CXXFLAGS += /MP /O2
-}
 
 contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
 
   TEMPLATE = lib
-  message("Compiling as library")
+  message("Compiling HydroCoupleSDK as library")
+
 } else {
 
   TEMPLATE = app
   CONFIG-=app_bundle
-  message("Compiling as application")
-}
+  message("Compiling HydroCoupleSDK as application")
 
+}
 
 INCLUDEPATH += ./include \
                ../HydroCouple/include
@@ -112,10 +110,14 @@ HEADERS += ./include/stdafx.h \
            ./include/composition/composition.h \
            ./include/composition/modelcomponent.h \
            ./include/composition/exchangeitems.h \
-           ./include/threadsafencfile.h \
+           ./include/threadsafenetcdf/threadsafencfile.h \
            ./include/core/idbasedcomponentdataitem.h \
            ./include/core/idbasedoutputs.h \
-           ./include/timeseries.h
+           ./include/timeseries.h \
+           ./include/threadsafenetcdf/threadsafencgroup.h \
+           ./include/threadsafenetcdf/threadsafencvar.h \
+           ./include/threadsafenetcdf/threadsafencatt.h \
+           ./include/threadsafenetcdf/threadsafencdim.h
 
 HEADERS += ./include/tests/geometrytest.h \
            ./include/tests/polyhedralsurfacetest.h
@@ -204,18 +206,22 @@ SOURCES += ./src/stdafx.cpp \
            ./src/composition/exchangeitems.cpp \
            ./src/composition/input.cpp \
            ./src/composition/output.cpp \
-           ./src/threadsafencfile.cpp \
+           ./src/threadsafenetcdf/threadsafencfile.cpp \
            ./src/core/idbasedoutputs.cpp \
-    src/timeseries.cpp
+           ./src/timeseries.cpp \
+           ./src/threadsafenetcdf/threadsafencgroup.cpp \
+           ./src/threadsafenetcdf/threadsafencvar.cpp \
+           ./src/threadsafenetcdf/threadsafencdim.cpp \
+           ./src/threadsafenetcdf/threadsafencatt.cpp
 
 macx{
 
-INCLUDEPATH += /usr/local \
-               /usr/local/include \
-               /usr/local/include/gdal \
-               /usr/X11/include
+    INCLUDEPATH += /usr/local \
+                   /usr/local/include \
+                   /usr/local/include/gdal \
+                   /usr/X11/include
 
-LIBS += -L/usr/local/lib -lgdal
+    LIBS += -L/usr/local/lib -lgdal
 
     contains(DEFINES, USE_NETCDF){
         LIBS += -L/usr/local/lib -lnetcdf-cxx4
@@ -235,7 +241,8 @@ LIBS += -L/usr/local/lib -lgdal
         LIBS += -L /usr/local/opt/llvm/lib -lomp
 
         message("OpenMP enabled")
-    } else {
+
+        } else {
 
         message("OpenMP disabled")
     }
@@ -246,14 +253,15 @@ LIBS += -L/usr/local/lib -lgdal
         QMAKE_CXX = /usr/local/bin/mpicxx
         QMAKE_LINK = /usr/local/bin/mpicxx
 
-        QMAKE_CFLAGS += $$system(mpicc --showme:compile)
-        QMAKE_CXXFLAGS += $$system(mpic++ --showme:compile)
-        QMAKE_LFLAGS += $$system(mpic++ --showme:link)
+        QMAKE_CFLAGS += $$system(/usr/local/bin/mpicc --showme:compile)
+        QMAKE_CXXFLAGS += $$system(/usr/local/bin/mpicxx --showme:compile)
+        QMAKE_LFLAGS += $$system(/usr/local/bin/mpicxx --showme:link)
 
         LIBS += -L/usr/local/lib -lmpi
 
         message("MPI enabled")
-    } else {
+
+        } else {
 
         message("MPI disabled")
     }
@@ -268,11 +276,9 @@ win32{
         QMAKE_CFLAGS += /openmp
         #QMAKE_LFLAGS += /openmp
         QMAKE_CXXFLAGS += /openmp
-        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS /MD
-        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS  /MDd
         message("OpenMP enabled")
 
-    } else {
+        } else {
 
         message("OpenMP disabled")
     }
@@ -316,17 +322,19 @@ win32{
               message("MPI disabled")
             }
     }
+
+    QMAKE_CXXFLAGS += /MP
 }
 
 linux{
 
-INCLUDEPATH += /usr/include \
-               ../gdal/include
+    INCLUDEPATH += /usr/include \
+                   ../gdal/include
 
-LIBS += -L/usr/lib/ogdi -lgdal \
-        -L../gdal/lib -lgdal
+    LIBS += -L/usr/lib/ogdi -lgdal \
+            -L../gdal/lib -lgdal
 
-    contains(DEFINES,UTAH_CHPC){
+    contains(DEFINES,USE_CHPC){
 
          contains(DEFINES, USE_NETCDF){
 
@@ -334,12 +342,27 @@ LIBS += -L/usr/lib/ogdi -lgdal \
                         /uufs/chpc.utah.edu/sys/installdir/netcdf-c/4.3.3.1/include \
                         /uufs/chpc.utah.edu/sys/installdir/netcdf-cxx/4.3.0-c7/include
 
-         LIBS += -L/uufs/chpc.utah.edu/sys/installdir/hdf5/1.8.17-c7/lib -lhdf5 \
-                 -L/uufs/chpc.utah.edu/sys/installdir/netcdf-cxx/4.3.0-c7/lib -lnetcdf_c++4
+
+         LIBS += -L/uufs/chpc.utah.edu/sys/installdir/hdf5/1.8.17-c7/lib -l:libhdf5.so.10.2.0 \
+                 -L/uufs/chpc.utah.edu/sys/installdir/netcdf-c/4.4.1/lib -l:libnetcdf.so.11.0.3 \
+                 -L/uufs/chpc.utah.edu/sys/installdir/netcdf-cxx/4.3.0-c7/lib -l:libnetcdf_c++4.so.1.0.3
          }
 
 
          message("Compiling on CHPC")
+    }
+
+    contains(DEFINES,USE_OPENMP){
+
+        QMAKE_CFLAGS += -fopenmp
+        QMAKE_LFLAGS += -fopenmp
+        QMAKE_CXXFLAGS += -fopenmp
+
+        message("OpenMP enabled")
+
+        } else {
+
+        message("OpenMP disabled")
     }
 
     contains(DEFINES,USE_MPI){
@@ -348,33 +371,38 @@ LIBS += -L/usr/lib/ogdi -lgdal \
         QMAKE_CXX = mpic++
         QMAKE_LINK = mpic++
 
-        QMAKE_CFLAGS += $$system(mpicc --showme:compile)
-        QMAKE_CXXFLAGS += $$system(mpic++ --showme:compile)
-        QMAKE_LFLAGS += $$system(mpic++ --showme:link)
+        QMAKE_CFLAGS += $$system(/usr/local/bin/mpicc --showme:compile)
+        QMAKE_CXXFLAGS += $$system(/usr/local/bin/mpic++ --showme:compile)
+        QMAKE_LFLAGS += $$system(/usr/local/bin/mpic++ --showme:link)
 
         LIBS += -L/usr/local/lib/ -lmpi
 
-      message("MPI enabled")
-    } else {
-      message("MPI disabled")
-    }
+        message("MPI enabled")
 
-    contains(DEFINES,USE_OPENMP){
+        } else {
 
-        QMAKE_CFLAGS += -fopenmp
-        QMAKE_LFLAGS += -fopenmp
-        QMAKE_CXXFLAGS += -fopenmp
-        QMAKE_LIBS += -liomp5
-        QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS
-        QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS
+        message("MPI disabled")
 
-      message("OpenMP enabled")
-    } else {
-      message("OpenMP disabled")
     }
 }
 
 CONFIG(debug, debug|release) {
+
+    win32 {
+       QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS /MDd  /O2
+    }
+
+    macx {
+     QMAKE_CFLAGS_DEBUG = $$QMAKE_CFLAGS -g -O3
+     QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS -g -O3
+    }
+
+    linux {
+     QMAKE_CFLAGS_DEBUG = $$QMAKE_CFLAGS -g -O3
+     QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS -g -O3
+    }
+
+
    DESTDIR = ./build/debug
    OBJECTS_DIR = $$DESTDIR/.obj
    MOC_DIR = $$DESTDIR/.moc
@@ -383,6 +411,11 @@ CONFIG(debug, debug|release) {
 }
 
 CONFIG(release, debug|release) {
+
+   win32 {
+    QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS /MD
+   }
+
 
      contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
 
@@ -400,7 +433,8 @@ CONFIG(release, debug|release) {
          win32{
              DESTDIR = lib/win32
         }
-    } else {
+
+      } else {
 
          #MacOS
          macx{

@@ -5,7 +5,7 @@
  * \license
  * This file and its associated files, and libraries are free software.
  * You can redistribute it and/or modify it under the terms of the
- * Lesser GNU General Public License as published by the Free Software Foundation;
+ * Lesser GNU Lesser General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  * This file and its associated files is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
@@ -127,7 +127,7 @@ bool DateTime::tryParse(const QString &dateTimeString, QDateTime &dateTime)
       QDate date(year, month, day);
       QTime time = QTime(hour, minute, second);
 
-      dateTime = QDateTime(date, time);
+      dateTime = QDateTime(date, time, Qt::UTC);
 
       if (dateTime.isValid())
       {
@@ -138,35 +138,47 @@ bool DateTime::tryParse(const QString &dateTimeString, QDateTime &dateTime)
 
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::ISODate);
+  dateTime.setTimeSpec(Qt::UTC);
+
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::TextDate);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::SystemLocaleShortDate);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::SystemLocaleLongDate);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::DefaultLocaleShortDate);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::DefaultLocaleLongDate);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::SystemLocaleDate);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::LocaleDate);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   dateTime = QDateTime::fromString(dateTimeString,Qt::RFC2822Date);
+  dateTime.setTimeSpec(Qt::UTC);
   if(dateTime.isValid()) return true;
 
   for(QString format :  m_dateTimeFormats)
   {
     dateTime = QDateTime::fromString(dateTimeString,format);
+    dateTime.setTimeSpec(Qt::UTC);
+
     if(dateTime.isValid())
       return true;
   }
@@ -243,22 +255,23 @@ const QRegExp DateTime::m_dateTimeDelim("(\\,|\\t|\\\n|\\/|\\s+|\\:)");
 //======================================================================================================================================================================
 
 TimeSpan::TimeSpan(QObject *parent)
-  :DateTime(parent),
+  : DateTime(parent),
     m_duration(0)
 {
   setJulianDay(0);
 }
 
 TimeSpan::TimeSpan(const QDateTime &dateDateTime, double duration, QObject *parent)
-  :DateTime(dateDateTime,parent),
+  : DateTime(dateDateTime,parent),
     m_duration(duration)
 {
 }
 
-TimeSpan::TimeSpan(double dateDateTime, double duration, QObject *parent)
-  :DateTime(dateDateTime,parent),
+TimeSpan::TimeSpan(double dateTime, double duration, QObject *parent)
+  : DateTime(dateTime,parent),
     m_duration(duration)
 {
+
 }
 
 TimeSpan::~TimeSpan()
@@ -275,12 +288,12 @@ void TimeSpan::setDuration(double duration)
   if(duration >= 0)
   {
     m_duration = duration;
-    m_endDateTime = julianDay() + duration;
     propertyChanged("Duration");
   }
 }
 
 double TimeSpan::endDateTime() const
 {
-  return m_endDateTime;
+  double endDateAndTime = julianDay() + m_duration;
+  return endDateAndTime;
 }

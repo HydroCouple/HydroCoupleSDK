@@ -5,7 +5,7 @@
  * \license
  * This file and its associated files, and libraries are free software.
  * You can redistribute it and/or modify it under the terms of the
- * Lesser GNU General Public License as published by the Free Software Foundation;
+ * Lesser GNU Lesser General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  * This file and its associated files is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
@@ -67,15 +67,20 @@ TimeSpan *AbstractTimeModelComponent::timeHorizonInternal() const
 
 double AbstractTimeModelComponent::getMinimumConsumerTime() const
 {
-  double m_returnDateTime = timeHorizonInternal()->endDateTime();
+  double m_returnDateTime = m_timeHorizon->endDateTime();
 
-  for(HydroCouple::IOutput * output : outputs())
+
+  QList<HydroCouple::IOutput*> modelOutputs = outputs();
+
+  for(HydroCouple::IOutput * output : modelOutputs)
   {
-    for(IInput *input : output->consumers())
+    QList<HydroCouple::IInput*> modelConsumers = output->consumers();
+
+    for(IInput *input : modelConsumers)
     {
       ITimeComponentDataItem *timeComponentDateItem = nullptr;
 
-      if((timeComponentDateItem = dynamic_cast<ITimeComponentDataItem*>(input)))
+      if((timeComponentDateItem = dynamic_cast<ITimeComponentDataItem*>(input)) && timeComponentDateItem->timeCount())
       {
         m_returnDateTime = std::min(m_returnDateTime, timeComponentDateItem->time(timeComponentDateItem->timeCount() -1)->julianDay());
       }
@@ -93,13 +98,13 @@ double AbstractTimeModelComponent::getMinimumConsumerTime() const
 
 double AbstractTimeModelComponent::getMinimumConsumerTime(IAdaptedOutput *adaptedOutput) const
 {
-  double m_returnDateTime = timeHorizonInternal()->endDateTime();
+  double m_returnDateTime = m_timeHorizon->endDateTime();
 
   for(IInput *input : adaptedOutput->consumers())
   {
     ITimeComponentDataItem *timeComponentDateItem = nullptr;
 
-    if((timeComponentDateItem = dynamic_cast<ITimeComponentDataItem*>(input)))
+    if((timeComponentDateItem = dynamic_cast<ITimeComponentDataItem*>(input)) && timeComponentDateItem->timeCount())
     {
       m_returnDateTime = std::min(m_returnDateTime, timeComponentDateItem->time(timeComponentDateItem->timeCount() -1)->julianDay());
     }
