@@ -324,6 +324,7 @@ win32{
     }
 
     QMAKE_CXXFLAGS += /MP
+    QMAKE_LFLAGS += /MP /incremental /debug:fastlink
 }
 
 linux{
@@ -389,17 +390,17 @@ linux{
 CONFIG(debug, debug|release) {
 
     win32 {
-       QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS /MDd  /O2
+       QMAKE_CXXFLAGS += /MDd  /O2
     }
 
     macx {
-     QMAKE_CFLAGS_DEBUG = $$QMAKE_CFLAGS -g -O3
-     QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS -g -O3
+        QMAKE_CFLAGS += -g -O3
+        QMAKE_CXXFLAGS  += -g -O3
     }
 
     linux {
-     QMAKE_CFLAGS_DEBUG = $$QMAKE_CFLAGS -g -O3
-     QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS -g -O3
+        QMAKE_CFLAGS += -g -O3
+        QMAKE_CXXFLAGS  += -g -O3
     }
 
 
@@ -413,7 +414,7 @@ CONFIG(debug, debug|release) {
 CONFIG(release, debug|release) {
 
    win32 {
-    QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS /MD
+    QMAKE_CXXFLAGS += /MD
    }
 
 

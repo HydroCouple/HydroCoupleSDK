@@ -243,3 +243,9 @@ CMakeLists.txt.user
 .vscode/.browse.VC.db
 *.lib
 *.lib
+
+
+#Visual Studio Additional
+*.rc
+*.exp
+*.rc
