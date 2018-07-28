@@ -151,14 +151,7 @@ IModelComponent::ComponentStatus AbstractModelComponent::status() const
 
 QList<IInput*> AbstractModelComponent::inputs() const
 {
-  QList<IInput*> returnInputs;
-
-  for(AbstractInput* input : m_orderedInputs)
-  {
-    returnInputs.append(input);
-  }
-
-  return returnInputs;
+  return m_orderedInputs;
 }
 
 void AbstractModelComponent::createInputs()
@@ -168,14 +161,7 @@ void AbstractModelComponent::createInputs()
 
 QList<IOutput*> AbstractModelComponent::outputs() const
 {
-  QList<IOutput*> returnOutputs;
-
-  for(AbstractOutput* output : m_orderedOutputs)
-  {
-    returnOutputs.append(output);
-  }
-
-  return returnOutputs;
+  return m_orderedOutputs;
 }
 
 void AbstractModelComponent::createOutputs()
@@ -243,7 +229,7 @@ void AbstractModelComponent::applyInputValues()
   //#endif
   for(int i = 0; i < (int)m_orderedInputs.size(); i++)
   {
-    AbstractInput *input = m_orderedInputs[i];
+    AbstractInput *input = dynamic_cast<AbstractInput*>(m_orderedInputs[i]);
     AbstractMultiInput* mInput = nullptr;
 
     if(((mInput = dynamic_cast<AbstractMultiInput*>(input)) != nullptr && mInput->providers().length() > 0) ||
@@ -295,8 +281,9 @@ void AbstractModelComponent::updateOutputValues(const QList<IOutput *> &required
 
 void AbstractModelComponent::initializeAdaptedOutputs()
 {
-  for(AbstractOutput* abstractOutput : m_orderedOutputs)
+  for(IOutput* output  : m_orderedOutputs)
   {
+    AbstractOutput *abstractOutput = dynamic_cast<AbstractOutput*>(output);
     abstractOutput->initializeAdaptedOutputs();
   }
 }

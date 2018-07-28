@@ -19,7 +19,6 @@ CONFIG += c++11
 CONFIG += debug_and_release
 CONFIG += optimize_full
 
-
 contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
 
   TEMPLATE = lib
@@ -253,10 +252,6 @@ macx{
         QMAKE_CXX = /usr/local/bin/mpicxx
         QMAKE_LINK = /usr/local/bin/mpicxx
 
-        QMAKE_CFLAGS += $$system(/usr/local/bin/mpicc --showme:compile)
-        QMAKE_CXXFLAGS += $$system(/usr/local/bin/mpicxx --showme:compile)
-        QMAKE_LFLAGS += $$system(/usr/local/bin/mpicxx --showme:link)
-
         LIBS += -L/usr/local/lib -lmpi
 
         message("MPI enabled")
@@ -274,7 +269,6 @@ win32{
     contains(DEFINES,USE_OPENMP){
 
         QMAKE_CFLAGS += /openmp
-        #QMAKE_LFLAGS += /openmp
         QMAKE_CXXFLAGS += /openmp
         message("OpenMP enabled")
 
@@ -283,47 +277,49 @@ win32{
         message("OpenMP disabled")
     }
 
-    #Windows vspkg package manager installation path
-    VSPKGDIR = C:/vcpkg/installed/x64-windows
+    #Windows vspkg package manager installation path if not set as an environment variable
+    #VCPKGDIR = C:/vcpkg/installed/x64-windows
 
-    INCLUDEPATH += $${VSPKGDIR}/include \
-                   $${VSPKGDIR}/include/gdal
+    INCLUDEPATH += $${VCPKGDIR}/include \
+                   $${VCPKGDIR}/include/gdal
 
-    message ($$(VSPKGDIR))
+    message ($$(VCPKGDIR))
 
     CONFIG(debug, debug|release) {
 
-    LIBS += -L$${VSPKGDIR}/debug/lib -lgdald
+    LIBS += -L$${VCPKGDIR}/debug/lib -lgdald
 
             contains(DEFINES, USE_NETCDF){
-                LIBS += -L$${VSPKGDIR}/debug/lib -lnetcdf \
-                        -L$${VSPKGDIR}/debug/lib -lnetcdf-cxx4
+                LIBS += -L$${VCPKGDIR}/debug/lib -lnetcdf \
+                        -L$${VCPKGDIR}/debug/lib -lnetcdf-cxx4
              }
 
-
-
             contains(DEFINES,USE_MPI){
-               LIBS += -L$${VSPKGDIR}/debug/lib -lmsmpi
                message("MPI enabled")
-            } else {
-              message("MPI disabled")
+               LIBS += -L$${VCPKGDIR}/debug/lib -lmsmpi
+
+              } else {
+
+               message("MPI disabled")
             }
 
         } else {
 
-    LIBS += -L$${VSPKGDIR}/lib -lgdal \
-            -L$${VSPKGDIR}/lib -lnetcdf \
-            -L$${VSPKGDIR}/lib -lnetcdf-cxx4
+    LIBS += -L$${VCPKGDIR}/lib -lgdal \
+            -L$${VCPKGDIR}/lib -lnetcdf \
+            -L$${VCPKGDIR}/lib -lnetcdf-cxx4
 
             contains(DEFINES,USE_MPI){
-               LIBS += -L$${VSPKGDIR}/lib -lmsmpi
                message("MPI enabled")
-            } else {
-              message("MPI disabled")
+               LIBS += -L$${VCPKGDIR}/lib -lmsmpi
+
+               } else {
+               message("MPI disabled")
             }
     }
 
     QMAKE_CXXFLAGS += /MP
+    QMAKE_LFLAGS += /MP /incremental /debug:fastlink
 }
 
 linux{
@@ -371,10 +367,6 @@ linux{
         QMAKE_CXX = mpic++
         QMAKE_LINK = mpic++
 
-        QMAKE_CFLAGS += $$system(/usr/local/bin/mpicc --showme:compile)
-        QMAKE_CXXFLAGS += $$system(/usr/local/bin/mpic++ --showme:compile)
-        QMAKE_LFLAGS += $$system(/usr/local/bin/mpic++ --showme:link)
-
         LIBS += -L/usr/local/lib/ -lmpi
 
         message("MPI enabled")
@@ -389,19 +381,16 @@ linux{
 CONFIG(debug, debug|release) {
 
     win32 {
-       QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS /MDd  /O2
+       QMAKE_CXXFLAGS += /MDd /O2
     }
 
     macx {
-     QMAKE_CFLAGS_DEBUG = $$QMAKE_CFLAGS -g -O3
-     QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS -g -O3
+       QMAKE_CXXFLAGS += -O3
     }
 
     linux {
-     QMAKE_CFLAGS_DEBUG = $$QMAKE_CFLAGS -g -O3
-     QMAKE_CXXFLAGS_DEBUG = $$QMAKE_CXXFLAGS -g -O3
+       QMAKE_CXXFLAGS += -O3
     }
-
 
    DESTDIR = ./build/debug
    OBJECTS_DIR = $$DESTDIR/.obj
@@ -412,10 +401,9 @@ CONFIG(debug, debug|release) {
 
 CONFIG(release, debug|release) {
 
-   win32 {
-    QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CXXFLAGS /MD
-   }
-
+       win32 {
+         QMAKE_CXXFLAGS += /MD
+       }
 
      contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
 
@@ -451,7 +439,6 @@ CONFIG(release, debug|release) {
              DESTDIR = bin/win32
         }
     }
-
 
     RELEASE_EXTRAS = ./build/release 
     OBJECTS_DIR = $$RELEASE_EXTRAS/.obj
