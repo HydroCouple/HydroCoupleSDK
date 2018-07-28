@@ -278,7 +278,7 @@ win32{
     }
 
     #Windows vspkg package manager installation path if not set as an environment variable
-    #VCPKGDIR = C:/vcpkg/installed/x64-windows
+    VCPKGDIR = C:/vcpkg/installed/x64-windows
 
     INCLUDEPATH += $${VCPKGDIR}/include \
                    $${VCPKGDIR}/include/gdal
@@ -381,7 +381,6 @@ linux{
 CONFIG(debug, debug|release) {
 
     win32 {
-<<<<<<< HEAD
        QMAKE_CXXFLAGS += /MDd /O2
     }
 
@@ -391,19 +390,6 @@ CONFIG(debug, debug|release) {
 
     linux {
        QMAKE_CXXFLAGS += -O3
-=======
-       QMAKE_CXXFLAGS += /MDd  /O2
-    }
-
-    macx {
-        QMAKE_CFLAGS += -g -O3
-        QMAKE_CXXFLAGS  += -g -O3
-    }
-
-    linux {
-        QMAKE_CFLAGS += -g -O3
-        QMAKE_CXXFLAGS  += -g -O3
->>>>>>> 0b90eeb6a1915b99bd65ab0309ac91bf1bfb2994
     }
 
    DESTDIR = ./build/debug
@@ -415,16 +401,9 @@ CONFIG(debug, debug|release) {
 
 CONFIG(release, debug|release) {
 
-<<<<<<< HEAD
-       win32 {
-         QMAKE_CXXFLAGS += /MD
-       }
-=======
    win32 {
     QMAKE_CXXFLAGS += /MD
    }
-
->>>>>>> 0b90eeb6a1915b99bd65ab0309ac91bf1bfb2994
 
      contains(DEFINES,HYDROCOUPLESDK_LIBRARY){
 
