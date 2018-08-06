@@ -67,8 +67,7 @@ TimeSpan *AbstractTimeModelComponent::timeHorizonInternal() const
 
 double AbstractTimeModelComponent::getMinimumConsumerTime() const
 {
-  double m_returnDateTime = m_timeHorizon->endDateTime();
-
+  double m_returnDateTime = m_dateTime->julianDay();
 
   QList<HydroCouple::IOutput*> modelOutputs = outputs();
 
@@ -82,7 +81,7 @@ double AbstractTimeModelComponent::getMinimumConsumerTime() const
 
       if((timeComponentDateItem = dynamic_cast<ITimeComponentDataItem*>(input)) && timeComponentDateItem->timeCount())
       {
-        m_returnDateTime = std::min(m_returnDateTime, timeComponentDateItem->time(timeComponentDateItem->timeCount() -1)->julianDay());
+        m_returnDateTime = std::max(m_returnDateTime, timeComponentDateItem->time(timeComponentDateItem->timeCount() -1)->julianDay());
       }
     }
 
@@ -92,13 +91,15 @@ double AbstractTimeModelComponent::getMinimumConsumerTime() const
     }
   }
 
+  m_returnDateTime = std::min(m_timeHorizon->endDateTime(), m_returnDateTime);
+
   return m_returnDateTime;
 }
 
 
 double AbstractTimeModelComponent::getMinimumConsumerTime(IAdaptedOutput *adaptedOutput) const
 {
-  double m_returnDateTime = m_timeHorizon->endDateTime();
+  double m_returnDateTime = m_dateTime->julianDay();
 
   for(IInput *input : adaptedOutput->consumers())
   {

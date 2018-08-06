@@ -56,7 +56,7 @@ AbstractModelComponent::AbstractModelComponent(const QString &id, AbstractModelC
   MPI_Comm_group(MPI_COMM_WORLD, &m_worldGroup);
   int worldGroupSize = 0;
   MPI_Group_size(m_worldGroup, &worldGroupSize);
-  printf("World Group Size: %i\n", worldGroupSize);
+//  printf("World Group Size: %i\n", worldGroupSize);
 #endif
 
   createIdentifierArguments();
@@ -82,7 +82,7 @@ AbstractModelComponent::AbstractModelComponent(const QString &id, const QString 
   MPI_Comm_group(MPI_COMM_WORLD, &m_worldGroup);
   int worldGroupSize = 0;
   MPI_Group_size(m_worldGroup, &worldGroupSize);
-  printf("World Group Size: %i\n", worldGroupSize);
+//  printf("World Group Size: %i\n", worldGroupSize);
 #endif
 
   createIdentifierArguments();
