@@ -228,12 +228,16 @@ macx{
 
     contains(DEFINES,USE_OPENMP){
 
-        QMAKE_CC = /usr/local/opt/llvm/bin/clang
-        QMAKE_CXX = /usr/local/opt/llvm/bin/clang++
-        QMAKE_LINK = /usr/local/opt/llvm/bin/clang++
+#        QMAKE_CC = /usr/local/opt/llvm/bin/clang
+#        QMAKE_CXX = /usr/local/opt/llvm/bin/clang++
+#        QMAKE_LINK = /usr/local/opt/llvm/bin/clang++
+
+        QMAKE_CC = gcc-8
+        QMAKE_CXX = g++8
+        QMAKE_LINK = g++8
 
         QMAKE_CFLAGS+= -fopenmp
-        QMAKE_LFLAGS+= -fopenmp
+#        QMAKE_LFLAGS+= -fopenmp
         QMAKE_CXXFLAGS+= -fopenmp
 
         INCLUDEPATH += /usr/local/opt/llvm/lib/clang/5.0.0/include
@@ -447,5 +451,5 @@ CONFIG(release, debug|release) {
     UI_DIR = $$RELEASE_EXTRAS/.ui
 }   
 
-RESOURCES += hydrocouplesdk.qrc
+RESOURCES +=
 

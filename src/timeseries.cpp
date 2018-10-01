@@ -254,6 +254,7 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
 {
   timeSeriesValues.clear();
   headers.clear();
+  int currentLine = 0;
 
   if (!fileInfo.filePath().isEmpty() && QFile::exists(fileInfo.absoluteFilePath()))
   {
@@ -264,6 +265,8 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
       QRegExp commaTabDel("(\\,|\\t|\\\n)");
       QTextStream streamReader(&file);
       QString line = file.readLine();
+      currentLine++;
+
       QStringList columns = line.split(commaTabDel, QString::SkipEmptyParts);
       bool noError = true;
 
@@ -279,6 +282,7 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
         while (!streamReader.atEnd())
         {
           line = file.readLine().trimmed();
+          currentLine++;
 
           if(!line.isEmpty())
           {
@@ -306,6 +310,7 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
                   }
                   else
                   {
+                    printf("Error cannot parse value on line: %i, %s\n", currentLine, line.toStdString().c_str());
                     noError = false;
                     break;
                   }
@@ -318,13 +323,14 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
               }
               else
               {
-                printf("%s\n", line.toStdString().c_str());
+                printf("Error cannot parse date time on line: %i, %s\n", currentLine, line.toStdString().c_str());
                 SDKTemporal::DateTime::tryParse(columns[0], dt);
                 noError = false;
               }
             }
             else
             {
+              printf("Error on line: %i, %s\n", currentLine, line.toStdString().c_str());
               noError = false;
               break;
             }
