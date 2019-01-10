@@ -112,7 +112,7 @@ HEADERS += ./include/stdafx.h \
            ./include/threadsafenetcdf/threadsafencfile.h \
            ./include/core/idbasedcomponentdataitem.h \
            ./include/core/idbasedoutputs.h \
-           ./include/timeseries.h \
+           ./include/temporal/timeseries.h \
            ./include/threadsafenetcdf/threadsafencgroup.h \
            ./include/threadsafenetcdf/threadsafencvar.h \
            ./include/threadsafenetcdf/threadsafencatt.h \
@@ -207,7 +207,7 @@ SOURCES += ./src/stdafx.cpp \
            ./src/composition/output.cpp \
            ./src/threadsafenetcdf/threadsafencfile.cpp \
            ./src/core/idbasedoutputs.cpp \
-           ./src/timeseries.cpp \
+           ./src/temporal/timeseries.cpp \
            ./src/threadsafenetcdf/threadsafencgroup.cpp \
            ./src/threadsafenetcdf/threadsafencvar.cpp \
            ./src/threadsafenetcdf/threadsafencdim.cpp \

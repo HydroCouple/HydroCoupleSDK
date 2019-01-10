@@ -149,9 +149,13 @@ void TimeGeometryComponentDataItem<T>::resetTimeSpan()
 {
   if(m_times.size())
   {
-    double duration = m_times[0]->julianDay() - m_times[m_times.size() -1]->julianDay();
+    double duration = m_times[m_times.size() -1]->julianDay() - m_times[0]->julianDay();
     m_timeSpan->setJulianDay(m_times[0]->julianDay());
     m_timeSpan->setDuration(duration);
+  }
+  else
+  {
+    m_timeSpan->setDuration(0.0);
   }
 }
 
@@ -232,7 +236,8 @@ void TimeGeometryComponentDataItem<T>::setValuesT(int timeIndex, int geomIndex,
   {
     for(int j = 0 ; j <  geomStride ; j++)
     {
-      m_data[timeIndex+i][geomIndex + j] = dataC[i + j*timeStride];
+      T value = dataC[i + j*timeStride];
+      m_data[timeIndex+i][geomIndex + j] = value;
     }
   }
 }

@@ -6,6 +6,8 @@
 #include <QObject>
 #include <QFileInfo>
 
+class DataCursor;
+
 class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
 {
     Q_OBJECT
@@ -17,6 +19,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
     ~TimeSeries();
 
     QString id() const;
+
+    void setId(const QString &id);
 
     void clear();
 
@@ -30,6 +34,8 @@ class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
 
     void setColumnName(int columnIndex, const QString &columnName);
 
+    DataCursor *dataCursor() const;
+
     bool addRow(double dateTime, double defaultValue = 0);
 
     bool addRow(double dateTime, const std::vector<double>& values);
@@ -42,28 +48,37 @@ class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
 
     bool removeRow(int rowIndex);
 
-    int currentCursorIndex() const;
-
     int findDateTimeIndex(double dateTime);
+
+    int findDateTimeIndex(double dateTime, DataCursor *dataCursor);
 
     int findDateTimeIndex(double dateTime, int startIndex);
 
-    double interpolate(double dateTime, int columnIndex, bool &found);
+    bool interpolate(double dateTime, int columnIndex, double &value);
 
-    void resetCursor();
+    bool interpolate(double dateTime, int columnIndex, DataCursor *dataCursor, double &value);
 
     static TimeSeries *createTimeSeries(const QString &id, const QFileInfo &filePath, QObject *parent = nullptr);
 
     static bool readTimeSeries(const QFileInfo &fileInfo, std::map<double, std::vector<double>> &timeSeriesValues, std::vector<std::string> &headers);
 
+    /*!
+     * \brief splitLine Keep here for now. Needs to move to more appropriate class.
+     * \param line
+     * \param delim
+     * \return
+     */
+    static QStringList splitLine(const QString &line, const QString &delimiter);
+
   private:
+
     QString m_id;
     int m_numColumns;
     std::vector<QString> m_columnNames;
     std::vector<double> m_dateTimes;
     std::vector<std::vector<double>> m_values;
-    int m_cursorLocation ;
     static const QRegExp m_delimiters; //Regex delimiter
+    DataCursor *m_cursor;
 };
 
 #endif // TIMESERIES_H

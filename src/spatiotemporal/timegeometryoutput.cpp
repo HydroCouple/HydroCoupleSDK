@@ -138,7 +138,7 @@ void TimeGeometryOutputDouble::setValue(const std::vector<int> &dimensionIndexes
 
 void TimeGeometryOutputDouble::setValue(int timeIndex, int geometryIndex, const void *data)
 {
-  TimeGeometryComponentDataItem<double>::setValuesT(timeIndex,geometryIndex,1,1,data);
+  TimeGeometryComponentDataItem<double>::setValuesT(timeIndex, geometryIndex, 1, 1, data);
 }
 
 void TimeGeometryOutputDouble::setValues(int timeIndex, int geometryIndex,

@@ -1,29 +1,36 @@
 #include "stdafx.h"
-#include "timeseries.h"
+#include "temporal/timeseries.h"
 #include "temporal/timedata.h"
+#include "core/datacursor.h"
 
 #include <QTextStream>
 #include <QDateTime>
+#include <QRegularExpression>
 
 using namespace std;
 
 TimeSeries::TimeSeries(const QString &id, int numColumns, QObject *parent)
   : QObject(parent),
     m_id(id),
-    m_numColumns(numColumns),
-    m_cursorLocation(0)
+    m_numColumns(numColumns)
 {
+  m_cursor = new DataCursor();
   setNumColumns(m_numColumns);
 }
 
 TimeSeries::~TimeSeries()
 {
-
+  delete m_cursor;
 }
 
 QString TimeSeries::id() const
 {
   return m_id;
+}
+
+void TimeSeries::setId(const QString &id)
+{
+  m_id = id;
 }
 
 void TimeSeries::clear()
@@ -54,6 +61,11 @@ void TimeSeries::setNumColumns(int columnCount)
   }
 }
 
+DataCursor *TimeSeries::dataCursor() const
+{
+  return m_cursor;
+}
+
 int TimeSeries::numRows() const
 {
   return (int)m_dateTimes.size();
@@ -81,6 +93,8 @@ bool TimeSeries::addRow(double dateTime, double defaultValue)
   std::vector<double> rowValues(m_numColumns, defaultValue);
   m_values.push_back(rowValues);
 
+  m_cursor->setMin(0); m_cursor->setMax(m_dateTimes.size() - 1);
+
   return true;
 }
 
@@ -98,6 +112,8 @@ bool TimeSeries::addRow(double dateTime, const std::vector<double> &values)
 
   m_dateTimes.push_back(dateTime);
   m_values.push_back(values);
+
+  m_cursor->setMin(0); m_cursor->setMax(m_dateTimes.size() - 1);
 
   return true;
 }
@@ -124,39 +140,68 @@ bool TimeSeries::removeRow(int rowIndex)
     m_values.erase(m_values.begin() + rowIndex);
     m_dateTimes.erase(m_dateTimes.begin() + rowIndex);
 
+    m_cursor->setMin(0); m_cursor->setMax(m_dateTimes.size() - 1);
+
     return true;
   }
 
   return false;
 }
 
-int TimeSeries::currentCursorIndex() const
-{
-  return m_cursorLocation;
-}
-
-
 int TimeSeries::findDateTimeIndex(double dateTime)
 {
   if(dateTime >= m_dateTimes[0] && dateTime <= m_dateTimes[m_dateTimes.size() - 1])
   {
-    for(size_t i = m_cursorLocation; i < m_dateTimes.size() - 1; i++)
+    for(size_t i = m_cursor->index(); i < m_dateTimes.size() - 1; i++)
     {
       if(dateTime >= m_dateTimes[i] && dateTime <= m_dateTimes[i+1])
       {
-        m_cursorLocation = i;
-        return m_cursorLocation;
+        return m_cursor->index();
       }
+
+      m_cursor->moveNext();
     }
 
+    m_cursor->resetCursor();
+
     //resetart
-    for(size_t i = 0; i < m_dateTimes.size() - 1; i++)
+    for(size_t i = m_cursor->index(); i < m_dateTimes.size() - 1; i++)
     {
       if(dateTime >= m_dateTimes[i] && dateTime <= m_dateTimes[i+1])
       {
-        m_cursorLocation = i;
-        return m_cursorLocation;
+        return m_cursor->index();
       }
+
+      m_cursor->moveNext();
+    }
+  }
+
+  return -1;
+}
+
+int TimeSeries::findDateTimeIndex(double dateTime, DataCursor *dataCursor)
+{
+  if(dateTime >= m_dateTimes[0] && dateTime <= m_dateTimes[m_dateTimes.size() - 1])
+  {
+    for(size_t i = dataCursor->index(); i < m_dateTimes.size() - 1; i++)
+    {
+      if(dateTime >= m_dateTimes[i] && dateTime <= m_dateTimes[i+1])
+      {
+        return dataCursor->index();
+      }
+      dataCursor->moveNext();
+    }
+
+    dataCursor->resetCursor();
+
+    //resetart
+    for(size_t i = dataCursor->index(); i < m_dateTimes.size() - 1; i++)
+    {
+      if(dateTime >= m_dateTimes[i] && dateTime <= m_dateTimes[i+1])
+      {
+        return dataCursor->index();
+      }
+      dataCursor->moveNext();
     }
   }
 
@@ -190,17 +235,15 @@ int TimeSeries::findDateTimeIndex(double dateTime, int startIndex)
   return -1;
 }
 
-double TimeSeries::interpolate(double dateTime, int columnIndex, bool &found)
+bool TimeSeries::interpolate(double dateTime, int columnIndex, double &value)
 {
   int index = findDateTimeIndex(dateTime);
 
   if(index > -1)
   {
-    double interpValue = 0.0;
-
     if(index == (int)m_dateTimes.size() - 1)
     {
-      interpValue = m_values[index][columnIndex];
+      value = m_values[index][columnIndex];
     }
     else
     {
@@ -208,21 +251,42 @@ double TimeSeries::interpolate(double dateTime, int columnIndex, bool &found)
       double upDate = m_dateTimes[index + 1];
       double downValue = m_values[index][columnIndex];
       double upValue = m_values[index + 1][columnIndex];
-      interpValue = downValue + (upValue - downValue) / (upDate - downDate) * (dateTime -  downDate);
+      value = downValue + (upValue - downValue) / (upDate - downDate) * (dateTime -  downDate);
     }
 
-    found = true;
-    return interpValue;
+    return true;
   }
 
-  found = false;
-  return -999999999999999;
+  value = -9999999;
+
+  return false;
 }
 
-
-void TimeSeries::resetCursor()
+bool TimeSeries::interpolate(double dateTime, int columnIndex, DataCursor *dataCursor, double &value)
 {
-  m_cursorLocation = 0;
+  int index = findDateTimeIndex(dateTime, dataCursor);
+
+  if(index > -1)
+  {
+    if(index == (int)m_dateTimes.size() - 1)
+    {
+      value = m_values[index][columnIndex];
+    }
+    else
+    {
+      double downDate = m_dateTimes[index];
+      double upDate = m_dateTimes[index + 1];
+      double downValue = m_values[index][columnIndex];
+      double upValue = m_values[index + 1][columnIndex];
+      value = downValue + (upValue - downValue) / (upDate - downDate) * (dateTime -  downDate);
+    }
+
+    return true;
+  }
+
+  value = -9999999;
+
+  return false;
 }
 
 TimeSeries *TimeSeries::createTimeSeries(const QString &id, const QFileInfo &filePath, QObject *parent)
@@ -351,6 +415,65 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
   }
 
   return false;
+}
+
+QStringList TimeSeries::splitLine(const QString &line, const QString &delimiter)
+{
+  QString temp = line;
+  temp = temp.replace("'","\"");
+  QString field;
+  QStringList field_list;
+
+  // regex explaination
+  //
+  //    /(?:^|,)(\"(?:[^\"]+|\"\")*\"|[^,]*)/g
+  //        (?:^|,) Non-capturing group
+  //            1st Alternative: ^
+  //                ^ assert position at start of the string
+  //            2nd Alternative: ,
+  //                , matches the character , literally
+  //        1st Capturing group (\"(?:[^\"]+|\"\")*\"|[^,]*)
+  //            1st Alternative: \"(?:[^\"]+|\"\")*\"
+  //                \" matches the character " literally
+  //                (?:[^\"]+|\"\")* Non-capturing group
+  //                    Quantifier: * Between zero and unlimited times, as many times as possible, giving back as needed [greedy]
+  //                    1st Alternative: [^\"]+
+  //                        [^\"]+ match a single character not present in the list below
+  //                            Quantifier: + Between one and unlimited times, as many times as possible, giving back as needed [greedy]
+  //                            \" matches the character " literally
+  //                    2nd Alternative: \"\"
+  //                        \" matches the character " literally
+  //                        \" matches the character " literally
+  //                \" matches the character " literally
+  //            2nd Alternative: [^,]*
+  //                [^,]* match a single character not present in the list below
+  //                    Quantifier: * Between zero and unlimited times, as many times as possible, giving back as needed [greedy]
+  //                    , the literal character ,
+  //        g modifier: global. All matches (don't return on first match)
+  //
+
+  QString regex = "(?:^|,)(\"(?:[^\"]+|\"\")*\"|[^,]*)";
+  regex.replace(",", delimiter);
+
+  QRegularExpression re(regex);
+
+  if (temp.right(1) == "\n") temp.chop(1);
+
+  QRegularExpressionMatchIterator it = re.globalMatch(temp);
+
+  while (it.hasNext())
+  {
+      QRegularExpressionMatch match = it.next();
+      if (match.hasMatch())
+      {
+          field = match.captured(1);
+          if (field.left(1) == "\"" && field.right(1) == "\"")
+              field = field.mid(1, field.length()-2);
+          field_list.push_back(field);
+      }
+  }
+
+  return field_list;
 }
 
 const QRegExp TimeSeries::m_delimiters("(\\,|\\t|\\\n)");
