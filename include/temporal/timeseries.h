@@ -65,10 +65,10 @@ class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
     /*!
      * \brief splitLine Keep here for now. Needs to move to more appropriate class.
      * \param line
-     * \param delim
+     * \param delimiters
      * \return
      */
-    static QStringList splitLine(const QString &line, const QString &delimiter);
+    static QStringList splitLine(const QString &line, const QString &delimiters);
 
   private:
 

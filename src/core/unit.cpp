@@ -95,7 +95,6 @@ Unit *Unit::copy(const IUnit *unit, QObject *parent)
   return oUnit;
 }
 
-
 Unit* Unit::lengthInMeters(QObject *parent)
 {
    Unit* unit = new Unit("Length (m)" , 1.0, 0.0 , parent);
@@ -158,6 +157,36 @@ Unit* Unit::unitlessCoefficient(QObject *parent)
 {
    Unit* unit = new Unit("Coefficient" , 1.0 , 0.0 , parent);
    return unit;
+}
+
+Unit* Unit::timeInDays(QObject *parent)
+{
+  Unit* unit = new Unit("Time (days)", 1.0 , 0.0 , parent);
+  unit->m_dimensions->setPower(HydroCouple::Time , 1.0);
+  return unit;
+}
+
+Unit* Unit::timeInSeconds(QObject *parent)
+{
+  Unit* unit = new Unit("Time (s)", 1.0 / 86400.0 , 0.0 , parent);
+  unit->m_dimensions->setPower(HydroCouple::Time , 1.0);
+  return unit;
+}
+
+Unit *Unit::parseUnit(const QString &line, QObject *parent)
+{
+  QString delimiters = ",";
+  QStringList columns = line.split(delimiters, QString::SkipEmptyParts);
+
+  if(columns.size() == 11)
+  {
+    QString name = columns[0];
+
+    bool ok;
+
+  }
+
+  return nullptr;
 }
 
 

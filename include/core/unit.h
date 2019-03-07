@@ -77,6 +77,12 @@ class HYDROCOUPLESDK_EXPORT Unit : public Description,
 
       static Unit *unitlessCoefficient(QObject *parent = nullptr);
 
+      static Unit *timeInDays(QObject *parent = nullptr);
+
+      static Unit *timeInSeconds(QObject *parent = nullptr);
+
+      static Unit *parseUnit(const QString &line, QObject *parent = nullptr);
+
    signals:
 
       void propertyChanged(const QString &propertyName) override;

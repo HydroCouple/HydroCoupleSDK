@@ -185,6 +185,10 @@ class HYDROCOUPLESDK_EXPORT Quantity : public ValueDefinition,
 
     static Quantity* flowInCFS(QObject *parent = nullptr);
 
+    static Quantity* timeInDays(QObject* parent = nullptr);
+
+    static Quantity* timeInSeconds(QObject* parent = nullptr);
+
     static Quantity* unitLessValues(const QString &caption = "Unitless",
                                     QVariant::Type type = QVariant::String,
                                     QObject *parent = nullptr);

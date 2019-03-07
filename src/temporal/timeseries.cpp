@@ -329,6 +329,7 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
       QRegExp commaTabDel("(\\,|\\t|\\\n)");
       QTextStream streamReader(&file);
       QString line = file.readLine();
+
       currentLine++;
 
       QStringList columns = line.split(commaTabDel, QString::SkipEmptyParts);
@@ -417,10 +418,11 @@ bool TimeSeries::readTimeSeries(const QFileInfo &fileInfo, std::map<double, std:
   return false;
 }
 
-QStringList TimeSeries::splitLine(const QString &line, const QString &delimiter)
+QStringList TimeSeries::splitLine(const QString &line, const QString &delimiters)
 {
   QString temp = line;
   temp = temp.replace("'","\"");
+
   QString field;
   QStringList field_list;
 
@@ -452,23 +454,30 @@ QStringList TimeSeries::splitLine(const QString &line, const QString &delimiter)
   //        g modifier: global. All matches (don't return on first match)
   //
 
-  QString regex = "(?:^|,)(\"(?:[^\"]+|\"\")*\"|[^,]*)";
-  regex.replace(",", delimiter);
+  QString regexTemplate = "(?:^|[regex]+)(\"(?:[^\"]+|\"\")*\"|[^[regex]+]*)";
+  QString regex = regexTemplate.replace("regex", delimiters);
+
 
   QRegularExpression re(regex);
 
-  if (temp.right(1) == "\n") temp.chop(1);
+  if(temp.right(1) == "\n")
+    temp.chop(1);
 
   QRegularExpressionMatchIterator it = re.globalMatch(temp);
 
   while (it.hasNext())
   {
       QRegularExpressionMatch match = it.next();
+
       if (match.hasMatch())
       {
           field = match.captured(1);
+
           if (field.left(1) == "\"" && field.right(1) == "\"")
+          {
               field = field.mid(1, field.length()-2);
+          }
+
           field_list.push_back(field);
       }
   }

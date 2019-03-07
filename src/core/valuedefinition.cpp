@@ -480,6 +480,26 @@ Quantity* Quantity::flowInCFS(QObject *parent)
   return quantity;
 }
 
+Quantity* Quantity::timeInDays(QObject *parent)
+{
+  Quantity* quantity = new Quantity("Time in days", QVariant::Double, Unit::timeInDays(parent), parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Time (days)");
+
+  return quantity;
+}
+
+Quantity* Quantity::timeInSeconds(QObject *parent)
+{
+  Quantity* quantity = new Quantity("Time in seconds", QVariant::Double, Unit::timeInSeconds(parent), parent);
+  quantity->setDefaultValue(0.0);
+  quantity->setMissingValue(-99999999);
+  quantity->setDescription("Time (s)");
+
+  return quantity;
+}
+
 Quantity* Quantity::unitLessValues(const QString& caption, QVariant::Type type, QObject *parent)
 {
   Quantity* quantity = new Quantity(caption, type, Unit::unitlessCoefficient(parent),parent);
