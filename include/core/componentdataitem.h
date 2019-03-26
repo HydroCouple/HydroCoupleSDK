@@ -62,9 +62,9 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem1D
 
     void resetDataArray();
 
-  protected:
-
     virtual void resizeDataArray(int length, bool initializeNewWithDefault = true);
+
+  protected:
 
     virtual void removeItemAt(int i);
 
@@ -122,13 +122,13 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2D
 
     void resetDataArray();
 
-  protected:
-
     virtual void resizeDataArrayILength(int iLength, bool initializeNewWithDefault = true);
 
-    virtual void removeIItemAt(int i);
-
     virtual void resizeDataArrayJLength(int jLength, bool initializeNewWithDefault = true);
+
+  protected:
+
+    virtual void removeIItemAt(int i);
 
     virtual void removeJItemAt(int j);
 
@@ -136,11 +136,14 @@ class HYDROCOUPLESDK_EXPORT ComponentDataItem2D
 
     void setDefaultValue(const T& defaultValue);
 
+  protected:
+
+    std::vector<std::vector<T>> m_data;
+
   private:
 
     int m_iLength, m_jLength;
     T m_defaultValue;
-    std::vector<std::vector<T>> m_data;
     QString m_id;
 };
 

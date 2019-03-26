@@ -28,6 +28,19 @@ using namespace HydroCouple;
 using namespace HydroCouple::Temporal;
 
 TimeSeriesIdBasedOutputDouble::TimeSeriesIdBasedOutputDouble(const QString& id,
+                                                             Dimension* identifierDimension,
+                                                             Dimension* timeDimension,
+                                                             ValueDefinition* valueDefinition,
+                                                             AbstractModelComponent* modelComponent)
+  : AbstractOutput(id,QList<Dimension*>({identifierDimension, timeDimension}),valueDefinition, modelComponent),
+    TimeSeriesIdBasedComponentDataItem<double>(id,valueDefinition->defaultValue().toDouble()),
+    m_identifierDimension(identifierDimension),
+    m_timeDimension(timeDimension)
+{
+
+}
+
+TimeSeriesIdBasedOutputDouble::TimeSeriesIdBasedOutputDouble(const QString& id,
                                                              const QStringList& identifiers,
                                                              Dimension* identifierDimension,
                                                              const QList<SDKTemporal::DateTime *> &times,

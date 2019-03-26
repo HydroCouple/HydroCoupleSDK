@@ -42,6 +42,12 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedOutputDouble: public AbstractOutput
   public:
 
     TimeSeriesIdBasedOutputDouble (const QString& id,
+                                   Dimension* identifierDimension,
+                                   Dimension* timeDimension,
+                                   ValueDefinition* valueDefinition,
+                                   AbstractModelComponent* modelComponent);
+
+    TimeSeriesIdBasedOutputDouble (const QString& id,
                                    const QStringList& identifiers,
                                    Dimension* identifierDimension,
                                    const QList<SDKTemporal::DateTime*>& times,
@@ -80,6 +86,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedOutputDouble: public AbstractOutput
     virtual void setValues(int timeIndex, int idIndex, int timeStride, int idStride, const void *data) override;
 
   private:
+
     Dimension *m_identifierDimension, *m_timeDimension;
 };
 

@@ -218,14 +218,6 @@ void ComponentDataItem2D<T>::resizeDataArrayILength(int iLength , bool initializ
 }
 
 template<class T>
-void ComponentDataItem2D<T>::removeIItemAt(int i)
-{
-  m_data.erase(m_data.begin() + i);
-  m_iLength = m_data.size();
-}
-
-
-template<class T>
 void ComponentDataItem2D<T>::resizeDataArrayJLength(int jLength, bool initializeNewWithDefault)
 {
   if(jLength >= 0)
@@ -246,6 +238,13 @@ void ComponentDataItem2D<T>::resizeDataArrayJLength(int jLength, bool initialize
 
     m_jLength = jLength;
   }
+}
+
+template<class T>
+void ComponentDataItem2D<T>::removeIItemAt(int i)
+{
+  m_data.erase(m_data.begin() + i);
+  m_iLength = m_data.size();
 }
 
 template<class T>

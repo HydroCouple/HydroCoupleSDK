@@ -24,7 +24,15 @@
 
 template<class T>
 IdBasedComponentDataItem<T>::IdBasedComponentDataItem(const QString &id,
-                                                      const QStringList& identifiers,
+                                                      const T& defaultValue)
+  : ComponentDataItem1D<T>(id, 0, defaultValue)
+{
+}
+
+
+template<class T>
+IdBasedComponentDataItem<T>::IdBasedComponentDataItem(const QString &id,
+                                                      const QStringList &identifiers,
                                                       const T& defaultValue)
   : ComponentDataItem1D<T>(id, identifiers.length(), defaultValue),
     m_identifiers(identifiers)

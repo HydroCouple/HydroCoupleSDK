@@ -2,11 +2,18 @@
 #define TIMESERIES_H
 
 #include "hydrocouplesdk.h"
+#include "temporal/timedata.h"
 
 #include <QObject>
 #include <QFileInfo>
 
 class DataCursor;
+
+namespace SDKTemporal
+{
+  class DateTime;
+  class TimeSpan
+;}
 
 class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
 {
@@ -42,7 +49,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
 
     void setValue(int rowIndex, int columnIndex, double value);
 
-    double dateTime(double rowIndex) const;
+    double dateTime(int rowIndex) const;
 
     double value(double rowIndex, int columnIndex = 0) const;
 
@@ -69,6 +76,10 @@ class HYDROCOUPLESDK_EXPORT TimeSeries : public QObject
      * \return
      */
     static QStringList splitLine(const QString &line, const QString &delimiters);
+
+  private:
+
+    void resetTimeSpan();
 
   private:
 

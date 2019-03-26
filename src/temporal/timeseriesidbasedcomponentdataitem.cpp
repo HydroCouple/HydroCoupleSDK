@@ -32,6 +32,15 @@ using namespace SDKTemporal;
 
 template<class T>
 TimeSeriesIdBasedComponentDataItem<T>::TimeSeriesIdBasedComponentDataItem(const QString &id,
+                                                                          const T& defaultValue)
+  : ComponentDataItem2D<T>(id, 0, 0,defaultValue)
+{
+  m_timeSpan = new TimeSpan(0, 0, nullptr);
+}
+
+
+template<class T>
+TimeSeriesIdBasedComponentDataItem<T>::TimeSeriesIdBasedComponentDataItem(const QString &id,
                                                                           const QStringList& identifiers,
                                                                           const QList<SDKTemporal::DateTime *> &times,
                                                                           const T& defaultValue)
@@ -111,7 +120,14 @@ bool TimeSeriesIdBasedComponentDataItem<T>::removeIdentifier(const QString& iden
 template<class T>
 bool TimeSeriesIdBasedComponentDataItem<T>::addTime(SDKTemporal::DateTime* time)
 {
-  if(m_times.length() && time->dateTime() > m_times[m_times.length()]->dateTime())
+  if(m_times.length() == 0)
+  {
+    m_times.append(time);
+    resetTimeSpan();
+    ComponentDataItem2D<T>::resizeDataArrayJLength(m_times.length());
+    return true;
+  }
+  else if(m_times.length() && time->dateTime() > m_times[m_times.length() - 1]->dateTime())
   {
     m_times.append(time);
     resetTimeSpan();
@@ -266,6 +282,24 @@ void TimeSeriesIdBasedComponentDataItem<T>::clearTimes()
   qDeleteAll(m_times);
   m_times.clear();
   ComponentDataItem2D<T>::resizeDataArray(0,0);
+}
+
+template<class T>
+void TimeSeriesIdBasedComponentDataItem<T>::moveDataToPrevTime()
+{
+  if(m_times.size() > 1)
+  {
+    for(int j = 0; j < m_identifiers.size(); j++)
+    {
+      std::vector<T> &data = ComponentDataItem2D<T>::m_data[j];
+
+      for(int i = 0; i < m_times.size() - 1; i++)
+      {
+        data[i] = data[i+1];
+        m_times[i]->setJulianDay(m_times[i+1]->julianDay());
+      }
+    }
+  }
 }
 
 template class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem<int>;

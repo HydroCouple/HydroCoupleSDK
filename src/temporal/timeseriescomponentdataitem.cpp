@@ -52,7 +52,9 @@ TimeSeriesComponentDataItem<T>::TimeSeriesComponentDataItem(const QString &id, c
     m_timeSpan = new SDKTemporal::TimeSpan(m_times[0]->dateTime(), duration, nullptr);
   }
   else
+  {
     m_timeSpan = new SDKTemporal::TimeSpan(nullptr);
+  }
 
 }
 

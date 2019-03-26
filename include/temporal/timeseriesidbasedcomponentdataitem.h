@@ -38,7 +38,11 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem: public Component
 
   public:
 
-    TimeSeriesIdBasedComponentDataItem(const QString &id, const QStringList& identifiers,
+    TimeSeriesIdBasedComponentDataItem(const QString &id,
+                                       const T& defaultValue);
+
+    TimeSeriesIdBasedComponentDataItem(const QString &id,
+                                       const QStringList& identifiers,
                                        const QList<SDKTemporal::DateTime*> &times,
                                        const T& defaultValue);
 
@@ -86,8 +90,10 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem: public Component
 
     void clearTimes();
 
+    void moveDataToPrevTime();
 
   private:
+
     QStringList  m_identifiers;
     QList<SDKTemporal::DateTime*> m_times;
     SDKTemporal::TimeSpan* m_timeSpan;

@@ -123,7 +123,7 @@ void TimeSeries::setValue(int rowIndex, int columnIndex, double value)
   m_values[rowIndex][columnIndex] = value;
 }
 
-double TimeSeries::dateTime(double rowIndex) const
+double TimeSeries::dateTime(int rowIndex) const
 {
   return m_dateTimes[rowIndex];
 }

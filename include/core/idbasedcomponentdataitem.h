@@ -32,6 +32,9 @@ class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem :
   public:
 
     IdBasedComponentDataItem(const QString &id,
+                             const T& defaultValue);
+
+    IdBasedComponentDataItem(const QString &id,
                              const QStringList& identifiers,
                              const T& defaultValue);
 
