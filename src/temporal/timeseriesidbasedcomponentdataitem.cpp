@@ -68,7 +68,7 @@ bool TimeSeriesIdBasedComponentDataItem<T>::addIdentifier(const QString& identif
   if(!m_identifiers.contains(identifier))
   {
     m_identifiers.append(identifier);
-    ComponentDataItem2D<T>::resizeDataArrayILength(m_identifiers.length());
+    ComponentDataItem2D<T>::resizeDataArrayJLength(m_identifiers.length());
     return true;
   }
   else
@@ -93,7 +93,7 @@ bool TimeSeriesIdBasedComponentDataItem<T>::addIdentifiers(const QList<QString>&
 
   if(added)
   {
-    ComponentDataItem2D<T>::resizeDataArrayILength(m_identifiers.length());
+    ComponentDataItem2D<T>::resizeDataArrayJLength(m_identifiers.length());
     return true;
   }
 
@@ -108,7 +108,7 @@ bool TimeSeriesIdBasedComponentDataItem<T>::removeIdentifier(const QString& iden
   if(index >= 0)
   {
     m_identifiers.removeAt(index);
-    ComponentDataItem2D<T>::removeIItemAt(index);
+    ComponentDataItem2D<T>::removeJItemAt(index);
     return true;
   }
   else
@@ -124,14 +124,14 @@ bool TimeSeriesIdBasedComponentDataItem<T>::addTime(SDKTemporal::DateTime* time)
   {
     m_times.append(time);
     resetTimeSpan();
-    ComponentDataItem2D<T>::resizeDataArrayJLength(m_times.length());
+    ComponentDataItem2D<T>::resizeDataArrayILength(m_times.length());
     return true;
   }
   else if(m_times.length() && time->dateTime() > m_times[m_times.length() - 1]->dateTime())
   {
     m_times.append(time);
     resetTimeSpan();
-    ComponentDataItem2D<T>::resizeDataArrayJLength(m_times.length());
+    ComponentDataItem2D<T>::resizeDataArrayILength(m_times.length());
     return true;
   }
 
@@ -168,7 +168,7 @@ bool TimeSeriesIdBasedComponentDataItem<T>::addTimes(const QList<DateTime *> &ti
 
     resetTimeSpan();
 
-    ComponentDataItem2D<T>::resizeDataArrayJLength(m_times.length());
+    ComponentDataItem2D<T>::resizeDataArrayILength(m_times.length());
     return true;
   }
 
@@ -184,7 +184,7 @@ bool TimeSeriesIdBasedComponentDataItem<T>::removeTime(DateTime *time)
   {
     m_times.removeAt(index);
     resetTimeSpan();
-    ComponentDataItem2D<T>::removeJItemAt(index);
+    ComponentDataItem2D<T>::removeIItemAt(index);
     return true;
   }
   else
@@ -211,15 +211,15 @@ void TimeSeriesIdBasedComponentDataItem<T>::getValueT(const std::vector<int> &di
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::getValueT(int idIndex, int timeIndex, void* data) const
+void TimeSeriesIdBasedComponentDataItem<T>::getValueT(int timeIndex, int idIndex, void* data) const
 {
-  ComponentDataItem2D<T>::getValueT(idIndex,timeIndex, data);
+  ComponentDataItem2D<T>::getValueT(timeIndex, idIndex, data);
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::getValuesT(int idIndex, int timeIndex, int idStride, int timeStride, void* data) const
+void TimeSeriesIdBasedComponentDataItem<T>::getValuesT(int timeIndex, int idIndex, int idStride, int timeStride, void* data) const
 {
-  ComponentDataItem2D<T>::getValuesT(idIndex,timeIndex,idStride, timeStride, data);
+  ComponentDataItem2D<T>::getValuesT(timeIndex, idIndex, timeStride, idStride, data);
 }
 
 template<class T>
@@ -229,15 +229,15 @@ void TimeSeriesIdBasedComponentDataItem<T>::setValueT(const std::vector<int> &di
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::setValueT(int idIndex, int timeIndex, const void *data)
+void TimeSeriesIdBasedComponentDataItem<T>::setValueT(int timeIndex, int idIndex, const void *data)
 {
-  ComponentDataItem2D<T>::setValueT(idIndex, timeIndex, data);
+  ComponentDataItem2D<T>::setValueT(timeIndex, idIndex, data);
 }
 
 template<class T>
-void TimeSeriesIdBasedComponentDataItem<T>::setValuesT(int idIndex, int timeIndex, int idStride, int timeStride, const void *data)
+void TimeSeriesIdBasedComponentDataItem<T>::setValuesT(int timeIndex, int idIndex, int timeStride, int idStride, const void *data)
 {
-  ComponentDataItem2D<T>::setValuesT(idIndex,timeIndex,idStride, timeStride, data);
+  ComponentDataItem2D<T>::setValuesT(timeIndex, idIndex, timeStride, idStride, data);
 }
 
 template<class T>
@@ -289,15 +289,15 @@ void TimeSeriesIdBasedComponentDataItem<T>::moveDataToPrevTime()
 {
   if(m_times.size() > 1)
   {
-    for(int j = 0; j < m_identifiers.size(); j++)
+    for(int i = 0; i < m_times.size() - 1; i++)
     {
-      std::vector<T> &data = ComponentDataItem2D<T>::m_data[j];
 
-      for(int i = 0; i < m_times.size() - 1; i++)
+      for(int j = 0 ; j < m_identifiers.size(); j++)
       {
-        data[i] = data[i+1];
-        m_times[i]->setJulianDay(m_times[i+1]->julianDay());
+        ComponentDataItem2D<T>::m_data[i][j] = ComponentDataItem2D<T>::m_data[i+1][j];
       }
+
+      m_times[i]->setJulianDay(m_times[i+1]->julianDay());
     }
   }
 }

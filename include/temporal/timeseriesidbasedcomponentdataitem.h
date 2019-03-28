@@ -64,15 +64,15 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedComponentDataItem: public Component
 
     void getValueT(const std::vector<int> &dimensionIndexes, void* data) const;
 
-    void getValueT(int idIndex, int timeIndex, void* data) const;
+    void getValueT(int timeIndex, int idIndex, void* data) const;
 
-    void getValuesT(int idIndex, int timeIndex, int idStride, int timeStride, void* data) const;
+    void getValuesT(int timeIndex, int idIndex, int idStride, int timeStride, void* data) const;
 
     void setValueT(const std::vector<int> &dimensionIndexes, const void* data);
 
-    void setValueT(int idIndex, int timeIndex, const void* data);
+    void setValueT(int timeIndex, int idIndex, const void* data);
 
-    void setValuesT(int idIndex, int timeIndex, int idStride, int timeStride, const void* data);
+    void setValuesT(int timeIndex, int idIndex, int timeStride, int idStride, const void* data);
 
   protected:
 
