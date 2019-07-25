@@ -46,7 +46,7 @@ class HYDROCOUPLESDK_EXPORT GeometryArgumentDouble : public AbstractArgument,
                            ValueDefinition *valueDefinition,
                            AbstractModelComponent *modelComponent);
 
-    virtual ~GeometryArgumentDouble();
+    virtual ~GeometryArgumentDouble() override;
 
     HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 

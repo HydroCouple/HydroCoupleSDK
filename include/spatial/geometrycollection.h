@@ -36,7 +36,7 @@ class HYDROCOUPLESDK_EXPORT HCGeometryCollection : public HCGeometry,
 
     HCGeometryCollection(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
-    virtual ~HCGeometryCollection();
+    virtual ~HCGeometryCollection() override;
 
     HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 

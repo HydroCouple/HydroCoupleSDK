@@ -50,7 +50,7 @@ class HYDROCOUPLESDK_EXPORT TimeGeometryInterpolationAdaptedOutput:
                                            HydroCouple::SpatioTemporal::ITimeGeometryComponentDataItem *adaptee,
                                            AbstractAdaptedOutputFactory *adaptedOutputFactory);
 
-    virtual ~TimeGeometryInterpolationAdaptedOutput();
+    virtual ~TimeGeometryInterpolationAdaptedOutput() override;
 
     QList<HydroCouple::Temporal::IDateTime*> times() const override;
 

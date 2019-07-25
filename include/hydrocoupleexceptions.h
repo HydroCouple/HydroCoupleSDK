@@ -29,9 +29,9 @@ class NotImplementedException : public std::logic_error
   public:
     explicit NotImplementedException(const std::string& className,  const std::string& functionName);
 
-    virtual ~NotImplementedException() throw() {}
+    virtual ~NotImplementedException() override{}
 
-    virtual const char* what() const throw() override ;
+    virtual const char* what() const _NOEXCEPT override;
 
   private:
     std::string m_className, m_functionName;

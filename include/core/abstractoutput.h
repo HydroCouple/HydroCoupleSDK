@@ -46,7 +46,7 @@ class HYDROCOUPLESDK_EXPORT AbstractOutput : public AbstractExchangeItem,
                    ValueDefinition* valueDefinition,
                    AbstractModelComponent* modelComponent);
 
-    virtual ~AbstractOutput();
+    virtual ~AbstractOutput() override;
 
     QList<HydroCouple::IInput*> consumers() const override;
 

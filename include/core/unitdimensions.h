@@ -38,7 +38,7 @@ class HYDROCOUPLESDK_EXPORT UnitDimensions : public Description,
 
       UnitDimensions(const QString& caption, QObject* parent = nullptr);
 
-      virtual  ~UnitDimensions();
+      virtual  ~UnitDimensions() override;
 
       double getPower(HydroCouple::FundamentalUnitDimension dimension) override;
 

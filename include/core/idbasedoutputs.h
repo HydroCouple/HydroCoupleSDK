@@ -24,7 +24,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedOutputDouble : public AbstractOutput,
                         ValueDefinition* valueDefinition,
                         AbstractModelComponent* modelComponent);
 
-    virtual ~IdBasedOutputDouble();
+    virtual ~IdBasedOutputDouble() override;
 
     QStringList identifiers() const override;
 

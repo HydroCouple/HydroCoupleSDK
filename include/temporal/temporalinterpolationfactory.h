@@ -34,7 +34,7 @@ class HYDROCOUPLESDK_EXPORT TemporalInterpolationFactory : public AbstractAdapte
 
     TemporalInterpolationFactory(const QString& id, QObject* parent);
 
-    virtual ~TemporalInterpolationFactory();
+    virtual ~TemporalInterpolationFactory() override;
 
     QList<IIdentity*> getAvailableAdaptedOutputIds(const HydroCouple::IOutput *provider, const HydroCouple::IInput *consumer) override;
 

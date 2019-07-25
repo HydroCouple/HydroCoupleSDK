@@ -17,7 +17,6 @@
  * \todo
  */
 
-
 #include "stdafx.h"
 #include "core/description.h"
 

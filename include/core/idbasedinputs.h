@@ -44,7 +44,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputInt : public AbstractInput,
                     ValueDefinition* valueDefinition,
                     AbstractModelComponent* modelComponent);
 
-    virtual ~IdBasedInputInt();
+    virtual ~IdBasedInputInt() override;
 
     QStringList identifiers() const override;
 
@@ -93,7 +93,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputDouble : public AbstractInput,
                        ValueDefinition* valueDefinition,
                        AbstractModelComponent* modelComponent);
 
-    virtual ~IdBasedInputDouble();
+    virtual ~IdBasedInputDouble() override;
 
     QStringList identifiers() const override;
 
@@ -140,7 +140,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedInputString : public AbstractInput,
                        ValueDefinition* valueDefinition,
                        AbstractModelComponent* modelComponent);
 
-    virtual ~IdBasedInputString();
+    virtual ~IdBasedInputString() override;
 
     QStringList identifiers() const override;
 

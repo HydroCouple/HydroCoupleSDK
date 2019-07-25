@@ -43,7 +43,7 @@ class HYDROCOUPLESDK_EXPORT Input2DInt: public AbstractInput,
                ValueDefinition* valueDefinition,
                AbstractModelComponent* modelComponent);
 
-    virtual ~Input2DInt();
+    virtual ~Input2DInt() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
@@ -68,7 +68,7 @@ class HYDROCOUPLESDK_EXPORT Input2DDouble: public AbstractInput,
                   ValueDefinition* valueDefinition,
                   AbstractModelComponent* modelComponent);
 
-    virtual ~Input2DDouble();
+    virtual ~Input2DDouble() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
@@ -93,7 +93,7 @@ class HYDROCOUPLESDK_EXPORT Input2DString: public AbstractInput,
                   ValueDefinition* valueDefinition,
                   AbstractModelComponent* modelComponent);
 
-    virtual ~Input2DString();
+    virtual ~Input2DString() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 

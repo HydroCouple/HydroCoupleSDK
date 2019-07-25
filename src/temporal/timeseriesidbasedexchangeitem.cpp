@@ -148,6 +148,20 @@ void TimeSeriesIdBasedOutputDouble::setValues(int timeIndex, int idIndex, int ti
 
 //==============================================================================================================================
 
+
+TimeSeriesIdBasedInputDouble::TimeSeriesIdBasedInputDouble(const QString& id,
+                                                           Dimension* identifierDimension,
+                                                           Dimension* timeDimension,
+                                                           ValueDefinition* valueDefinition,
+                                                           AbstractModelComponent* modelComponent)
+  : AbstractInput(id,QList<Dimension*>({identifierDimension, timeDimension}),valueDefinition, modelComponent),
+    TimeSeriesIdBasedComponentDataItem<double>(id, valueDefinition->defaultValue().toDouble()),
+    m_identifierDimension(identifierDimension),
+    m_timeDimension(timeDimension)
+{
+
+}
+
 TimeSeriesIdBasedInputDouble::TimeSeriesIdBasedInputDouble(const QString& id,
                                                            const QStringList& identifiers,
                                                            Dimension* identifierDimension,
@@ -256,6 +270,19 @@ void TimeSeriesIdBasedInputDouble::setValues(int timeIndex, int idIndex, int tim
 }
 
 //==============================================================================================================================
+
+TimeSeriesIdBasedMultiInputDouble::TimeSeriesIdBasedMultiInputDouble(const QString& id,
+                                                                     Dimension* identifierDimension,
+                                                                     Dimension* timeDimension,
+                                                                     ValueDefinition* valueDefinition,
+                                                                     AbstractModelComponent* modelComponent)
+  : AbstractMultiInput(id,QList<Dimension*>({identifierDimension, timeDimension}),valueDefinition, modelComponent),
+    TimeSeriesIdBasedComponentDataItem<double>(id,valueDefinition->defaultValue().toDouble()),
+    m_identifierDimension(identifierDimension),
+    m_timeDimension(timeDimension)
+{
+
+}
 
 TimeSeriesIdBasedMultiInputDouble::TimeSeriesIdBasedMultiInputDouble(const QString& id,
                                                                      const QStringList& identifiers,

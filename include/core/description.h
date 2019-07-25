@@ -46,11 +46,12 @@ class HYDROCOUPLESDK_EXPORT Description : public QObject,
     Q_PROPERTY(QString Description READ description WRITE setDescription NOTIFY propertyChanged)
 
   public:
+
     Description(QObject *parent = nullptr);
 
     Description(const QString &caption, QObject *parent = nullptr);
 
-    virtual ~Description();
+    virtual ~Description() override;
 
     QString caption() const override;
 

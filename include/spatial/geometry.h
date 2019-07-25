@@ -57,7 +57,7 @@ class HYDROCOUPLESDK_EXPORT HCGeometry:
 
     explicit HCGeometry(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
-    virtual ~HCGeometry();
+    virtual ~HCGeometry() override;
 
     QString id() const override;
 

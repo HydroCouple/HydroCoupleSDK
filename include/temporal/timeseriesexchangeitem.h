@@ -47,7 +47,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesOutputDouble: public AbstractOutput,
                            ValueDefinition* valueDefinition,
                            AbstractModelComponent* modelComponent);
 
-    virtual ~TimeSeriesOutputDouble();
+    virtual ~TimeSeriesOutputDouble() override;
 
     QList<HydroCouple::Temporal::IDateTime*> times() const override;
 
@@ -99,7 +99,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInputDouble: public AbstractInput,
                           ValueDefinition* valueDefinition,
                           AbstractModelComponent* modelComponent);
 
-    virtual ~TimeSeriesInputDouble();
+    virtual ~TimeSeriesInputDouble() override;
 
     QList<HydroCouple::Temporal::IDateTime*> times() const override;
 
@@ -151,7 +151,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesMultiInputDouble: public AbstractMultiInpu
                                ValueDefinition* valueDefinition,
                                AbstractModelComponent* modelComponent);
 
-    virtual ~TimeSeriesMultiInputDouble();
+    virtual ~TimeSeriesMultiInputDouble() override;
 
     QList<HydroCouple::Temporal::IDateTime*> times() const override;
 

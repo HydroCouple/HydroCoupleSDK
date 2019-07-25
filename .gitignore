@@ -249,3 +249,4 @@ CMakeLists.txt.user
 *.rc
 *.exp
 *.rc
+.DS_Store

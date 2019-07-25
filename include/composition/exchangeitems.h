@@ -75,7 +75,7 @@ namespace Composition
 
       Input(HydroCouple::IInput *input, ModelComponent *modelComponent);
 
-      virtual ~Input();
+      virtual ~Input() override;
 
       HydroCouple::IExchangeItem *exchangeItem() const override;
 

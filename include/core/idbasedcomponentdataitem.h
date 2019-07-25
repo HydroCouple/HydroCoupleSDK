@@ -25,6 +25,7 @@
 
 #include <QDateTime>
 
+
 template<class T>
 class HYDROCOUPLESDK_EXPORT IdBasedComponentDataItem :
     public ComponentDataItem1D<T>

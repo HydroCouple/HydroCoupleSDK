@@ -44,7 +44,7 @@ public:
                     ValueDefinition *valueDefinition,
                     AbstractModelComponent *modelComponent);
 
-    virtual ~TINOutputDouble();
+    virtual ~TINOutputDouble() override;
 
     HydroCouple::Spatial::MeshDataType meshDataType() const override;
 

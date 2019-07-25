@@ -43,7 +43,7 @@ class HYDROCOUPLESDK_EXPORT SpatialReferenceSystem :
 
     SpatialReferenceSystem(const QString& authName, int authSRID);
 
-    virtual ~SpatialReferenceSystem();
+    virtual ~SpatialReferenceSystem() override;
 
     int authSRID() const override;
 

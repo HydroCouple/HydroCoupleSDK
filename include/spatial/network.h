@@ -41,7 +41,7 @@ class HYDROCOUPLESDK_EXPORT Network : public Identity,
 
     Network(const QString &id = QUuid::createUuid().toString(), QObject* parent = nullptr);
 
-    virtual ~Network();
+    virtual ~Network() override;
 
     int edgeCount() const override;
 

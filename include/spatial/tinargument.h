@@ -52,7 +52,7 @@ class HYDROCOUPLESDK_EXPORT TINArgumentDouble : public AbstractArgument,
                       ValueDefinition *valueDefinition,
                       AbstractModelComponent *modelComponent);
 
-    virtual ~TINArgumentDouble();
+    virtual ~TINArgumentDouble() override;
 
     HydroCouple::Spatial::ITIN *TIN() const override;
 

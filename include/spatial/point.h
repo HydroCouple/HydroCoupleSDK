@@ -47,7 +47,7 @@ class HYDROCOUPLESDK_EXPORT HCPoint: public HCGeometry,
 
     explicit HCPoint(double x, double y, double z, double m, const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
-    virtual ~HCPoint();
+    virtual ~HCPoint() override;
 
     double x() const override;
 
@@ -142,7 +142,7 @@ class HYDROCOUPLESDK_EXPORT HCVertex : public HCPoint,
 
     explicit HCVertex(double x, double y, double z, double m, const QString &id, Network *parent);
 
-    virtual ~HCVertex();
+    virtual ~HCVertex() override;
 
     HydroCouple::Spatial::IEdge* edge() const override;
 

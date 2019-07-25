@@ -268,7 +268,7 @@ bool TimeSeries::interpolate(double dateTime, int columnIndex, DataCursor *dataC
 
   if(index > -1)
   {
-    if(index == (int)m_dateTimes.size() - 1)
+    if(index == static_cast<int>(m_dateTimes.size() - 1))
     {
       value = m_values[index][columnIndex];
     }

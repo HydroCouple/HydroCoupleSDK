@@ -57,7 +57,7 @@ class HYDROCOUPLESDK_EXPORT TimeTINOutputDouble : public AbstractOutput,
                         ValueDefinition *valueDefinition,
                         AbstractModelComponent *modelComponent);
 
-    virtual ~TimeTINOutputDouble();
+    virtual ~TimeTINOutputDouble() override;
 
     HydroCouple::Spatial::MeshDataType meshDataType() const override;
 
@@ -147,7 +147,7 @@ class HYDROCOUPLESDK_EXPORT TimeTINInputDouble : public AbstractInput,
                        ValueDefinition *valueDefinition,
                        AbstractModelComponent *modelComponent);
 
-    virtual ~TimeTINInputDouble();
+    virtual ~TimeTINInputDouble() override;
 
     HydroCouple::Spatial::MeshDataType meshDataType() const override;
 
@@ -237,7 +237,7 @@ class HYDROCOUPLESDK_EXPORT TimeTINMultiInputDouble : public AbstractMultiInput,
                             ValueDefinition *valueDefinition,
                             AbstractModelComponent *modelComponent);
 
-    virtual ~TimeTINMultiInputDouble();
+    virtual ~TimeTINMultiInputDouble() override;
 
     HydroCouple::Spatial::MeshDataType meshDataType() const override;
 

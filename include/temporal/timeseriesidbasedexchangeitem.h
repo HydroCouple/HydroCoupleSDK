@@ -55,7 +55,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedOutputDouble: public AbstractOutput
                                    ValueDefinition* valueDefinition,
                                    AbstractModelComponent* modelComponent);
 
-    virtual ~TimeSeriesIdBasedOutputDouble();
+    virtual ~TimeSeriesIdBasedOutputDouble() override;
 
     QStringList identifiers() const override;
 
@@ -106,6 +106,13 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedInputDouble: public AbstractInput,
     Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
 
   public:
+
+    TimeSeriesIdBasedInputDouble (const QString& id,
+                                   Dimension* identifierDimension,
+                                   Dimension* timeDimension,
+                                   ValueDefinition* valueDefinition,
+                                   AbstractModelComponent* modelComponent);
+
     TimeSeriesIdBasedInputDouble (const QString& id,
                                    const QStringList& identifiers,
                                    Dimension* identifierDimension,
@@ -164,6 +171,12 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesIdBasedMultiInputDouble: public AbstractMu
     Q_PROPERTY(HydroCouple::IDimension* TimeDimension READ timeDimension)
 
   public:
+
+    TimeSeriesIdBasedMultiInputDouble (const QString& id,
+                                   Dimension* identifierDimension,
+                                   Dimension* timeDimension,
+                                   ValueDefinition* valueDefinition,
+                                   AbstractModelComponent* modelComponent);
 
     TimeSeriesIdBasedMultiInputDouble (const QString& id,
                                    const QStringList& identifiers,

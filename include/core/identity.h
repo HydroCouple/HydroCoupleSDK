@@ -43,7 +43,7 @@ class HYDROCOUPLESDK_EXPORT Identity : public Description,
 
     Identity(const QString& id, const QString& caption, QObject* parent = nullptr);
 
-    virtual ~Identity();
+    virtual ~Identity() override;
 
     QString id() const override;
 

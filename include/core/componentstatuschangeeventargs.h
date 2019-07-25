@@ -65,7 +65,7 @@ class HYDROCOUPLESDK_EXPORT ComponentStatusChangeEventArgs : public QObject,
                                    HydroCouple::IModelComponent::ComponentStatus oldStatus, const QString& message,
                                    AbstractModelComponent *parent);
 
-    ~ComponentStatusChangeEventArgs();
+    virtual ~ComponentStatusChangeEventArgs() override;
 
     /*!
        * \brief Gets the IModelComponent that fired the event.

@@ -50,7 +50,7 @@ class HYDROCOUPLESDK_EXPORT Edge final:
 
     Edge();
 
-    virtual ~Edge();
+    virtual ~Edge() override;
 
   public:
 

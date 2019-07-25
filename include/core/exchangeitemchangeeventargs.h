@@ -39,7 +39,7 @@ class HYDROCOUPLESDK_EXPORT ExchangeItemEventArgs : public QObject,
 
     ExchangeItemEventArgs(const QString &message, AbstractExchangeItem* exchangeItem);
 
-    virtual ~ExchangeItemEventArgs(){}
+    virtual ~ExchangeItemEventArgs() override{}
 
     HydroCouple::IExchangeItem* exchangeItem() const override;
 

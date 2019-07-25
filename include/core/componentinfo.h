@@ -57,7 +57,7 @@ class HYDROCOUPLESDK_EXPORT  ComponentInfo : public Identity,
     /*!
        * \brief ~ComponentInfo
        */
-    virtual ~ComponentInfo(){}
+    virtual ~ComponentInfo() override{}
 
     /*!
        * \brief File path to Component library.

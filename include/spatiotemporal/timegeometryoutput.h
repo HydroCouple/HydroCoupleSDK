@@ -42,7 +42,7 @@ class HYDROCOUPLESDK_EXPORT TimeGeometryOutputDouble : public AbstractOutput,
                             ValueDefinition *valueDefinition,
                             AbstractModelComponent *modelComponent);
 
-    virtual ~TimeGeometryOutputDouble();
+    virtual ~TimeGeometryOutputDouble() override;
 
     QList<HydroCouple::Temporal::IDateTime*> times() const override;
 

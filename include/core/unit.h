@@ -43,7 +43,7 @@ class HYDROCOUPLESDK_EXPORT Unit : public Description,
 
       Unit(const QString &caption, double conversionFactorToSI , double offsetToSI , QObject *parent = nullptr);
 
-      virtual ~Unit();
+      virtual ~Unit() override;
 
       HydroCouple::IUnitDimensions* dimensions() const override;
 

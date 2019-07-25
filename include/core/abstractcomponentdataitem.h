@@ -57,7 +57,7 @@ class HYDROCOUPLESDK_EXPORT AbstractComponentDataItem : public Identity,
                               ValueDefinition *valueDefinition,
                               AbstractModelComponent *modelComponent);
 
-    virtual ~AbstractComponentDataItem();
+    virtual ~AbstractComponentDataItem() override;
 
     HydroCouple::IModelComponent* modelComponent() const override;
 

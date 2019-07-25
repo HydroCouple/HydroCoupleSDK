@@ -46,7 +46,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentInt : public AbstractArgument,
                        ValueDefinition* valueDefinition,
                        AbstractModelComponent* parentModelComponent);
 
-    virtual ~IdBasedArgumentInt();
+    virtual ~IdBasedArgumentInt() override;
 
     QStringList identifiers() const override;
 
@@ -106,7 +106,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentDouble : public AbstractArgument,
                           ValueDefinition* valueDefinition,
                           AbstractModelComponent* parentModelComponent);
 
-    virtual ~IdBasedArgumentDouble();
+    virtual ~IdBasedArgumentDouble() override;
 
     QStringList identifiers() const override;
 
@@ -166,7 +166,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentString : public AbstractArgument,
                            ValueDefinition* valueDefinition,
                            AbstractModelComponent* parentModelComponent);
 
-    virtual ~IdBasedArgumentString();
+    virtual ~IdBasedArgumentString() override;
 
     QStringList identifiers() const override;
 
@@ -228,7 +228,7 @@ class HYDROCOUPLESDK_EXPORT IdBasedArgumentDateTime: public AbstractArgument,
                            ValueDefinition* valueDefinition,
                            AbstractModelComponent* parentModelComponent);
 
-    virtual ~IdBasedArgumentDateTime();
+    virtual ~IdBasedArgumentDateTime() override;
 
     QStringList identifiers() const override;
 

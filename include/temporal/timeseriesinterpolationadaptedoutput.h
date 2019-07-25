@@ -49,7 +49,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesInterpolationAdaptedOutput : public Abstra
                                          HydroCouple::Temporal::ITimeSeriesComponentDataItem *adaptee,
                                          AbstractAdaptedOutputFactory *timeSeriesInterpolationFactory);
 
-    virtual ~TimeSeriesInterpolationAdaptedOutput();
+    virtual ~TimeSeriesInterpolationAdaptedOutput() override;
 
     QList<HydroCouple::Temporal::IDateTime*> times() const override;
 

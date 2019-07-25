@@ -42,7 +42,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponentInfo : public ComponentInfo,
 
     AbstractModelComponentInfo(QObject* parent = nullptr);
 
-    virtual ~AbstractModelComponentInfo();
+    virtual ~AbstractModelComponentInfo() override;
 
     QList<HydroCouple::IAdaptedOutputFactory*> adaptedOutputFactories() const override final;
 

@@ -45,7 +45,7 @@ class HYDROCOUPLESDK_EXPORT AbstractExchangeItem : public AbstractComponentDataI
                          ValueDefinition* valueDefinition,
                          AbstractModelComponent *modelComponent);
 
-    virtual ~AbstractExchangeItem();
+    virtual ~AbstractExchangeItem() override;
 
   protected:
 

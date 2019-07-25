@@ -54,7 +54,7 @@ class HYDROCOUPLESDK_EXPORT AbstractArgument : public AbstractComponentDataItem,
                      ValueDefinition *valueDefinition,
                      AbstractModelComponent *modelComponent);
 
-    virtual ~AbstractArgument();
+    virtual ~AbstractArgument() override;
 
     bool isOptional() const override;
 

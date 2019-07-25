@@ -46,7 +46,7 @@ class HYDROCOUPLESDK_EXPORT TimeTINInterpolationAdaptedOutput:
                                       HydroCouple::SpatioTemporal::ITimeTINComponentDataItem *adaptee,
                                       AbstractAdaptedOutputFactory *adaptedOutputFactory);
 
-    virtual ~TimeTINInterpolationAdaptedOutput();
+    virtual ~TimeTINInterpolationAdaptedOutput() override;
 
     HydroCouple::Spatial::MeshDataType meshDataType() const override;
 

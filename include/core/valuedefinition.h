@@ -21,7 +21,6 @@
 #ifndef VALUEDEFINITION_H
 #define VALUEDEFINITION_H
 
-#include "valuedefinition.h"
 #include "description.h"
 #include <QXmlStreamReader>
 
@@ -46,7 +45,7 @@ class HYDROCOUPLESDK_EXPORT ValueDefinition : public Description,
 
     ValueDefinition(const QString &caption, QVariant::Type type, QObject *parent);
 
-    virtual ~ValueDefinition();
+    virtual ~ValueDefinition() override;
 
     QVariant::Type type() const override;
 

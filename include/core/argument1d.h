@@ -36,7 +36,7 @@ class HYDROCOUPLESDK_EXPORT Argument1DInt : public AbstractArgument,
                   ValueDefinition *valueDefinition,
                   AbstractModelComponent *modelComponent);
 
-    virtual ~Argument1DInt();
+    virtual ~Argument1DInt() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
@@ -71,7 +71,7 @@ class HYDROCOUPLESDK_EXPORT Argument1DDouble : public AbstractArgument,
                      ValueDefinition *valueDefinition,
                      AbstractModelComponent *modelComponent);
 
-    virtual ~Argument1DDouble();
+    virtual ~Argument1DDouble() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
@@ -107,7 +107,7 @@ class HYDROCOUPLESDK_EXPORT Argument1DString : public AbstractArgument,
                      ValueDefinition* valueDefinition,
                      AbstractModelComponent* modelComponent);
 
-    virtual ~Argument1DString();
+    virtual ~Argument1DString() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 

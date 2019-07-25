@@ -40,7 +40,7 @@ class HYDROCOUPLESDK_EXPORT TimeSeriesArgumentDouble : public AbstractArgument,
                              ValueDefinition *valueDefinition,
                              AbstractModelComponent *modelComponent);
 
-    virtual ~TimeSeriesArgumentDouble();
+    virtual ~TimeSeriesArgumentDouble() override;
 
     QList<HydroCouple::Temporal::IDateTime*> times() const override;
 

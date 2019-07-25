@@ -43,7 +43,7 @@ class HYDROCOUPLESDK_EXPORT AbstractInput : public AbstractExchangeItem,
                   ValueDefinition *valueDefinition,
                   AbstractModelComponent *modelComponent);
 
-    virtual ~AbstractInput();
+    virtual ~AbstractInput() override;
 
     HydroCouple::IOutput *provider() const override;
 
@@ -85,7 +85,7 @@ class HYDROCOUPLESDK_EXPORT AbstractMultiInput: public AbstractInput,
                        ValueDefinition *valueDefinition,
                        AbstractModelComponent *modelComponent);
 
-    virtual ~AbstractMultiInput();
+    virtual ~AbstractMultiInput() override;
 
     QList<HydroCouple::IOutput*>  providers() const override;
 

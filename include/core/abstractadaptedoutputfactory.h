@@ -52,7 +52,7 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutputFactoryComponent : public Abstr
 
     AbstractAdaptedOutputFactoryComponent(const QString& id, QObject* parent);
 
-    virtual ~AbstractAdaptedOutputFactoryComponent();
+    virtual ~AbstractAdaptedOutputFactoryComponent() override;
 
     HydroCouple::IAdaptedOutputFactoryComponentInfo* componentInfo() const override;
 

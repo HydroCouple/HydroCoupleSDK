@@ -43,7 +43,7 @@ class HYDROCOUPLESDK_EXPORT HCLineString: public HCGeometry,
 
     HCLineString(const QString &id = QUuid::createUuid().toString(), HCGeometry *parent = nullptr);
 
-    virtual ~HCLineString();
+    virtual ~HCLineString() override;
 
     int dimension() const override;
 

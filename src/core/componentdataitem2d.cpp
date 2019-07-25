@@ -244,7 +244,7 @@ template<class T>
 void ComponentDataItem2D<T>::removeIItemAt(int i)
 {
   m_data.erase(m_data.begin() + i);
-  m_iLength = m_data.size();
+  m_iLength = static_cast<int>(m_data.size());
 }
 
 template<class T>
@@ -256,7 +256,7 @@ void ComponentDataItem2D<T>::removeJItemAt(int j)
     data.erase(data.begin() + j);
   }
 
-  m_jLength = m_data[0].size();
+  m_jLength = static_cast<int>(m_data[0].size());
 }
 
 template<class T>

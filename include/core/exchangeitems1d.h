@@ -40,7 +40,7 @@ public:
                ValueDefinition *valueDefinition,
                AbstractModelComponent* modelComponent);
 
-    virtual ~Input1DInt();
+    virtual ~Input1DInt() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
@@ -69,7 +69,7 @@ public:
                   ValueDefinition* valueDefinition,
                   AbstractModelComponent *modelComponent);
 
-    virtual ~Input1DDouble();
+    virtual ~Input1DDouble() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 
@@ -98,7 +98,7 @@ public:
                   ValueDefinition* valueDefinition,
                   AbstractModelComponent* modelComponent);
 
-    virtual ~Input1DString();
+    virtual ~Input1DString() override;
 
     int dimensionLength(const std::vector<int> &dimensionIndexes) const override;
 

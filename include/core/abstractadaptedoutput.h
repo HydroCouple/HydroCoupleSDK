@@ -52,11 +52,14 @@ class HYDROCOUPLESDK_EXPORT AbstractAdaptedOutput : public Identity,
 
 
   public:
+
     AbstractAdaptedOutput(const QString &id,
                           const QList<Dimension*> &dimensions,
                           ValueDefinition *valueDefinition,
                           HydroCouple::IOutput *adaptee,
                           AbstractAdaptedOutputFactory *adaptedOutputFactory);
+
+    virtual ~AbstractAdaptedOutput() override {}
 
     HydroCouple::IModelComponent* modelComponent() const override;
 

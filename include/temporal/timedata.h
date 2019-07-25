@@ -46,7 +46,7 @@ namespace  SDKTemporal
 
       explicit DateTime(double dateTime, QObject *parent = nullptr);
 
-      virtual ~DateTime();
+      virtual ~DateTime() override;
 
       double julianDay() const override;
 
@@ -91,7 +91,7 @@ namespace  SDKTemporal
 
       explicit TimeSpan(double dateTime, double duration = 0, QObject *parent = nullptr);
 
-      virtual ~TimeSpan();
+      virtual ~TimeSpan() override;
 
       double duration() const override;
 

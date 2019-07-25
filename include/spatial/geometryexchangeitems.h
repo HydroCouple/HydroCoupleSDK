@@ -46,7 +46,7 @@ class HYDROCOUPLESDK_EXPORT GeometryInputDouble : public AbstractInput,
                         ValueDefinition* valueDefinition,
                         AbstractModelComponent *modelComponent);
 
-    virtual ~GeometryInputDouble();
+    virtual ~GeometryInputDouble() override;
 
     HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 
@@ -103,7 +103,7 @@ class HYDROCOUPLESDK_EXPORT GeometryOutputDouble  : public AbstractOutput,
                          ValueDefinition* valueDefinition,
                          AbstractModelComponent *modelComponent);
 
-    virtual ~GeometryOutputDouble();
+    virtual ~GeometryOutputDouble() override;
 
     HydroCouple::Spatial::IGeometry::GeometryType geometryType() const override;
 

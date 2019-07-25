@@ -46,7 +46,7 @@ class HYDROCOUPLESDK_EXPORT AbstractTimeModelComponent : public AbstractModelCom
 
     AbstractTimeModelComponent(const QString &id, const QString &caption, AbstractModelComponentInfo *modelComponentInfo = nullptr);
 
-    virtual ~AbstractTimeModelComponent();
+    virtual ~AbstractTimeModelComponent() override;
 
     HydroCouple::Temporal::IDateTime *currentDateTime() const override;
 

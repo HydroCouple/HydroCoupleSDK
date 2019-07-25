@@ -33,7 +33,7 @@ class HYDROCOUPLESDK_EXPORT Envelope :
 
     Envelope();
 
-    virtual ~Envelope();
+    virtual ~Envelope() override;
 
     double minX() const override;
 

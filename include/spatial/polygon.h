@@ -49,7 +49,7 @@ class HYDROCOUPLESDK_EXPORT HCPolygon : public HCGeometry,
 
     explicit HCPolygon(const QString &id, HCPolyhedralSurface *parent);
 
-    virtual ~HCPolygon();
+    virtual ~HCPolygon() override;
 
     int dimension() const override;
 

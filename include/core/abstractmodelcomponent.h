@@ -72,7 +72,7 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent : public Identity,
 
     AbstractModelComponent(const QString &id, const QString &caption, AbstractModelComponentInfo *modelComponentInfo = nullptr);
 
-    virtual ~AbstractModelComponent();
+    virtual ~AbstractModelComponent() override;
 
     int index() const override final;
 

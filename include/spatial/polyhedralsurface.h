@@ -47,7 +47,7 @@ class HYDROCOUPLESDK_EXPORT HCPolyhedralSurface : public HCGeometry,
 
     HCPolyhedralSurface(const QString &id = QUuid::createUuid().toString());
 
-    virtual ~HCPolyhedralSurface();
+    virtual ~HCPolyhedralSurface() override;
 
     int dimension() const override;
 
