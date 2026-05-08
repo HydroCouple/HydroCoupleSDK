@@ -12,7 +12,6 @@
 #define HYDROCOUPLESDK_REGULARGRID2DCOMPONENTDATAITEM_H
 
 #include "hydrocouplesdk.h"
-#include "abstractcomponentdataitem.h"
 #include "regulargrid2d.h"
 
 #include <vector>
@@ -21,19 +20,18 @@
 namespace HydroCouple::Spatial {
 
 /*!
- * \brief Data item storing scalar values on a RegularGrid2D.
+ * \brief Storage mixin for scalar values on a RegularGrid2D.
  *
  * Stores values in row-major layout:
  * - **Cell data**: m_data[j*(nx-1) + i], size = (nx-1) × (ny-1)
  * - **Node data**: m_data[j*nx + i], size = nx × ny
  *
- * Supports 2D indexing via getValue(j*nx + i) or direct (i,j) access.
- * Contiguous memory layout enables bulk SIMD operations.
+ * Use as a mixin with AbstractComponentDataItem to create concrete data items.
  *
  * \tparam T Data type (double, float, int, etc.)
  */
 template <typename T>
-class HYDROCOUPLESDK_EXPORT RegularGrid2DComponentDataItem : public AbstractComponentDataItem {
+class RegularGrid2DComponentDataItemStorage {
 public:
     /*!
      * \brief Grid data location type.
@@ -44,94 +42,28 @@ public:
     };
 
     /*!
-     * \brief Construct component data item for a RegularGrid2D.
+     * \brief Initialize storage for a RegularGrid2D.
      * \param grid The grid (not owned)
      * \param dataType Location type (CellCentered or NodeCentered)
      * \param capacity Pre-allocate storage
      */
-    RegularGrid2DComponentDataItem(std::shared_ptr<RegularGrid2D> grid,
-                                   GridDataType dataType, int capacity = 0)
-        : AbstractComponentDataItem(), m_grid(grid), m_dataType(dataType) {
-        updateDimensions();
+    void initGrid2DStorage(std::shared_ptr<RegularGrid2D> grid,
+                          GridDataType dataType, int capacity = 0) {
+        m_grid = grid;
+        m_dataType = dataType;
         if (capacity > 0) {
             m_data.reserve(capacity);
         }
+        updateDimensions();
     }
 
-    ~RegularGrid2DComponentDataItem() override = default;
+    // ── Storage accessors ──────────────────────────────────────────────────
 
-    // ── AbstractComponentDataItem interface ────────────────────────────────
-
-    int dimensionCount() const override {
-        return 2;  // 2D: X and Y dimensions
-    }
-
-    HydroCouple::IDimension *dimension(int index) const override {
-        return nullptr;  // TODO: implement proper Dimension in C++20 namespace
-    }
-
-    void getValue(const std::initializer_list<int> &indices, hydrocouple_variant &data) const override {
-        if (indices.size() != 1) return;
-        int idx = *indices.begin();
-        if (idx < 0 || idx >= (int)m_data.size()) return;
-        data = hydrocouple_variant(m_data[idx]);
-    }
-
-    void getValues(const std::initializer_list<int> &indices,
-                   std::vector<hydrocouple_variant> &data) const override {
-        data.clear();
-        if (indices.size() != 2) return;
-
-        auto it = indices.begin();
-        int startIdx = *it;
-        ++it;
-        int count = *it;
-
-        if (startIdx < 0 || startIdx + count > (int)m_data.size()) return;
-
-        data.resize(count);
-        for (int i = 0; i < count; ++i) {
-            data[i] = hydrocouple_variant(m_data[startIdx + i]);
-        }
-    }
-
-    void setValue(const std::initializer_list<int> &indices,
-                  const hydrocouple_variant &data) override {
-        if (indices.size() != 1) return;
-        int idx = *indices.begin();
-        if (idx < 0 || idx >= (int)m_data.size()) return;
-
-        if constexpr (std::is_arithmetic_v<T>) {
-            if (data.index() == 1) {  // double
-                m_data[idx] = static_cast<T>(std::get<double>(data));
-            } else if (data.index() == 2) {  // int
-                m_data[idx] = static_cast<T>(std::get<int>(data));
-            }
-        }
-    }
-
-    void setValues(const std::initializer_list<int> &indices,
-                   const std::vector<hydrocouple_variant> &data) override {
-        if (indices.size() != 2 || data.empty()) return;
-        auto it = indices.begin();
-        int startIdx = *it;
-        ++it;
-        int count = *it;
-
-        if (startIdx < 0 || startIdx + count > (int)m_data.size()) return;
-
-        if constexpr (std::is_arithmetic_v<T>) {
-            for (int i = 0; i < count; ++i) {
-                if (data[i].index() == 1) {
-                    m_data[startIdx + i] = static_cast<T>(std::get<double>(data[i]));
-                } else if (data[i].index() == 2) {
-                    m_data[startIdx + i] = static_cast<T>(std::get<int>(data[i]));
-                }
-            }
-        }
-    }
-
-    // ── Grid-specific data access ──────────────────────────────────────────
+    /*!
+     * \brief Direct access to underlying data array (row-major layout).
+     */
+    std::vector<T> &data() { return m_data; }
+    const std::vector<T> &data() const { return m_data; }
 
     /*!
      * \brief Get the grid.
@@ -142,12 +74,6 @@ public:
      * \brief Get grid data type.
      */
     GridDataType gridDataType() const { return m_dataType; }
-
-    /*!
-     * \brief Direct access to underlying data array (row-major layout).
-     */
-    std::vector<T> &data() { return m_data; }
-    const std::vector<T> &data() const { return m_data; }
 
     /*!
      * \brief Get value at grid position (i, j).
@@ -185,14 +111,16 @@ public:
         std::copy(in, in + count, m_data.begin() + offset);
     }
 
-private:
+protected:
     std::shared_ptr<RegularGrid2D> m_grid;
-    GridDataType m_dataType;
+    GridDataType m_dataType = CellCentered;
     std::vector<T> m_data;
 
+private:
     void updateDimensions() {
-        int xCount, yCount;
+        if (!m_grid) return;
 
+        int xCount, yCount;
         if (m_dataType == CellCentered) {
             xCount = m_grid->numXNodes() - 1;
             yCount = m_grid->numYNodes() - 1;

@@ -12,7 +12,6 @@
 #define HYDROCOUPLESDK_NETWORKCOMPONENTDATAITEM_H
 
 #include "hydrocouplesdk.h"
-#include "abstractcomponentdataitem.h"
 #include "network.h"
 
 #include <vector>
@@ -21,18 +20,18 @@
 namespace HydroCouple::Spatial {
 
 /*!
- * \brief Data item storing scalar values on a Network.
+ * \brief Storage mixin for scalar values on a Network.
  *
  * Template stores values indexed by:
  * - **Node data**: m_data[vertexIndex], size = numVertices
  * - **Edge data**: m_data[edgeIndex], size = numEdges
  *
- * Useful for flow values on edges, concentrations at nodes, etc.
+ * Use as a mixin with AbstractComponentDataItem to create concrete data items.
  *
  * \tparam T Data type (double, float, int, etc.)
  */
 template <typename T>
-class HYDROCOUPLESDK_EXPORT NetworkComponentDataItem : public AbstractComponentDataItem {
+class NetworkComponentDataItemStorage {
 public:
     /*!
      * \brief Network data location type.
@@ -43,88 +42,27 @@ public:
     };
 
     /*!
-     * \brief Construct component data item for a Network.
+     * \brief Initialize storage for a Network.
      * \param network The Network (not owned)
      * \param dataType Location type (Node or Edge)
      * \param capacity Pre-allocate storage
      */
-    NetworkComponentDataItem(Network *network, NetworkDataType dataType, int capacity = 0)
-        : AbstractComponentDataItem(), m_network(network), m_dataType(dataType) {
-        updateDimensions();
+    void initNetworkStorage(Network *network, NetworkDataType dataType, int capacity = 0) {
+        m_network = network;
+        m_dataType = dataType;
         if (capacity > 0) {
             m_data.reserve(capacity);
         }
+        updateDimensions();
     }
 
-    ~NetworkComponentDataItem() override = default;
+    // ── Storage accessors ──────────────────────────────────────────────────
 
-    // ── AbstractComponentDataItem interface ────────────────────────────────
-
-    int dimensionCount() const override {
-        return 1;
-    }
-
-    HydroCouple::IDimension *dimension(int index) const override {
-        return nullptr;  // TODO: implement proper Dimension in C++20 namespace
-    }
-
-    void getValue(const std::initializer_list<int> &indices, hydrocouple_variant &data) const override {
-        if (indices.size() != 1) return;
-        int idx = *indices.begin();
-        if (idx < 0 || idx >= (int)m_data.size()) return;
-        data = hydrocouple_variant(m_data[idx]);
-    }
-
-    void getValues(const std::initializer_list<int> &indices,
-                   std::vector<hydrocouple_variant> &data) const override {
-        data.clear();
-        if (indices.size() != 1) return;
-
-        int idx = *indices.begin();
-        int count = dimension(0)->dimensionLength();
-        if (idx < 0 || idx + count > (int)m_data.size()) return;
-
-        data.resize(count);
-        for (int i = 0; i < count; ++i) {
-            data[i] = hydrocouple_variant(m_data[idx + i]);
-        }
-    }
-
-    void setValue(const std::initializer_list<int> &indices,
-                  const hydrocouple_variant &data) override {
-        if (indices.size() != 1) return;
-        int idx = *indices.begin();
-        if (idx < 0 || idx >= (int)m_data.size()) return;
-
-        if constexpr (std::is_arithmetic_v<T>) {
-            if (data.index() == 1) {  // double
-                m_data[idx] = static_cast<T>(std::get<double>(data));
-            } else if (data.index() == 2) {  // int
-                m_data[idx] = static_cast<T>(std::get<int>(data));
-            }
-        }
-    }
-
-    void setValues(const std::initializer_list<int> &indices,
-                   const std::vector<hydrocouple_variant> &data) override {
-        if (indices.size() != 1 || data.empty()) return;
-        int idx = *indices.begin();
-        int count = std::min((int)data.size(), dimension(0)->dimensionLength());
-
-        if (idx < 0 || idx + count > (int)m_data.size()) return;
-
-        if constexpr (std::is_arithmetic_v<T>) {
-            for (int i = 0; i < count; ++i) {
-                if (data[i].index() == 1) {
-                    m_data[idx + i] = static_cast<T>(std::get<double>(data[i]));
-                } else if (data[i].index() == 2) {
-                    m_data[idx + i] = static_cast<T>(std::get<int>(data[i]));
-                }
-            }
-        }
-    }
-
-    // ── Network-specific data access ───────────────────────────────────────
+    /*!
+     * \brief Direct access to underlying data array.
+     */
+    std::vector<T> &data() { return m_data; }
+    const std::vector<T> &data() const { return m_data; }
 
     /*!
      * \brief Get the Network.
@@ -137,13 +75,23 @@ public:
     NetworkDataType networkDataType() const { return m_dataType; }
 
     /*!
-     * \brief Direct access to underlying data array.
+     * \brief Get value at flat index.
      */
-    std::vector<T> &data() { return m_data; }
-    const std::vector<T> &data() const { return m_data; }
+    T getValue(int idx) const {
+        if (idx < 0 || idx >= (int)m_data.size()) return T{};
+        return m_data[idx];
+    }
 
     /*!
-     * \brief Bulk read operation.
+     * \brief Set value at flat index.
+     */
+    void setValue(int idx, T value) {
+        if (idx < 0 || idx >= (int)m_data.size()) return;
+        m_data[idx] = value;
+    }
+
+    /*!
+     * \brief Bulk read operation (SIMD-vectorizable).
      */
     void bulkGet(int offset, int count, T *out) const {
         if (offset < 0 || offset + count > (int)m_data.size()) return;
@@ -151,21 +99,23 @@ public:
     }
 
     /*!
-     * \brief Bulk write operation.
+     * \brief Bulk write operation (SIMD-vectorizable).
      */
     void bulkSet(int offset, int count, const T *in) {
         if (offset < 0 || offset + count > (int)m_data.size()) return;
         std::copy(in, in + count, m_data.begin() + offset);
     }
 
-private:
-    Network *m_network;
-    NetworkDataType m_dataType;
+protected:
+    Network *m_network = nullptr;
+    NetworkDataType m_dataType = Node;
     std::vector<T> m_data;
 
+private:
     void updateDimensions() {
-        int elementCount = 0;
+        if (!m_network) return;
 
+        int elementCount = 0;
         switch (m_dataType) {
             case Node:
                 elementCount = m_network->vertexCount();

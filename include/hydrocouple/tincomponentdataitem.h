@@ -12,30 +12,28 @@
 #define HYDROCOUPLESDK_TINCOMPONENTDATAITEM_H
 
 #include "hydrocouplesdk.h"
-#include "abstractcomponentdataitem.h"
 #include "tin.h"
 
 #include <vector>
 #include <memory>
-#include <cstring>
 
 namespace HydroCouple::Spatial {
 
 /*!
- * \brief Data item storing scalar values on a TIN mesh.
+ * \brief Storage mixin for scalar values on a TIN mesh.
  *
- * Template stores values indexed by mesh location:
+ * Template provides typed storage indexed by mesh location:
  * - **Node data**: m_data[vertexIndex], size = numVertices
  * - **Edge data**: m_data[edgeIndex], size = numEdges
  * - **Cell data**: m_data[cellIndex], size = numTriangles
  *
- * All getValue/getValues calls use flat array indexing.
+ * Use as a mixin with AbstractComponentDataItem to create concrete data items.
  * Bulk operations are SIMD-vectorizable via contiguous memory access.
  *
  * \tparam T Data type (double, float, int, etc.)
  */
 template <typename T>
-class HYDROCOUPLESDK_EXPORT TINComponentDataItem : public AbstractComponentDataItem {
+class TINComponentDataItemStorage {
 public:
     /*!
      * \brief Mesh data location type.
@@ -47,89 +45,27 @@ public:
     };
 
     /*!
-     * \brief Construct component data item for a TIN.
+     * \brief Initialize storage for a TIN.
      * \param tin The TIN mesh (not owned)
      * \param dataType Location type (Node, Edge, or Cell)
      * \param capacity Pre-allocate storage
      */
-    TINComponentDataItem(HCTIN *tin, MeshDataType dataType, int capacity = 0)
-        : AbstractComponentDataItem(), m_tin(tin), m_dataType(dataType) {
-        updateDimensions();
+    void initTINStorage(HCTIN *tin, MeshDataType dataType, int capacity = 0) {
+        m_tin = tin;
+        m_dataType = dataType;
         if (capacity > 0) {
             m_data.reserve(capacity);
         }
+        updateDimensions();
     }
 
-    ~TINComponentDataItem() override = default;
+    // ── Storage accessors ──────────────────────────────────────────────────
 
-    // ── AbstractComponentDataItem interface ────────────────────────────────
-
-    int dimensionCount() const override {
-        return 1;  // Single dimension: element index
-    }
-
-    HydroCouple::IDimension *dimension(int index) const override {
-        // TODO: implement proper Dimension class in C++20 namespace
-        return nullptr;
-    }
-
-    void getValue(const std::initializer_list<int> &indices, hydrocouple_variant &data) const override {
-        if (indices.size() != 1) return;
-        int idx = *indices.begin();
-        if (idx < 0 || idx >= (int)m_data.size()) return;
-        data = hydrocouple_variant(m_data[idx]);
-    }
-
-    void getValues(const std::initializer_list<int> &indices,
-                   std::vector<hydrocouple_variant> &data) const override {
-        data.clear();
-        if (indices.size() != 1) return;
-
-        int idx = *indices.begin();
-        int count = dimension(0)->dimensionLength();
-        if (idx < 0 || idx + count > (int)m_data.size()) return;
-
-        data.resize(count);
-        for (int i = 0; i < count; ++i) {
-            data[i] = hydrocouple_variant(m_data[idx + i]);
-        }
-    }
-
-    void setValue(const std::initializer_list<int> &indices,
-                  const hydrocouple_variant &data) override {
-        if (indices.size() != 1) return;
-        int idx = *indices.begin();
-        if (idx < 0 || idx >= (int)m_data.size()) return;
-
-        if constexpr (std::is_arithmetic_v<T>) {
-            if (data.index() == 1) {  // double
-                m_data[idx] = static_cast<T>(std::get<double>(data));
-            } else if (data.index() == 2) {  // int
-                m_data[idx] = static_cast<T>(std::get<int>(data));
-            }
-        }
-    }
-
-    void setValues(const std::initializer_list<int> &indices,
-                   const std::vector<hydrocouple_variant> &data) override {
-        if (indices.size() != 1 || data.empty()) return;
-        int idx = *indices.begin();
-        int count = std::min((int)data.size(), dimension(0)->dimensionLength());
-
-        if (idx < 0 || idx + count > (int)m_data.size()) return;
-
-        if constexpr (std::is_arithmetic_v<T>) {
-            for (int i = 0; i < count; ++i) {
-                if (data[i].index() == 1) {
-                    m_data[idx + i] = static_cast<T>(std::get<double>(data[i]));
-                } else if (data[i].index() == 2) {
-                    m_data[idx + i] = static_cast<T>(std::get<int>(data[i]));
-                }
-            }
-        }
-    }
-
-    // ── TIN-specific data access ───────────────────────────────────────────
+    /*!
+     * \brief Direct access to underlying data array.
+     */
+    std::vector<T> &data() { return m_data; }
+    const std::vector<T> &data() const { return m_data; }
 
     /*!
      * \brief Get the TIN mesh.
@@ -142,10 +78,20 @@ public:
     MeshDataType meshDataType() const { return m_dataType; }
 
     /*!
-     * \brief Direct access to underlying data array.
+     * \brief Get value at flat index.
      */
-    std::vector<T> &data() { return m_data; }
-    const std::vector<T> &data() const { return m_data; }
+    T getValue(int idx) const {
+        if (idx < 0 || idx >= (int)m_data.size()) return T{};
+        return m_data[idx];
+    }
+
+    /*!
+     * \brief Set value at flat index.
+     */
+    void setValue(int idx, T value) {
+        if (idx < 0 || idx >= (int)m_data.size()) return;
+        m_data[idx] = value;
+    }
 
     /*!
      * \brief Bulk read operation (SIMD-vectorizable).
@@ -163,14 +109,16 @@ public:
         std::copy(in, in + count, m_data.begin() + offset);
     }
 
-private:
-    HCTIN *m_tin;
-    MeshDataType m_dataType;
+protected:
+    HCTIN *m_tin = nullptr;
+    MeshDataType m_dataType = Node;
     std::vector<T> m_data;
 
+private:
     void updateDimensions() {
-        int elementCount = 0;
+        if (!m_tin) return;
 
+        int elementCount = 0;
         switch (m_dataType) {
             case Node:
                 elementCount = m_tin->numVertices();
