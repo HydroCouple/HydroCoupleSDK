@@ -60,6 +60,8 @@ PRIVATE
     hydrocouple/tin.cpp
     hydrocouple/network.cpp
     hydrocouple/raster.cpp
+    hydrocouple/regulargrid2d.cpp
+    hydrocouple/regulargrid3d.cpp
 
     # ── spatial C files (triangulation) ────────────────────────────────────
     spatial/triangle.c
