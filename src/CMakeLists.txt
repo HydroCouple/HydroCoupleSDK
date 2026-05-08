@@ -1,25 +1,12 @@
 # SPDX-License-Identifier: MIT
 # src/CMakeLists.txt — HydroCoupleSDK source files
 
-# ── C files (spatial triangulation — compiled as C99, not C++) ────────────
-set_source_files_properties(
-    spatial/triangle.c
-    spatial/tricall.c
-    PROPERTIES
-        LANGUAGE C
-        C_STANDARD 99
-        SKIP_PRECOMPILE_HEADERS ON  # stdafx.h has C++ headers; skip for C TUs
-)
-
 target_sources(HydroCoupleSDK
 PRIVATE
     # ── stdafx ────────────────────────────────────────────────────────────
     stdafx.cpp
 
-    # ── hydrocouple (namespace HydroCouple) — C++20 migrated sources ──────
-    # Files are added here as they are migrated from include/core/ (Qt) to
-    # include/hydrocouple/ (C++20).  Old Qt-based files in src/core/ are
-    # kept as reference but are NOT compiled until migration is complete.
+    # ── core (namespace HydroCouple) ──────────────────────────────────────
     hydrocouple/datatype.cpp
     hydrocouple/safevariant.cpp
     hydrocouple/description.cpp
@@ -43,36 +30,27 @@ PRIVATE
     hydrocouple/abstractadaptedoutputfactory.cpp
     hydrocouple/abstractmodelcomponent.cpp
 
-    # ── temporal (namespace HydroCouple::Temporal) ──────────────────────
-    hydrocouple/timedata.cpp
-    hydrocouple/timeseries.cpp
-    hydrocouple/timeseriesexchangeitems.cpp
-    hydrocouple/timeseriesadaptedoutput.cpp
-    hydrocouple/timeseriesargument.cpp
-
-    # ── utilities ─────────────────────────────────────────────────────────
-    # hydrocoupleexceptions.cpp   # TODO: migrate (uses QString)
-    # progresschecker.cpp         # TODO: migrate (uses QObject signals)
-    # splineinterpolator.cpp      # TODO: migrate (uses QObject)
+    # ── temporal (namespace HydroCouple::Temporal) ────────────────────────
+    hydrocouple/temporal/timedata.cpp
+    hydrocouple/temporal/timeseries.cpp
+    hydrocouple/temporal/timeseriesexchangeitems.cpp
+    hydrocouple/temporal/timeseriesadaptedoutput.cpp
+    hydrocouple/temporal/timeseriesargument.cpp
 
     # ── spatial (namespace HydroCouple::Spatial) ──────────────────────────
-    hydrocouple/linestring.cpp
-    hydrocouple/polygon.cpp
-    hydrocouple/polyhedralsurface.cpp
-    hydrocouple/tin.cpp
-    hydrocouple/network.cpp
-    hydrocouple/raster.cpp
-    hydrocouple/regulargrid2d.cpp
-    hydrocouple/regulargrid3d.cpp
-    hydrocouple/rastercomponentdataitem.cpp
-
-    # ── spatial C files (triangulation) ────────────────────────────────────
-    spatial/triangle.c
-    spatial/tricall.c
+    hydrocouple/spatial/linestring.cpp
+    hydrocouple/spatial/polygon.cpp
+    hydrocouple/spatial/polyhedralsurface.cpp
+    hydrocouple/spatial/tin.cpp
+    hydrocouple/spatial/network.cpp
+    hydrocouple/spatial/raster.cpp
+    hydrocouple/spatial/regulargrid2d.cpp
+    hydrocouple/spatial/regulargrid3d.cpp
+    hydrocouple/spatial/rastercomponentdataitem.cpp
 )
 
 # ── thread-safe NetCDF (conditional) ──────────────────────────────────────
-# TODO: migrate to std::shared_mutex (currently uses Qt OpenMP critical sections)
+# TODO: upgrade to std::shared_mutex (currently uses Qt OpenMP critical sections)
 # if(USE_NETCDF)
 #     target_sources(HydroCoupleSDK PRIVATE
 #         threadsafenetcdf/threadsafencfile.cpp
