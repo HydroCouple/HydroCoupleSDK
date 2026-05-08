@@ -1,0 +1,27 @@
+{
+  "name": "hydrocouplesdk",
+  "version-semver": "1.0.0",
+  "description": "HydroCouple C++ Modeling Framework SDK",
+  "license": "MIT",
+  "homepage": "https://www.hydrocouple.org",
+  "dependencies": [
+    { "name": "vcpkg-cmake",        "host": true },
+    { "name": "vcpkg-cmake-config", "host": true },
+    "gdal",
+    "netcdf-cxx4",
+    "hdf5",
+    "nlohmann-json",
+    { "name": "gtest", "default-features": false }
+
+  ],
+  "features": {
+    "mpi": {
+      "description": "Enable MPI support",
+      "dependencies": ["mpi"]
+    },
+    "tools": {
+      "description": "Mesh generation and interpolation tools",
+      "dependencies": ["gdal", "cdt"]
+    }
+  }
+}

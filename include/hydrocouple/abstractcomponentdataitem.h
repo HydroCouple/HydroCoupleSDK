@@ -1,0 +1,267 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2014-2026 Caleb Amoa Buahin <caleb.buahin@gmail.com>
+
+/*!
+ * \file   abstractcomponentdataitem.h
+ * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \version 1.0.0
+ * \brief  Abstract base implementation of HydroCouple::IComponentDataItem.
+ */
+
+#ifndef HYDROCOUPLESDK_ABSTRACTCOMPONENTDATAITEM_H
+#define HYDROCOUPLESDK_ABSTRACTCOMPONENTDATAITEM_H
+
+#include "identity.h"
+#include "signal.h"
+#include "hydrocouple.h"
+
+#include <memory>
+#include <vector>
+#include <string>
+
+#include <nlohmann/json.hpp>
+
+namespace HydroCouple {
+
+class Dimension;
+class ValueDefinition;
+
+// ── ComponentDataItemValueChanged ─────────────────────────────────────────
+
+/*!
+ * \brief Concrete implementation of IComponentDataItemValueChanged.
+ *
+ * Carries a pointer back to the data item that changed, plus the
+ * dimension-index and length vectors describing the affected region.
+ *
+ * \note The interface declares dimensionIndexes()/dimensionLengths() as
+ *       returning std::initializer_list<int>. That type cannot safely wrap
+ *       runtime-owned data, so those methods return empty lists. Callers
+ *       that need the actual affected region should down-cast to this
+ *       concrete class and use indexesVec() / lengthsVec().
+ */
+class HYDROCOUPLESDK_EXPORT ComponentDataItemValueChanged
+    : public HydroCouple::IComponentDataItemValueChanged
+{
+public:
+    ComponentDataItemValueChanged(HydroCouple::IComponentDataItem *item,
+                                  std::vector<int> indexes = {},
+                                  std::vector<int> lengths = {});
+
+    ~ComponentDataItemValueChanged() override = default;
+
+    HydroCouple::IComponentDataItem *componentDataItem() const override;
+
+    // Returns {} — use indexesVec() for the actual data.
+    std::initializer_list<int> dimensionIndexes() const override;
+
+    // Returns {} — use lengthsVec() for the actual data.
+    std::initializer_list<int> dimensionLengths() const override;
+
+    [[nodiscard]] const std::vector<int> &indexesVec() const noexcept;
+    [[nodiscard]] const std::vector<int> &lengthsVec() const noexcept;
+
+private:
+    HydroCouple::IComponentDataItem *m_item;
+    std::vector<int>                 m_indexes;
+    std::vector<int>                 m_lengths;
+};
+
+
+// ── AbstractComponentDataItem ─────────────────────────────────────────────
+
+/*!
+ * \brief Abstract base class for HydroCouple::IComponentDataItem.
+ *
+ * Implements the bookkeeping common to all data items (dimensions, value
+ * definition, owning model component, comments, and the valueChanged
+ * signal). Subclasses provide typed storage and implement the pure-virtual
+ * getValue / getValues / setValue / setValues / dimensionLength methods.
+ *
+ * Signal design
+ * -------------
+ * AbstractComponentDataItem holds two signals:
+ * - \c m_propertyChanged (Signal<std::string>) — inherited via Description;
+ *   fires when metadata (caption, description, comments) changes.
+ * - \c m_valueChanged (Signal<...>) — fires when element data change;
+ *   implements ISignal<const shared_ptr<IComponentDataItemValueChanged>&>.
+ *
+ * Both signals share the same blockSignals(bool) gate.
+ *
+ * Serialisation
+ * -------------
+ * readData() / writeData() use nlohmann::json for argument persistence.
+ * The default implementations read/write caption and comments.
+ * Subclasses may extend them for typed value serialisation.
+ *
+ * \threadsafety Not thread-safe on its own. The signals are individually
+ * thread-safe (std::shared_mutex), but the data arrays are not.
+ */
+class HYDROCOUPLESDK_EXPORT AbstractComponentDataItem
+    : public Identity,
+      public virtual HydroCouple::IComponentDataItem
+{
+public:
+    /*!
+     * \brief Construct with identifier, dimension list, value definition,
+     *        and owning model component.
+     * \param id              Unique identifier string.
+     * \param dimensions      Ordered list of Dimension pointers (borrowed).
+     * \param valueDefinition Value definition (borrowed).
+     * \param modelComponent  Owning component (may be nullptr for standalone items).
+     */
+    AbstractComponentDataItem(std::string_view id,
+                               const std::vector<Dimension *> &dimensions,
+                               ValueDefinition *valueDefinition,
+                               HydroCouple::IModelComponent *modelComponent);
+
+    /*!
+     * \brief Construct with identifier, caption, dimensions, value definition,
+     *        and owning model component.
+     */
+    AbstractComponentDataItem(std::string_view id,
+                               std::string_view caption,
+                               const std::vector<Dimension *> &dimensions,
+                               ValueDefinition *valueDefinition,
+                               HydroCouple::IModelComponent *modelComponent);
+
+    ~AbstractComponentDataItem() override = default;
+
+    // ── IComponentDataItem ────────────────────────────────────────────────
+
+    /*!
+     * \brief Returns the owning model component (may be nullptr).
+     */
+    [[nodiscard]] HydroCouple::IModelComponent *modelComponent() const override;
+
+    /*!
+     * \brief Returns the list of dimensions as IIDimension pointers.
+     */
+    [[nodiscard]] std::vector<HydroCouple::IDimension *> dimensions() const override;
+
+    /*!
+     * \brief Returns the value definition for this data item.
+     */
+    [[nodiscard]] HydroCouple::IValueDefinition *valueDefinition() const override;
+
+    /*!
+     * \brief Returns the length of the dimension at the given indexes.
+     *
+     * Pure virtual — implemented by typed subclasses.
+     */
+    int dimensionLength(const std::initializer_list<int> &dimensionIndexes = {})
+        const override = 0;
+
+    // getValue / getValues / setValue / setValues — pure virtual
+    void getValue(hydrocouple_variant &data,
+                  const std::initializer_list<int> &dimensionIndexes) const override = 0;
+
+    void getValues(hydrocouple_variant *data,
+                   const std::initializer_list<int> &dimensionIndexes,
+                   const std::initializer_list<int> &dimensionLengths = {}) const override = 0;
+
+    void setValue(const hydrocouple_variant &data,
+                  const std::initializer_list<int> &dimensionIndexes) override = 0;
+
+    void setValues(const hydrocouple_variant *data,
+                   const std::initializer_list<int> &dimensionIndexes,
+                   const std::initializer_list<int> &dimensionLengths = {}) override = 0;
+
+    // ── UI stubs (headless SDK — no GUI) ──────────────────────────────────
+
+    [[nodiscard]] bool hasEditor() const override { return false; }
+    void showEditor(void * = nullptr) override {}
+    [[nodiscard]] bool hasViewer() const override { return false; }
+    void showViewer(void * = nullptr) override {}
+
+    // ── ISignal<const shared_ptr<IComponentDataItemValueChanged>&> ────────
+
+    /*!
+     * \brief Connect a slot to receive value-changed notifications.
+     */
+    void connect(const std::shared_ptr<
+        ISlot<const std::shared_ptr<IComponentDataItemValueChanged> &>> &slot) override;
+
+    /*!
+     * \brief Disconnect a previously connected value-changed slot.
+     */
+    void disconnect(const std::shared_ptr<
+        ISlot<const std::shared_ptr<IComponentDataItemValueChanged> &>> &slot) override;
+
+    /*!
+     * \brief Suppress or restore both the propertyChanged and valueChanged signals.
+     *
+     * Overrides Description::blockSignals so that a single call gates
+     * both the metadata-changed and data-changed signals.
+     *
+     * \param block  true to suppress; false to restore.
+     */
+    void blockSignals(bool block) override;
+
+    // ── Comments (non-interface extension) ───────────────────────────────
+
+    /*!
+     * \brief Returns the list of free-form comment strings attached to this item.
+     */
+    [[nodiscard]] std::vector<std::string> comments() const;
+
+    /*!
+     * \brief Replaces all comments and fires propertyChanged("Comments").
+     */
+    void setComments(const std::vector<std::string> &comments);
+
+    /*!
+     * \brief Appends a single comment.
+     */
+    void addComment(const std::string &comment);
+
+    // ── Serialisation ─────────────────────────────────────────────────────
+
+    /*!
+     * \brief Deserialises caption, description, and comments from a JSON object.
+     * \param j  JSON object (may be {}).
+     */
+    virtual void readData(const nlohmann::json &j);
+
+    /*!
+     * \brief Serialises caption, description, and comments to a JSON object.
+     * \return JSON object containing at least "caption" and "comments".
+     */
+    [[nodiscard]] virtual nlohmann::json writeData() const;
+
+protected:
+    // ── Internal typed accessors (for subclasses) ─────────────────────────
+
+    [[nodiscard]] std::vector<Dimension *>       dimensionsInternal()     const;
+    [[nodiscard]] ValueDefinition               *valueDefinitionInternal() const;
+    [[nodiscard]] HydroCouple::IModelComponent  *modelComponentInternal()  const;
+
+    /*!
+     * \brief Fires the valueChanged signal with the given event args.
+     */
+    void emitValueChanged(
+        const std::shared_ptr<IComponentDataItemValueChanged> &args);
+
+    /*!
+     * \brief Convenience overload: constructs the event args inline.
+     * \param indexes  Dimension indexes of the changed region.
+     * \param lengths  Lengths of the changed region (empty = single element).
+     */
+    void emitValueChanged(std::vector<int> indexes = {},
+                          std::vector<int> lengths = {});
+
+    // ISignal<...>::emit — required pure-virtual override
+    void emit(const std::shared_ptr<IComponentDataItemValueChanged> &args) override;
+
+private:
+    std::vector<Dimension *>          m_dimensions;
+    ValueDefinition                  *m_valueDefinition;
+    HydroCouple::IModelComponent     *m_modelComponent;
+    std::vector<std::string>   m_comments;
+
+    Signal<const std::shared_ptr<IComponentDataItemValueChanged> &> m_valueChanged;
+};
+
+} // namespace HydroCouple
+
+#endif // HYDROCOUPLESDK_ABSTRACTCOMPONENTDATAITEM_H

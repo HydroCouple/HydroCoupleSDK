@@ -211,8 +211,7 @@ SOURCES += ./src/stdafx.cpp \
            ./src/threadsafenetcdf/threadsafencgroup.cpp \
            ./src/threadsafenetcdf/threadsafencvar.cpp \
            ./src/threadsafenetcdf/threadsafencdim.cpp \
-           ./src/threadsafenetcdf/threadsafencatt.cpp \
-           src/hydrocouplevirtualdestructors.cpp
+           ./src/threadsafenetcdf/threadsafencatt.cpp 
 
 macx{
 

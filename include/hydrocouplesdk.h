@@ -1,31 +1,43 @@
-/*! \file   hydrocouplesdk.h
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2014-2026 Caleb Amoa Buahin <caleb.buahin@gmail.com>
+
+/*!
+ * \file   hydrocouplesdk.h
  * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
- * \version   1.0.0
- * \description
- * \license
- * This file and its associated files, and libraries are free software.
- * You can redistribute it and/or modify it under the terms of the
- * Lesser GNU Lesser General Public License as published by the Free Software Foundation;
- * either version 3 of the License, or (at your option) any later version.
- * This file and its associated files is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.(see <http://www.gnu.org/licenses/> for details)
- * \copyright Copyright 2014-2018, Caleb Buahin, All rights reserved.
- * \date 2014-2018
- * \pre
- * \bug
- * \warning
- * \todo
+ * \version 1.0.0
+ * \brief  Portable symbol-visibility macros for HydroCoupleSDK.
  */
 
 #ifndef HYDROCOUPLESDK_H
 #define HYDROCOUPLESDK_H
 
-#include <QtCore/qglobal.h>
-
-#ifdef HYDROCOUPLESDK_LIBRARY
-# define HYDROCOUPLESDK_EXPORT Q_DECL_EXPORT
+// ── Symbol visibility ──────────────────────────────────────────────────────
+// Windows: __declspec(dllexport / dllimport)
+// GCC / Clang: __attribute__((visibility("default")))
+// Other compilers: no-op (static lib or compiler without visibility support)
+#if defined(_WIN32) || defined(_WIN64)
+#  ifdef HYDROCOUPLESDK_LIBRARY
+#    define HYDROCOUPLESDK_EXPORT __declspec(dllexport)
+#  else
+#    define HYDROCOUPLESDK_EXPORT __declspec(dllimport)
+#  endif
+#elif defined(__GNUC__) || defined(__clang__)
+#  define HYDROCOUPLESDK_EXPORT __attribute__((visibility("default")))
 #else
-# define HYDROCOUPLESDK_EXPORT Q_DECL_IMPORT
+#  define HYDROCOUPLESDK_EXPORT
+#endif
+
+// ── Tools library visibility ───────────────────────────────────────────────
+#if defined(_WIN32) || defined(_WIN64)
+#  ifdef HYDROCOUPLETOOLS_LIBRARY
+#    define HYDROCOUPLETOOLS_EXPORT __declspec(dllexport)
+#  else
+#    define HYDROCOUPLETOOLS_EXPORT __declspec(dllimport)
+#  endif
+#elif defined(__GNUC__) || defined(__clang__)
+#  define HYDROCOUPLETOOLS_EXPORT __attribute__((visibility("default")))
+#else
+#  define HYDROCOUPLETOOLS_EXPORT
 #endif
 
 #endif // HYDROCOUPLESDK_H
