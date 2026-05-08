@@ -20,6 +20,8 @@ PRIVATE
     # Files are added here as they are migrated from include/core/ (Qt) to
     # include/hydrocouple/ (C++20).  Old Qt-based files in src/core/ are
     # kept as reference but are NOT compiled until migration is complete.
+    hydrocouple/datatype.cpp
+    hydrocouple/safevariant.cpp
     hydrocouple/description.cpp
     hydrocouple/identity.cpp
     hydrocouple/unit.cpp
@@ -62,6 +64,7 @@ PRIVATE
     hydrocouple/raster.cpp
     hydrocouple/regulargrid2d.cpp
     hydrocouple/regulargrid3d.cpp
+    hydrocouple/rastercomponentdataitem.cpp
 
     # ── spatial C files (triangulation) ────────────────────────────────────
     spatial/triangle.c
