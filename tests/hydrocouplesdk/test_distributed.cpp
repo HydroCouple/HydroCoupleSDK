@@ -558,3 +558,195 @@ TEST(ProxyWorkerDeath, DeadPeerLatchesFailedWithDiagnostic)
     EXPECT_EQ(errors.back().severity, ErrorEntry::Severity::Fatal);
     EXPECT_NE(errors.back().message.find("timed out"), std::string::npos);
 }
+
+// ── PartitionedDataItem + HaloExchanger (plan §5.4) ───────────────────────
+
+#include "hydrocouplesdk/distributed/partitioneddataitem.h"
+
+namespace {
+
+/*!
+ * Two-rank decomposition of a 10-entity 1-D domain with one-deep halos:
+ *   rank 0 owns 0..4 and mirrors {5} (owner 1)
+ *   rank 1 owns 5..9 and mirrors {4} (owner 0)
+ */
+struct TwoRankFixture
+{
+    std::shared_ptr<InProcHub>       hub = InProcHub::create(2);
+    std::unique_ptr<InProcTransport> t0  = hub->createTransport(0);
+    std::unique_ptr<InProcTransport> t1  = hub->createTransport(1);
+
+    PartitionedDataItemDouble item0{
+        "field", 10, {0, 1, 2, 3, 4}, {5}, {1}, t0.get()};
+    PartitionedDataItemDouble item1{
+        "field", 10, {5, 6, 7, 8, 9}, {4}, {0}, t1.get()};
+};
+
+} // namespace
+
+TEST(PartitionedDataItemTest, ExposesDecompositionMetadata)
+{
+    TwoRankFixture fixture;
+    EXPECT_EQ(fixture.item0.globalCount(), 10);
+    EXPECT_EQ(fixture.item0.ownedGlobalIndexes().size(), 5u);
+    EXPECT_EQ(fixture.item0.virtualGlobalIndexes()[0], 5);
+    EXPECT_EQ(fixture.item0.virtualOwners()[0], 1);
+    EXPECT_EQ(fixture.item0.shape(), (std::vector<int64_t>{6}));
+    EXPECT_EQ(fixture.item0.dataKind(), DataKind::Float64);
+    EXPECT_EQ(fixture.item0.synchronizationEpoch(), 0u);
+}
+
+TEST(PartitionedDataItemTest, DataPlaneSpansOwnedThenVirtual)
+{
+    TwoRankFixture fixture;
+    auto owned = fixture.item0.ownedValues();
+    for (size_t i = 0; i < owned.size(); ++i)
+        owned[i] = static_cast<double>(i + 1);
+
+    std::array<double, 6> block{};
+    const std::array<int64_t, 1> shape{6}, zero{0};
+    std::string message;
+    ASSERT_TRUE(fixture.item0.getValuesInto(
+        hostBuffer(block.data(), DataKind::Float64, shape), zero, shape,
+        &message)) << message;
+    EXPECT_DOUBLE_EQ(block[4], 5.0);
+    EXPECT_DOUBLE_EQ(block[5], 0.0); // virtual mirror, not yet exchanged
+}
+
+TEST(HaloExchangerTest, TwoRankExchangeFillsMirrors)
+{
+    TwoRankFixture fixture;
+    // rank 0 values: global g → 100+g; rank 1: global g → 200+g.
+    for (size_t i = 0; i < 5; ++i)
+    {
+        fixture.item0.ownedValues()[i] = 100.0 + static_cast<double>(i);
+        fixture.item1.ownedValues()[i] = 200.0 + 5.0 + static_cast<double>(i);
+    }
+
+    // Both ranks run pattern + exchange concurrently (collective).
+    std::string message0, message1;
+    std::thread rank1([&] {
+        auto request = fixture.item1.synchronizeAsync();
+        request->wait();
+        std::string failure;
+        ASSERT_FALSE(request->failed(failure)) << failure;
+    });
+    auto request = fixture.item0.synchronizeAsync();
+    request->wait();
+    std::string failure;
+    ASSERT_FALSE(request->failed(failure)) << failure;
+    rank1.join();
+
+    // rank 0's mirror of global 5 came from rank 1 (200+5); vice versa.
+    EXPECT_DOUBLE_EQ(fixture.item0.virtualValues()[0], 205.0);
+    EXPECT_DOUBLE_EQ(fixture.item1.virtualValues()[0], 104.0);
+    EXPECT_EQ(fixture.item0.synchronizationEpoch(), 1u);
+    EXPECT_EQ(fixture.item1.synchronizationEpoch(), 1u);
+}
+
+TEST(HaloExchangerTest, GatherHappensAtBeginOverlapIsSafe)
+{
+    TwoRankFixture fixture;
+    fixture.item0.ownedValues()[4] = 42.0; // global 4, mirrored by rank 1
+    fixture.item1.ownedValues()[0] = 7.0;  // global 5, mirrored by rank 0
+
+    std::thread rank1([&] {
+        auto request = fixture.item1.synchronizeAsync();
+        // Overlap window: overwrite the owned value AFTER begin. The halo
+        // received by rank 0 must carry the value as of begin (7.0).
+        fixture.item1.ownedValues()[0] = -999.0;
+        request->wait();
+        std::string failure;
+        ASSERT_FALSE(request->failed(failure)) << failure;
+    });
+    auto request = fixture.item0.synchronizeAsync();
+    fixture.item0.ownedValues()[4] = -999.0; // same on rank 0
+    request->wait();
+    std::string failure;
+    ASSERT_FALSE(request->failed(failure)) << failure;
+    rank1.join();
+
+    EXPECT_DOUBLE_EQ(fixture.item0.virtualValues()[0], 7.0);
+    EXPECT_DOUBLE_EQ(fixture.item1.virtualValues()[0], 42.0);
+}
+
+TEST(HaloExchangerTest, RepeatedEpochsCarryFreshValues)
+{
+    TwoRankFixture fixture;
+    for (int step = 1; step <= 3; ++step)
+    {
+        fixture.item0.ownedValues()[4] = 10.0 * step;
+        fixture.item1.ownedValues()[0] = 20.0 * step;
+        std::thread rank1([&] {
+            auto request = fixture.item1.synchronizeAsync();
+            request->wait();
+        });
+        auto request = fixture.item0.synchronizeAsync();
+        request->wait();
+        rank1.join();
+        EXPECT_DOUBLE_EQ(fixture.item0.virtualValues()[0], 20.0 * step);
+        EXPECT_DOUBLE_EQ(fixture.item1.virtualValues()[0], 10.0 * step);
+    }
+    EXPECT_EQ(fixture.item0.synchronizationEpoch(), 3u);
+}
+
+TEST(HaloExchangerTest, ThreeRankRingExchange)
+{
+    // 12 entities over 3 ranks (4 each); each rank mirrors its right
+    // neighbor's first owned entity (periodic ring).
+    auto hub = InProcHub::create(3);
+    auto t0  = hub->createTransport(0);
+    auto t1  = hub->createTransport(1);
+    auto t2  = hub->createTransport(2);
+
+    PartitionedDataItemDouble item0("f", 12, {0, 1, 2, 3}, {4}, {1}, t0.get());
+    PartitionedDataItemDouble item1("f", 12, {4, 5, 6, 7}, {8}, {2}, t1.get());
+    PartitionedDataItemDouble item2("f", 12, {8, 9, 10, 11}, {0}, {0},
+                                    t2.get());
+
+    item0.ownedValues()[0] = 1000.0; // global 0
+    item1.ownedValues()[0] = 1004.0; // global 4
+    item2.ownedValues()[0] = 1008.0; // global 8
+
+    std::thread w1([&] { item1.synchronizeAsync()->wait(); });
+    std::thread w2([&] { item2.synchronizeAsync()->wait(); });
+    item0.synchronizeAsync()->wait();
+    w1.join();
+    w2.join();
+
+    EXPECT_DOUBLE_EQ(item0.virtualValues()[0], 1004.0); // from rank 1
+    EXPECT_DOUBLE_EQ(item1.virtualValues()[0], 1008.0); // from rank 2
+    EXPECT_DOUBLE_EQ(item2.virtualValues()[0], 1000.0); // from rank 0
+}
+
+TEST(HaloExchangerTest, MisattributedOwnershipFailsPatternBuild)
+{
+    auto hub = InProcHub::create(2);
+    auto t0  = hub->createTransport(0);
+    auto t1  = hub->createTransport(1);
+
+    // rank 0 asks rank 1 for global 3 — which rank 1 does not own.
+    HaloExchanger wrong(t0.get(), {0, 1, 2, 3, 4}, {3}, {1});
+    HaloExchanger other(t1.get(), {5, 6, 7, 8, 9}, {}, {});
+
+    std::string message0, message1;
+    bool ok0 = false, ok1 = false;
+    std::thread rank1([&] { ok1 = other.buildPattern(message1); });
+    ok0 = wrong.buildPattern(message0);
+    rank1.join();
+
+    // The owner-side validation catches the bad request.
+    EXPECT_FALSE(ok1);
+    EXPECT_NE(message1.find("does not own"), std::string::npos);
+    (void)ok0;
+}
+
+TEST(HaloExchangerTest, SelfOwnedVirtualIsRejectedUpFront)
+{
+    auto hub = InProcHub::create(2);
+    auto t0  = hub->createTransport(0);
+    HaloExchanger exchanger(t0.get(), {0, 1}, {2}, {0}); // owner == self
+    std::string message;
+    EXPECT_FALSE(exchanger.buildPattern(message));
+    EXPECT_NE(message.find("own"), std::string::npos);
+}

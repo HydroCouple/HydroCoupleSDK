@@ -34,6 +34,8 @@ PRIVATE
     hydrocouplesdk/distributed/inproctransport.cpp
     hydrocouplesdk/distributed/componentworker.cpp
     hydrocouplesdk/distributed/proxymodelcomponent.cpp
+    hydrocouplesdk/distributed/haloexchanger.cpp
+    hydrocouplesdk/distributed/partitioneddataitem.cpp
 
     # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
     hydrocouplesdk/io/snapshot.cpp
