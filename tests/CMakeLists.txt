@@ -35,5 +35,10 @@ if(USE_HDF5)
     target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_HDF5_TARGET})
 endif()
 
+if(USE_GEOPACKAGE)
+    target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_geopackage.cpp)
+    target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_SQLITE_TARGET})
+endif()
+
 include(GoogleTest)
 gtest_discover_tests(HydroCoupleSDKTests)

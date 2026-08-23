@@ -78,3 +78,9 @@ if(USE_HDF5)
         hydrocouplesdk/io/hdf5ugridwriter.cpp
     )
 endif()
+
+if(USE_GEOPACKAGE)
+    target_sources(HydroCoupleSDK PRIVATE
+        hydrocouplesdk/io/geopackagewriter.cpp
+    )
+endif()

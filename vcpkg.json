@@ -43,11 +43,15 @@
       ]
     },
     "hdf5": {
-      "description": "Thread-safe HDF5/UGRID output persistence (USE_HDF5=ON)",
+      "description": "Thread-safe HDF5/UGRID output persistence (USE_HDF5=ON; HDF5 built with its global-lock threadsafe mode as belt-and-braces \u2014 the SDK's single-writer IOThread is the primary concurrency guarantee)",
       "dependencies": [
         {
           "name": "hdf5",
-          "default-features": false
+          "default-features": false,
+          "features": [
+            "threadsafe",
+            "zlib"
+          ]
         }
       ]
     },
@@ -65,6 +69,17 @@
           "default-features": false
         },
         "cdt"
+      ]
+    },
+    "geopackage": {
+      "description": "GeoPackage result persistence (USE_GEOPACKAGE=ON)",
+      "dependencies": [
+        {
+          "name": "sqlite3",
+          "features": [
+            "rtree"
+          ]
+        }
       ]
     }
   },
