@@ -90,7 +90,13 @@ The package config records how the SDK was built (`HYDROCOUPLESDK_WITH_MPI`, `..
 
 ## Documentation
 
-API documentation is generated with Doxygen (`-DBUILD_DOCS=ON`, target `docs`) and published via GitHub Pages by `.github/workflows/build_docs.yml`. The interface definitions themselves are documented at [hydrocouple.org](https://www.hydrocouple.org).
+| Site | URL |
+| --- | --- |
+| **SDK API (this repository)** | <https://www.hydrocouple.org/HydroCoupleSDK/> |
+| HydroCouple interface standard | <https://www.hydrocouple.org/HydroCouple/> |
+| HydroCouple Python bindings | <https://www.hydrocouple.org/HydroCouple/python/> |
+
+API documentation is generated with Doxygen (`-DBUILD_DOCS=ON`, target `docs`) and published to GitHub Pages by `.github/workflows/build_docs.yml`, which deploys from `master` and `dev` only. The generated pages carry a navbar link back to the interface standard, and the interface docs link here in return.
 
 ## Changelog
 
