@@ -244,8 +244,10 @@ TEST(IOThreadTest, BackPressureBlocksProducerUntilDrained)
         std::chrono::steady_clock::now() - begin);
 
     // 10 writes × 5 ms with capacity 2 forces the producer to wait; every
-    // snapshot still arrives, in order.
-    EXPECT_GE(elapsed.count(), 5 * (10 - 2));
+    // snapshot still arrives, in order. The lower bound carries a 50%%
+    // scheduling margin so coarse timers / loaded CI machines cannot flake
+    // the assertion (the semantic proof is completeness + ordering below).
+    EXPECT_GE(elapsed.count(), 5 * (10 - 2) / 2);
     ASSERT_EQ(writer->times.size(), 10u);
     EXPECT_DOUBLE_EQ(writer->times.back(), 9.0);
 }

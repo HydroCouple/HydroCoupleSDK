@@ -29,6 +29,10 @@ PRIVATE
     hydrocouplesdk/data/abstractadaptedoutputfactory.cpp
     hydrocouplesdk/component/abstractmodelcomponent.cpp
 
+    # ── distributed (namespace HydroCouple::SDK::Distributed) ────────────
+    hydrocouplesdk/distributed/valuepacker.cpp
+    hydrocouplesdk/distributed/inproctransport.cpp
+
     # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
     hydrocouplesdk/io/snapshot.cpp
     hydrocouplesdk/io/meshdefinition.cpp
