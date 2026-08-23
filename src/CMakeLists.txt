@@ -28,6 +28,10 @@ PRIVATE
     hydrocouplesdk/data/idbasedargument.cpp
     hydrocouplesdk/data/abstractadaptedoutputfactory.cpp
     hydrocouplesdk/component/abstractmodelcomponent.cpp
+    hydrocouplesdk/component/workflowstatuschangeeventargs.cpp
+    hydrocouplesdk/component/abstractworkflowcomponent.cpp
+    hydrocouplesdk/component/pulldrivenworkflow.cpp
+    hydrocouplesdk/component/timesteppedworkflow.cpp
 
     # ── distributed (namespace HydroCouple::SDK::Distributed) ────────────
     hydrocouplesdk/distributed/valuepacker.cpp
