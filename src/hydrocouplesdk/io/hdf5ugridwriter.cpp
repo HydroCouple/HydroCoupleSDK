@@ -113,6 +113,9 @@ struct HDF5UGRIDWriter::Impl
     hid_t timeDataset = -1;
     hsize_t timeLevels = 0;
 
+    double firstTime = 0.0; //!< Time axis bounds for catalog().
+    double lastTime  = 0.0;
+
     std::vector<double> staging; //!< Reused conversion buffer.
 
     // ── helpers ──────────────────────────────────────────────────────────
@@ -441,6 +444,9 @@ int HDF5UGRIDWriter::write(const Snapshot &snapshot)
     ++impl.timeLevels;
 
     const double time = snapshot.time();
+    if (impl.timeLevels == 1)
+        impl.firstTime = time;
+    impl.lastTime = time;
     if (!impl.extendAndWrite(impl.timeDataset, impl.timeLevels, &time, 0))
     {
         impl.error = "failed to append to /time";
@@ -532,6 +538,38 @@ int HDF5UGRIDWriter::finalize()
         impl.file = -1;
     }
     return 0;
+}
+
+std::vector<ResultEntry> HDF5UGRIDWriter::catalog() const
+{
+    std::vector<ResultEntry> entries;
+    entries.reserve(m_impl->fields.size());
+
+    for (const Impl::Field &field : m_impl->fields)
+    {
+        ResultEntry entry;
+        entry.itemId      = field.itemId;
+        entry.artifact    = m_impl->path.filename().string();
+        entry.format      = "hdf5_ugrid";
+        entry.variable    = field.itemId;
+        entry.kind        = DataKind::Float64; // UGRID fields store doubles
+        entry.shape       = {static_cast<int64_t>(m_impl->timeLevels),
+                             field.count};
+        entry.dimensions  = {"time", meshLocationName(field.location)};
+        entry.units       = field.units;
+        entry.description = field.standardName;
+        entry.mesh        = m_impl->mesh.meshName;
+        entry.location    = field.location;
+
+        ResultTimeAxis axis;
+        axis.count = static_cast<int64_t>(m_impl->timeLevels);
+        axis.start = m_impl->firstTime;
+        axis.end   = m_impl->lastTime;
+        entry.time = axis;
+
+        entries.push_back(std::move(entry));
+    }
+    return entries;
 }
 
 } // namespace HydroCouple::SDK::IO

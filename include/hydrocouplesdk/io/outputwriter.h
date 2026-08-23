@@ -23,9 +23,11 @@
 #define HYDROCOUPLESDK_IO_OUTPUTWRITER_H
 
 #include "hydrocouplesdk/export.h"
+#include "hydrocouplesdk/io/resultentry.h"
 #include "hydrocouplesdk/io/snapshot.h"
 
 #include <string>
+#include <vector>
 
 namespace HydroCouple::SDK::IO {
 
@@ -76,6 +78,25 @@ public:
      * \brief Detail message for the most recent nonzero return code.
      */
     [[nodiscard]] virtual std::string errorMessage() const = 0;
+
+    /*!
+     * \brief Catalog of what this writer produced — one entry per recorded
+     *        data item — valid after finalize().
+     *
+     * A Snapshot's FieldSlice carries only id, kind, and shape; units, mesh
+     * attachment, location, and the variable's name inside the artifact are
+     * writer-side knowledge. Reporting them here is what lets a RunRecorder
+     * assemble a manifest that readers can serve without any model code.
+     *
+     * The default returns an empty catalog, so a writer that does not
+     * describe its artifacts (or a third-party writer predating this
+     * method) keeps compiling and simply contributes nothing to the
+     * manifest.
+     */
+    [[nodiscard]] virtual std::vector<ResultEntry> catalog() const
+    {
+        return {};
+    }
 };
 
 } // namespace HydroCouple::SDK::IO

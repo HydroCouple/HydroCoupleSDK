@@ -131,6 +131,13 @@ struct GeoPackageWriter::Impl
     MeshDefinition mesh;
     bool           hasMesh = false;
 
+    struct ObservedExtent
+    {
+        int64_t timeLevels  = 0;
+        int64_t objectCount = 0;
+        DataKind kind = DataKind::Float64;
+    };
+
     struct FieldMeta
     {
         std::string units;
@@ -145,6 +152,12 @@ struct GeoPackageWriter::Impl
     Transaction transaction;
     int64_t     simulationId = -1;
     int         pendingRows  = 0;
+
+    std::vector<std::string>                       itemOrder;
+    std::map<std::string, ObservedExtent>          extents;
+    bool   haveTimes = false;
+    double firstTime = 0.0;
+    double lastTime  = 0.0;
 
     /*! Returns (creating on demand) the variables row id for \p itemId. */
     bool variableId(const std::string &itemId, int64_t &id)
@@ -425,6 +438,13 @@ int GeoPackageWriter::write(const Snapshot &snapshot)
 {
     Impl &impl = *m_impl;
 
+    if (!impl.haveTimes)
+    {
+        impl.firstTime = snapshot.time();
+        impl.haveTimes = true;
+    }
+    impl.lastTime = snapshot.time();
+
     for (const FieldSlice &field : snapshot.fields())
     {
         int64_t variableId = -1;
@@ -432,6 +452,17 @@ int GeoPackageWriter::write(const Snapshot &snapshot)
             return 40;
 
         const int64_t count = field.elementCount();
+
+        // Observed extents back the catalog: a long-format table states
+        // neither the time count nor the object count.
+        Impl::ObservedExtent &extent = impl.extents[field.itemId];
+        if (extent.timeLevels == 0)
+        {
+            impl.itemOrder.push_back(field.itemId);
+            extent.objectCount = count;
+            extent.kind        = field.kind;
+        }
+        ++extent.timeLevels;
         for (int64_t i = 0; i < count; ++i)
         {
             double value = 0.0;
@@ -499,6 +530,47 @@ INSERT INTO result_summary(simulation_id, variable_id, count, min, max, mean)
     const bool summarized = exec(impl.db.db, summary, impl.error);
     impl.db.close();
     return summarized ? 0 : 45;
+}
+
+std::vector<ResultEntry> GeoPackageWriter::catalog() const
+{
+    const Impl &impl = *m_impl;
+
+    std::vector<ResultEntry> entries;
+    entries.reserve(impl.itemOrder.size());
+
+    for (const std::string &itemId : impl.itemOrder)
+    {
+        const Impl::ObservedExtent &extent = impl.extents.at(itemId);
+
+        ResultEntry entry;
+        entry.itemId     = itemId;
+        entry.artifact   = impl.path.filename().string();
+        entry.format     = "geopackage";
+        entry.variable   = itemId;
+        // result_timeseries stores REAL regardless of the source kind.
+        entry.kind       = DataKind::Float64;
+        entry.shape      = {extent.timeLevels, extent.objectCount};
+        entry.dimensions = {"time", "object"};
+
+        const auto meta = impl.fields.find(itemId);
+        if (meta != impl.fields.end())
+        {
+            entry.units       = meta->second.units;
+            entry.description = meta->second.description;
+        }
+        if (!impl.mesh.meshName.empty())
+            entry.mesh = impl.mesh.meshName;
+
+        ResultTimeAxis axis;
+        axis.count = extent.timeLevels;
+        axis.start = impl.firstTime;
+        axis.end   = impl.lastTime;
+        entry.time = axis;
+
+        entries.push_back(std::move(entry));
+    }
+    return entries;
 }
 
 } // namespace HydroCouple::SDK::IO

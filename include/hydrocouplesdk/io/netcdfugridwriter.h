@@ -100,6 +100,12 @@ public:
     [[nodiscard]] std::string errorMessage() const override;
 
     /*!
+     * \brief Catalog of the variables written: one entry per field, shaped
+     *        { time, locationCount }, carrying mesh name and location.
+     */
+    [[nodiscard]] std::vector<ResultEntry> catalog() const override;
+
+    /*!
      * \brief The destination path.
      */
     [[nodiscard]] const std::filesystem::path &path() const noexcept;

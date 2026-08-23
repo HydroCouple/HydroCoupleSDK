@@ -110,6 +110,16 @@ public:
     [[nodiscard]] std::string errorMessage() const override;
 
     /*!
+     * \brief Catalog of the variables written to \c result_timeseries.
+     *
+     * Rows are long format (simulation, variable, object_index,
+     * elapsed_time, value), so each entry records the { time, object }
+     * shape observed while writing — a reader reconstructs the array from
+     * it rather than inferring one from the table.
+     */
+    [[nodiscard]] std::vector<ResultEntry> catalog() const override;
+
+    /*!
      * \brief The destination path.
      */
     [[nodiscard]] const std::filesystem::path &path() const noexcept;

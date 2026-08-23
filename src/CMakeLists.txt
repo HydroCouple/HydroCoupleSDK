@@ -53,6 +53,8 @@ PRIVATE
     hydrocouplesdk/io/meshdefinition.cpp
     hydrocouplesdk/io/iothread.cpp
     hydrocouplesdk/io/csvwriter.cpp
+    hydrocouplesdk/io/resultentry.cpp
+    hydrocouplesdk/io/runmanifest.cpp
     hydrocouplesdk/io/compositionspec.cpp
     hydrocouplesdk/io/modelinitializer.cpp
 

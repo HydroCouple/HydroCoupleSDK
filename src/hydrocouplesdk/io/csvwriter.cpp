@@ -37,8 +37,27 @@ int CSVWriter::initialize()
 int CSVWriter::write(const Snapshot &snapshot)
 {
     m_stream << std::setprecision(17);
+
+    // Track the time axis and per-item extents so catalog() can describe a
+    // long-format file that states neither.
+    if (!m_haveTimes)
+    {
+        m_firstTime = snapshot.time();
+        m_haveTimes = true;
+    }
+    m_lastTime = snapshot.time();
+
     for (const FieldSlice &field : snapshot.fields())
     {
+        ItemExtent &extent = m_extents[field.itemId];
+        if (extent.timeLevels == 0)
+        {
+            m_itemOrder.push_back(field.itemId);
+            extent.elementShape = field.shape;
+            extent.kind         = field.kind;
+        }
+        ++extent.timeLevels;
+
         const int64_t count = field.elementCount();
         for (int64_t i = 0; i < count; ++i)
         {
@@ -99,6 +118,45 @@ bool CSVWriter::elementAsDouble(const FieldSlice &field, int64_t index,
     case DataKind::Boolean: value = field.values<bool>()[index] ? 1.0 : 0.0; return true;
     default: return false;
     }
+}
+
+std::vector<ResultEntry> CSVWriter::catalog() const
+{
+    std::vector<ResultEntry> entries;
+    entries.reserve(m_itemOrder.size());
+
+    for (const std::string &itemId : m_itemOrder)
+    {
+        const ItemExtent &extent = m_extents.at(itemId);
+
+        ResultEntry entry;
+        entry.itemId   = itemId;
+        entry.artifact = m_path.filename().string();
+        entry.format   = "csv";
+        entry.variable = itemId;
+        entry.kind     = extent.kind;
+
+        // Long format stores one row per (time, element): the logical
+        // variable is { time, elements... }.
+        entry.shape.push_back(extent.timeLevels);
+        entry.dimensions.emplace_back("time");
+        for (size_t d = 0; d < extent.elementShape.size(); ++d)
+        {
+            entry.shape.push_back(extent.elementShape[d]);
+            entry.dimensions.push_back(extent.elementShape.size() == 1
+                                           ? "element"
+                                           : "dim" + std::to_string(d));
+        }
+
+        ResultTimeAxis axis;
+        axis.count = extent.timeLevels;
+        axis.start = m_firstTime;
+        axis.end   = m_lastTime;
+        entry.time = axis;
+
+        entries.push_back(std::move(entry));
+    }
+    return entries;
 }
 
 } // namespace HydroCouple::SDK::IO

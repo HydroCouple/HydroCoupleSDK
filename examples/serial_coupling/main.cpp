@@ -20,7 +20,10 @@
  *    connection graph at prepare() and advancing the composition;
  * 4. IOThread carrying owned Snapshots to the format writers off the
  *    simulation thread (CSV always; GeoPackage and HDF5/UGRID when the
- *    SDK was built with those features).
+ *    SDK was built with those features);
+ * 5. RunRecorder writing a run manifest — the catalog that lets analysis
+ *    and visualization tools reopen this run later without any model
+ *    binary (see the analysis_reopen example).
  *
  * Build (from an installed SDK):
  * \code
@@ -40,6 +43,7 @@
 #include "hydrocouplesdk/io/iothread.h"
 #include "hydrocouplesdk/io/meshdefinition.h"
 #include "hydrocouplesdk/io/modelinitializer.h"
+#include "hydrocouplesdk/io/runmanifest.h"
 #include "hydrocouplesdk/io/snapshot.h"
 
 #ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
@@ -303,10 +307,14 @@ int main(int argc, char **argv)
 
     // ── 2. Output writers behind the IO thread ───────────────────────────
     IO::IOThread ioThread(/*capacity=*/32);
+    IO::RunRecorder recorder;
+    recorder.setCaption("serial coupling example");
+    recorder.setComposition(documentPath);
 
     auto csv = std::make_shared<IO::CSVWriter>(outputDirectory /
                                                "results.csv");
     ioThread.addWriter(csv);
+    recorder.addWriter(csv);
 
 #ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
     auto geopackage = std::make_shared<IO::GeoPackageWriter>(
@@ -315,11 +323,13 @@ int main(int argc, char **argv)
     geopackage->addField("flow", "m3/s", "Routed channel flow");
     geopackage->addField("runoff", "m3/s", "Catchment runoff");
     ioThread.addWriter(geopackage);
+    recorder.addWriter(geopackage);
 #endif
 #ifdef HYDROCOUPLESDK_HAVE_HDF5
     auto hdf5 = std::make_shared<IO::HDF5UGRIDWriter>(
         outputDirectory / "results.h5", reachMesh());
     ioThread.addWriter(hdf5);
+    recorder.addWriter(hdf5);
 #endif
 
     if (!ioThread.start())
@@ -331,6 +341,8 @@ int main(int argc, char **argv)
 
     // ── 3. Workflow orchestration ────────────────────────────────────────
     TimeSteppedWorkflow workflow("serial-coupling");
+    recorder.addComponent(&catchment);
+    recorder.addComponent(&channel);
     if (!workflow.addModelComponent(&catchment, nullptr, &message) ||
         !workflow.addModelComponent(&channel, nullptr, &message))
     {
@@ -398,8 +410,18 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    // ── 5. Record the run so it can be reopened for analysis ─────────────
+    // Writer catalogs are only valid after the IO thread has finalized.
+    if (!recorder.finishToFile(outputDirectory / "run.json", message,
+                               IO::RunStatus::Completed))
+    {
+        std::cerr << "run manifest failed: " << message << '\n';
+        return 1;
+    }
+
     std::cout << "completed " << catchment.step() << " steps; outputs in "
               << std::filesystem::absolute(outputDirectory) << '\n';
+    std::cout << "run manifest written to run.json\n";
 
     // ── 5. Round-trip the composition back out ───────────────────────────
     if (!initializer.serializeToFile({"catchment", "channel"},

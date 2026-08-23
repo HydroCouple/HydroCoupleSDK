@@ -103,6 +103,13 @@ public:
     [[nodiscard]] std::string errorMessage() const override;
 
     /*!
+     * \brief Catalog of the datasets written: one entry per field, shaped
+     *        { time, locationCount } with the mesh name and location the
+     *        field is attached to.
+     */
+    [[nodiscard]] std::vector<ResultEntry> catalog() const override;
+
+    /*!
      * \brief The destination path.
      */
     [[nodiscard]] const std::filesystem::path &path() const noexcept;

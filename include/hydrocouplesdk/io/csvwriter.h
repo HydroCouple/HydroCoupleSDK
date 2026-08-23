@@ -26,6 +26,7 @@
 #include "hydrocouplesdk/io/outputwriter.h"
 
 #include <filesystem>
+#include <unordered_map>
 #include <fstream>
 
 namespace HydroCouple::SDK::IO {
@@ -78,6 +79,15 @@ public:
     [[nodiscard]] std::string errorMessage() const override;
 
     /*!
+     * \brief Catalog of the items written, one entry per field.
+     *
+     * The CSV is long format (\c time,item,index,value), so each entry's
+     * shape is { timeLevels, elementsPerLevel } — both accumulated while
+     * writing, since a long-format file states neither in its header.
+     */
+    [[nodiscard]] std::vector<ResultEntry> catalog() const override;
+
+    /*!
      * \brief The destination path.
      */
     [[nodiscard]] const std::filesystem::path &path() const noexcept
@@ -93,9 +103,25 @@ private:
     static bool elementAsDouble(const FieldSlice &field, int64_t index,
                                 double &value);
 
+    /*!
+     * \brief Per-item extent observed while writing (catalog support).
+     */
+    struct ItemExtent
+    {
+        int64_t              timeLevels = 0;
+        std::vector<int64_t> elementShape; //!< Per-level shape.
+        DataKind             kind = DataKind::Unknown;
+    };
+
     std::filesystem::path m_path;
     std::ofstream         m_stream;
     std::string           m_error;
+
+    std::vector<std::string>                     m_itemOrder;
+    std::unordered_map<std::string, ItemExtent>  m_extents;
+    bool    m_haveTimes = false;
+    double  m_firstTime = 0.0;
+    double  m_lastTime  = 0.0;
 };
 
 } // namespace HydroCouple::SDK::IO

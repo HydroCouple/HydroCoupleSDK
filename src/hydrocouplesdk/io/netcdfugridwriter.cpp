@@ -56,6 +56,9 @@ struct NetCDFUGRIDWriter::Impl
     size_t timeLevels = 0;
     bool   open       = false;
 
+    double firstTime = 0.0; //!< Time axis bounds for catalog().
+    double lastTime  = 0.0;
+
     std::vector<double> staging; //!< Reused conversion buffer.
 
     [[nodiscard]] int64_t locationCount(MeshLocation location) const noexcept
@@ -387,6 +390,10 @@ int NetCDFUGRIDWriter::write(const Snapshot &snapshot)
     Impl &impl = *m_impl;
     const size_t level = impl.timeLevels++;
 
+    if (level == 0)
+        impl.firstTime = snapshot.time();
+    impl.lastTime = snapshot.time();
+
     {
         const size_t start[1] = {level};
         const size_t count[1] = {1};
@@ -466,6 +473,38 @@ int NetCDFUGRIDWriter::finalize()
     HC_NC_CHECK(nc_close(impl.ncid), impl.error, 65);
     impl.ncid = -1;
     return 0;
+}
+
+std::vector<ResultEntry> NetCDFUGRIDWriter::catalog() const
+{
+    std::vector<ResultEntry> entries;
+    entries.reserve(m_impl->fields.size());
+
+    for (const Impl::Field &field : m_impl->fields)
+    {
+        ResultEntry entry;
+        entry.itemId      = field.itemId;
+        entry.artifact    = m_impl->path.filename().string();
+        entry.format      = "netcdf_ugrid";
+        entry.variable    = field.itemId;
+        entry.kind        = DataKind::Float64;
+        entry.shape       = {static_cast<int64_t>(m_impl->timeLevels),
+                             field.count};
+        entry.dimensions  = {"time", meshLocationName(field.location)};
+        entry.units       = field.units;
+        entry.description = field.standardName;
+        entry.mesh        = m_impl->mesh.meshName;
+        entry.location    = field.location;
+
+        ResultTimeAxis axis;
+        axis.count = static_cast<int64_t>(m_impl->timeLevels);
+        axis.start = m_impl->firstTime;
+        axis.end   = m_impl->lastTime;
+        entry.time = axis;
+
+        entries.push_back(std::move(entry));
+    }
+    return entries;
 }
 
 } // namespace HydroCouple::SDK::IO
