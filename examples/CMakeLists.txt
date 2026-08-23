@@ -17,6 +17,11 @@ add_custom_command(TARGET serial_coupling POST_BUILD
         $<TARGET_FILE_DIR:serial_coupling>
 )
 
+# Reopens a completed run with no model components linked — the analysis
+# and visualization case the run manifest exists for.
+add_executable(analysis_reopen analysis_reopen/main.cpp)
+target_link_libraries(analysis_reopen PRIVATE HydroCoupleSDK)
+
 if(USE_MPI)
     add_executable(distributed_coupling distributed_coupling/main.cpp)
     target_link_libraries(distributed_coupling

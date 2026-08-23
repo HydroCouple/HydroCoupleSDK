@@ -9,6 +9,70 @@ and stay in lockstep with the HydroCouple interface definitions — the SDK's
 MAJOR.MINOR must match the interface headers it is built against
 (enforced at configure time).
 
+## [Unreleased] — 2.1.0
+
+Composition IO moves into the SDK, and completed runs become reopenable.
+
+### Added
+
+- **Composition Specification v1** — the composition document becomes an
+  SDK-owned, versioned specification replacing the Composer's XML:
+  `schema_version`, `metadata`, per-component `info` (instantiation hint)
+  and `execution` blocks, connections with ordered adapted-output chains
+  and `IMultiInput` provider roles, `workflow` strategy configuration,
+  `writers`, and the `run` manifest path. Formal JSON Schemas (draft
+  2020-12) for compositions and run manifests ship in
+  `share/hydrocouplesdk/schema/`, so editors, CI, and external tools
+  validate without any C++; the runtime validator remains authoritative
+  for anything requiring live components.
+- **Run manifests** (`RunManifest`, `RunRecorder`) — a completed run is
+  described explicitly: identity, timing, status, SDK/interface versions,
+  composition reference (path, optional hash, optional embedded copy),
+  per-component final status and diagnostics, and a results catalog
+  mapping each recorded item to its artifact, format, variable, kind,
+  shape, dimension names, units, mesh attachment, and time axis.
+- **`IOutputWriter::catalog()`** — defaulted to empty (so third-party
+  writers keep compiling) and implemented by all four shipped writers.
+  Required because `FieldSlice` carries only id/kind/shape, while units,
+  mesh, location, and the in-artifact variable name are writer-side.
+- **`ResultsModelComponent`** — a previously executed model reopened from
+  its manifest, presented as an ordinary `IModelComponent` whose recorded
+  items serve values straight out of the artifacts. **No model binary is
+  involved**, which is what makes analysis and visualization
+  model-agnostic. It reaches `Finished` during `initialize()` because a
+  recorded run has already computed its values; items appear in both
+  `results()` and `outputs()`, so a stored run can also drive a new
+  composition.
+- **Result readers** (`IResultReader` + registry) — CSV always; HDF5,
+  NetCDF, and GeoPackage behind the same gates as their writers. Reads are
+  guided entirely by the catalog entry; nothing is inferred from the file.
+- **`execution.mode`** — `run` (default, never silently reuses results),
+  `open` (load recorded results and finish; the SDK substitutes a
+  `ResultsModelComponent` when the host has no live component, which is
+  the norm for an analysis tool), and `resume` (reserved, diagnosed).
+  `compositionForRun()` turns a manifest back into an analysis
+  composition.
+- **`TimeSliceOutput`** — presents one time level of a time-major item as
+  a lower-rank output, bridging recorded history (`{time, entities…}`) to
+  a live consumer's present (`{entities…}`). The level is selected
+  explicitly; the SDK has no global clock and does not guess.
+- **`analysis_reopen` example** — reopens a completed run and summarizes
+  it with no model components linked.
+
+### Changed
+
+- `ComponentStatus::Finished` documentation clarifies that components
+  release *computational* resources; data items of results-backed
+  components remain readable (interface repo, doc-only).
+
+### Fixed
+
+- The GeoPackage result reader queried a non-existent column; it now
+  matches the writer's `variables.item_id` schema (found by running the
+  analysis example end to end).
+- The serial example attached an HDF5 writer without declaring its
+  fields, so `results.h5` carried a mesh but no data.
+
 ## [2.0.0-alpha.1] — 2026-08-23
 
 First release of the modernized SDK: a complete rewrite of the data plane,

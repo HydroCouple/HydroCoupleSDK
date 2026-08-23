@@ -20,6 +20,45 @@ if(HYDROCOUPLESDK_WITH_INTERFACE_PACKAGE)
     find_dependency(HydroCouple)
 endif()
 
+# Optional IO backends. They are PRIVATE link dependencies, but CMake still
+# records them in the exported link interface (as $<LINK_ONLY:...>), so the
+# targets must exist for a consumer to link. Each is resolved through the
+# same fallback chain the SDK itself used.
+if(HYDROCOUPLESDK_WITH_HDF5 AND NOT TARGET hdf5::hdf5-shared
+                            AND NOT TARGET hdf5::hdf5-static
+                            AND NOT TARGET HDF5::HDF5)
+    find_dependency(hdf5 CONFIG NAMES hdf5 HDF5)
+    if(NOT TARGET hdf5::hdf5-shared AND NOT TARGET hdf5::hdf5-static
+       AND NOT TARGET HDF5::HDF5)
+        find_dependency(HDF5 COMPONENTS C)
+    endif()
+    find_dependency(ZLIB)
+endif()
+
+if(HYDROCOUPLESDK_WITH_NETCDF AND NOT TARGET netCDF::netcdf)
+    find_dependency(netCDF CONFIG)
+endif()
+
+if(HYDROCOUPLESDK_WITH_GEOPACKAGE AND NOT TARGET unofficial::sqlite3::sqlite3
+                                  AND NOT TARGET SQLite::SQLite3)
+    find_package(unofficial-sqlite3 CONFIG QUIET)
+    if(NOT TARGET unofficial::sqlite3::sqlite3)
+        find_dependency(SQLite3)
+    endif()
+endif()
+
+# yaml-cpp is optional and PRIVATE, but likewise appears in the exported
+# link interface when the SDK was built with it.
+set(HYDROCOUPLESDK_WITH_YAML_CPP @HYDROCOUPLESDK_HAVE_YAML_CPP@)
+if(HYDROCOUPLESDK_WITH_YAML_CPP AND NOT TARGET yaml-cpp::yaml-cpp
+                                AND NOT TARGET yaml-cpp)
+    find_dependency(yaml-cpp CONFIG)
+endif()
+
+if(HYDROCOUPLESDK_WITH_KOKKOS AND NOT TARGET Kokkos::kokkos)
+    find_dependency(Kokkos CONFIG)
+endif()
+
 # nlohmann/json.hpp is included by the SDK's public data-item headers. It is
 # resolved through its own package when this SDK was built against one;
 # otherwise the single header was installed alongside the SDK's headers.

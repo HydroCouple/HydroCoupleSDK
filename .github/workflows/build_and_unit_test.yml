@@ -57,11 +57,39 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-      - name: Run the serial example (JSON composition)
+      - name: Run the serial example, then reopen its run for analysis
         shell: bash
         run: |
           cd build/examples
           ./serial_coupling composition.json example-output
+          # Reads the run manifest with no model components linked.
+          ./analysis_reopen example-output/run.json
+
+      - name: Validate documents against the shipped JSON Schemas
+        shell: bash
+        run: |
+          python -m pip install --quiet jsonschema
+          python - <<'PY'
+          import json, sys
+          from jsonschema import Draft202012Validator
+          checks = [
+              ("share/schema/composition-1.0.json",
+               ["examples/serial_coupling/composition.json"]),
+              ("share/schema/run-1.0.json",
+               ["build/examples/example-output/run.json"]),
+          ]
+          failed = False
+          for schema_path, documents in checks:
+              schema = json.load(open(schema_path))
+              Draft202012Validator.check_schema(schema)
+              validator = Draft202012Validator(schema)
+              for document in documents:
+                  errors = [e.message for e in validator.iter_errors(
+                      json.load(open(document)))]
+                  print(f"{document}: {'ok' if not errors else errors}")
+                  failed = failed or bool(errors)
+          sys.exit(1 if failed else 0)
+          PY
 
       - name: Install and consume the package from an external project
         shell: bash

@@ -18,6 +18,35 @@ Beyond the data plane, the SDK ships the layers a coupled simulation needs:
 - **Device memory** (`HydroCouple::SDK::Device`) — a vendor-neutral backend seam (`HostBackend`, `KokkosBackend`) with a buffer registry and copy-path negotiation decided once at `prepare()`.
 - **Meshing tools** (`HydroCouple::SDK::Tools`, `BUILD_TOOLS=ON`) — constrained Delaunay triangulation, quad-dominant meshing, boundary-fitted curvilinear grids, terrain-following sigma grids, and IDW terrain sampling, all emitting UGRID-congruent meshes the IO writers consume directly.
 
+## Compositions and stored runs
+
+Compositions are JSON or YAML documents governed by **Composition
+Specification v1** and validated two ways: against the JSON Schemas
+installed at `share/hydrocouplesdk/schema/` (editors, CI, external tools)
+and by `ModelInitializer`, which additionally checks the document against
+the live components before applying anything. A document lists components
+with their argument payloads, the connections between them (including
+adapted-output chains and multi-input roles), the workflow strategy, the
+output writers, and where to write the run manifest.
+
+A finished run is described by that **run manifest** — `RunRecorder`
+writes it at the end of a run — which records what ran, how it ended, and
+a catalog mapping every recorded data item to the artifact holding its
+values. That catalog is what makes analysis model-agnostic:
+
+```cpp
+// No model components, no model libraries — just the manifest.
+auto results = ResultsModelComponent::open("out/run.json", "channel", message);
+results->initialize();                       // → Finished: values already exist
+for (IComponentDataItem *item : results->results())
+    item->getValuesInto(destination, start, count, &message);
+```
+
+Reuse is always declared, never inferred from files on disk: a component
+block carries `execution: { mode: run | open | resume }`, and `open`
+substitutes a results-backed component automatically. See the
+`analysis_reopen` example.
+
 ## Examples
 
 Two runnable examples live under `examples/` and build with `-DBUILD_EXAMPLES=ON`. Each also has a standalone `CMakeLists.txt` that consumes only the **installed** package — the acceptance test for the install export:
@@ -27,6 +56,7 @@ Two runnable examples live under `examples/` and build with `-DBUILD_EXAMPLES=ON
 cmake -S . -B build -DBUILD_EXAMPLES=ON -DUSE_MPI=ON
 cmake --build build --parallel
 ./build/examples/serial_coupling examples/serial_coupling/composition.yaml out/
+./build/examples/analysis_reopen out/run.json
 mpirun -n 4 ./build/examples/distributed_coupling
 
 # Against an installed SDK
@@ -35,7 +65,7 @@ cmake -S examples/serial_coupling -B build-standalone -DCMAKE_PREFIX_PATH=/opt/h
 cmake --build build-standalone
 ```
 
-`serial_coupling` initializes a two-component composition from YAML (or the identical JSON), orchestrates it with a workflow, and persists results through the IO thread. `distributed_coupling` decomposes the same domain across MPI ranks with halo exchange.
+`serial_coupling` initializes a two-component composition from YAML (or the identical JSON), orchestrates it with a workflow, persists results through the IO thread, and records a run manifest. `distributed_coupling` decomposes the same domain across MPI ranks with halo exchange. `analysis_reopen` reads that manifest back and summarizes the run with **no model components linked at all** — the analysis and visualization case.
 
 ## Building
 

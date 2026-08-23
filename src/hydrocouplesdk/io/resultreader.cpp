@@ -558,7 +558,7 @@ private:
         static constexpr const char *kSql =
             "SELECT t.elapsed_time, t.object_index, t.value "
             "FROM result_timeseries t JOIN variables v "
-            "ON t.variable_id = v.id WHERE v.name = ? "
+            "ON t.variable_id = v.id WHERE v.item_id = ? "
             "ORDER BY t.elapsed_time, t.object_index";
 
         sqlite3_stmt *statement = nullptr;

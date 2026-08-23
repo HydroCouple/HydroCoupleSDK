@@ -328,6 +328,12 @@ int main(int argc, char **argv)
 #ifdef HYDROCOUPLESDK_HAVE_HDF5
     auto hdf5 = std::make_shared<IO::HDF5UGRIDWriter>(
         outputDirectory / "results.h5", reachMesh());
+    // UGRID writers need their fields declared before initialize(): the
+    // datasets are created up front and appended to each step.
+    hdf5->addField("runoff", IO::MeshLocation::Node, "m3/s",
+                   "catchment_runoff");
+    hdf5->addField("flow", IO::MeshLocation::Node, "m3/s",
+                   "routed_channel_flow");
     ioThread.addWriter(hdf5);
     recorder.addWriter(hdf5);
 #endif
