@@ -33,6 +33,7 @@ PRIVATE
     hydrocouplesdk/component/abstractworkflowcomponent.cpp
     hydrocouplesdk/component/pulldrivenworkflow.cpp
     hydrocouplesdk/component/timesteppedworkflow.cpp
+    hydrocouplesdk/component/resultsmodelcomponent.cpp
 
     # ── distributed (namespace HydroCouple::SDK::Distributed) ────────────
     hydrocouplesdk/distributed/valuepacker.cpp
@@ -54,6 +55,7 @@ PRIVATE
     hydrocouplesdk/io/iothread.cpp
     hydrocouplesdk/io/csvwriter.cpp
     hydrocouplesdk/io/resultentry.cpp
+    hydrocouplesdk/io/resultreader.cpp
     hydrocouplesdk/io/runmanifest.cpp
     hydrocouplesdk/io/compositionspec.cpp
     hydrocouplesdk/io/modelinitializer.cpp
