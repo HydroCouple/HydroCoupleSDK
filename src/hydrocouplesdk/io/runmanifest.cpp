@@ -7,6 +7,7 @@
 #include "hydrocouplesdk/core/uuid.h"
 #include "hydrocouplesdk/version.h"
 
+#include <algorithm>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -407,6 +408,47 @@ bool RunRecorder::finishToFile(const std::filesystem::path &path,
 {
     const RunManifest manifest = finish(status);
     return manifest.write(path, message);
+}
+
+CompositionSpec compositionForRun(const RunManifest &manifest,
+                                  const std::string &manifestPath)
+{
+    CompositionSpec spec;
+    spec.schemaVersion       = kCompositionSchemaVersion;
+    spec.metadata.id         = manifest.id;
+    spec.metadata.caption    = manifest.caption.empty()
+                                   ? ("Reopened run " + manifest.id)
+                                   : manifest.caption;
+    spec.metadata.created    = manifest.finished;
+    spec.metadata.sdkVersion = manifest.sdkVersion;
+    spec.metadata.interfaceVersion = manifest.interfaceVersion;
+
+    // One open-mode block per component that contributed results, in
+    // catalog order.
+    std::vector<std::string> seen;
+    for (const ResultEntry &entry : manifest.results)
+    {
+        if (std::find(seen.begin(), seen.end(), entry.componentId) !=
+            seen.end())
+            continue;
+        seen.push_back(entry.componentId);
+
+        ComponentSpec block;
+        block.id              = entry.componentId;
+        block.mode            = ExecutionMode::Open;
+        block.resultsManifest = manifestPath;
+        for (const ComponentOutcome &outcome : manifest.components)
+        {
+            if (outcome.id == entry.componentId)
+            {
+                block.caption = outcome.caption;
+                break;
+            }
+        }
+        spec.components.push_back(std::move(block));
+    }
+
+    return spec;
 }
 
 } // namespace HydroCouple::SDK::IO

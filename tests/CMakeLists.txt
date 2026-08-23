@@ -10,6 +10,7 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_compositionspec.cpp
     hydrocouplesdk/test_runmanifest.cpp
     hydrocouplesdk/test_resultsreopen.cpp
+    hydrocouplesdk/test_executionmodes.cpp
     hydrocouplesdk/test_distributed.cpp
     hydrocouplesdk/test_fluxpayload.cpp
     hydrocouplesdk/test_device.cpp

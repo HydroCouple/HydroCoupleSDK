@@ -166,6 +166,30 @@ public:
                                         std::string &message) const;
 
     /*!
+     * \brief Components the initializer substituted for \c execution.mode
+     *        "open" entries (owned).
+     *
+     * When a component block declares mode "open", the initializer first
+     * lets the resolver's component load its own results; a component that
+     * finishes during initialize() is taken at its word. Otherwise — and
+     * whenever the resolver has no instance at all, which is the norm for
+     * an analysis host with no model libraries — a ResultsModelComponent is
+     * built from the declared run manifest and used in its place. Anything
+     * referring to that component id, including connections, resolves to
+     * the substitute.
+     */
+    [[nodiscard]] const std::vector<
+        std::unique_ptr<HydroCouple::IModelComponent>> &
+    openedComponents() const noexcept;
+
+    /*!
+     * \brief The live instance backing a component id: the substitute when
+     *        one was created, otherwise the resolver's component.
+     */
+    [[nodiscard]] HydroCouple::IModelComponent *component(
+        const std::string &id) const;
+
+    /*!
      * \brief Adapted outputs created while wiring connections (owned).
      *
      * IAdaptedOutputFactory::createAdaptedOutput() yields owning handles;
@@ -211,8 +235,15 @@ private:
         HydroCouple::IInput *consumer, const std::string &context,
         std::string &message);
 
+    /*!
+     * \brief Builds a ResultsModelComponent for an "open" component block.
+     */
+    [[nodiscard]] HydroCouple::IModelComponent *openRecordedComponent(
+        const ComponentSpec &block, std::string &message);
+
     ComponentResolver     m_resolver;
     CompositionSpec       m_spec;
+    std::vector<std::unique_ptr<HydroCouple::IModelComponent>> m_opened;
     std::vector<std::unique_ptr<HydroCouple::IAdaptedOutput>> m_adaptedOutputs;
     std::filesystem::path m_sidecarDirectory; //!< Empty = sidecar mode off.
     std::filesystem::path m_documentDirectory; //!< Base for relative refs.

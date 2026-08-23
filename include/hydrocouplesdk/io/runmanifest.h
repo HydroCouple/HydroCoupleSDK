@@ -27,6 +27,7 @@
 #ifndef HYDROCOUPLESDK_IO_RUNMANIFEST_H
 #define HYDROCOUPLESDK_IO_RUNMANIFEST_H
 
+#include "hydrocouplesdk/io/compositionspec.h"
 #include "hydrocouplesdk/io/outputwriter.h"
 #include "hydrocouplesdk/io/resultentry.h"
 #include "hydrocouple.h"
@@ -214,6 +215,23 @@ private:
     std::vector<HydroCouple::IModelComponent *> m_components;
     std::chrono::steady_clock::time_point       m_start;
 };
+
+/*!
+ * \brief Builds the composition that reopens a recorded run for analysis.
+ *
+ * Every component that contributed results becomes an \c execution.mode
+ * "open" block pointing at \p manifestPath, with no connections: the
+ * result is a document a UI can hand straight to ModelInitializer to
+ * browse a finished run — no model libraries involved. Add connections to
+ * it (or edit it) to drive a new composition from stored results.
+ *
+ * \param[in] manifest     The run to reopen.
+ * \param[in] manifestPath Path recorded in each block's
+ *                         \c execution.results (relative paths resolve
+ *                         against the composition document).
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT CompositionSpec compositionForRun(
+    const RunManifest &manifest, const std::string &manifestPath);
 
 } // namespace HydroCouple::SDK::IO
 

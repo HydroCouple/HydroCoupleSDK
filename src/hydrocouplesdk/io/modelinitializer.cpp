@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "hydrocouplesdk/io/modelinitializer.h"
+#include "hydrocouplesdk/component/resultsmodelcomponent.h"
 #include "hydrocouplesdk/io/sidecar.h"
 #include "hydrocouplesdk/data/abstractcomponentdataitem.h"
 #include "hydrocouplesdk/data/bufferio.h"
@@ -251,6 +252,45 @@ ModelInitializer::adaptedOutputs() const noexcept
     return m_adaptedOutputs;
 }
 
+const std::vector<std::unique_ptr<HydroCouple::IModelComponent>> &
+ModelInitializer::openedComponents() const noexcept
+{
+    return m_opened;
+}
+
+HydroCouple::IModelComponent *ModelInitializer::component(
+    const std::string &id) const
+{
+    for (const auto &opened : m_opened)
+    {
+        if (opened->id() == id)
+            return opened.get();
+    }
+    return m_resolver ? m_resolver(id) : nullptr;
+}
+
+HydroCouple::IModelComponent *ModelInitializer::openRecordedComponent(
+    const ComponentSpec &block, std::string &message)
+{
+    std::filesystem::path manifestPath(block.resultsManifest);
+    if (manifestPath.is_relative() && !m_documentDirectory.empty())
+        manifestPath = m_documentDirectory / manifestPath;
+
+    std::unique_ptr<HydroCouple::SDK::ResultsModelComponent> opened =
+        HydroCouple::SDK::ResultsModelComponent::open(manifestPath, block.id,
+                                                      message);
+    if (!opened)
+    {
+        message = "Component \"" + block.id + "\" (execution mode \"open\"): " +
+                  message;
+        return nullptr;
+    }
+
+    HydroCouple::IModelComponent *raw = opened.get();
+    m_opened.push_back(std::move(opened));
+    return raw;
+}
+
 bool ModelInitializer::validateDocument(const nlohmann::json &document,
                                         std::string &message) const
 {
@@ -270,6 +310,11 @@ bool ModelInitializer::validateSpec(const CompositionSpec &spec,
         HydroCouple::IModelComponent *component = m_resolver(block.id);
         if (!component)
         {
+            // An "open" component needs no live instance: its values come
+            // from a recorded run, which is exactly the case for an
+            // analysis host that has no model libraries at all.
+            if (block.mode == ExecutionMode::Open)
+                continue;
             message = "Unknown component id \"" + block.id +
                       "\" — the resolver returned no instance for it";
             return false;
@@ -299,12 +344,25 @@ bool ModelInitializer::validateSpec(const CompositionSpec &spec,
     for (const ConnectionSpec &link : spec.connections)
     {
         const std::string context = "connections[" + std::to_string(index) + "]";
+        const ComponentSpec *fromBlock = spec.component(link.fromComponent);
+        const ComponentSpec *toBlock   = spec.component(link.toComponent);
         HydroCouple::IModelComponent *source = m_resolver(link.fromComponent);
         HydroCouple::IModelComponent *target = m_resolver(link.toComponent);
-        if (!source || !target)
+        // Components opened from a recorded run are substituted during
+        // apply, so their absence here is expected.
+        const bool sourceDeferred =
+            !source && fromBlock && fromBlock->mode == ExecutionMode::Open;
+        const bool targetDeferred =
+            !target && toBlock && toBlock->mode == ExecutionMode::Open;
+        if ((!source && !sourceDeferred) || (!target && !targetDeferred))
         {
             message = context + ": unknown component id";
             return false;
+        }
+        if (sourceDeferred || targetDeferred)
+        {
+            ++index;
+            continue;
         }
 
         // Exchange items exist only after a component initializes, so item
@@ -356,6 +414,40 @@ bool ModelInitializer::applyComponents(std::string &message)
     {
         const std::string id = block.id;
         HydroCouple::IModelComponent *component = m_resolver(id);
+
+        // ── execution mode "open": values come from a recorded run ───────
+        if (block.mode == ExecutionMode::Open)
+        {
+            // A component that knows how to load its own results is taken
+            // at its word; otherwise (and whenever no live instance
+            // exists) the SDK substitutes a ResultsModelComponent.
+            if (component)
+            {
+                component->initialize();
+                if (component->status() ==
+                    HydroCouple::IModelComponent::ComponentStatus::Finished)
+                    continue;
+            }
+            std::string openMessage;
+            if (!openRecordedComponent(block, openMessage))
+            {
+                message = openMessage;
+                return false;
+            }
+            HydroCouple::IModelComponent *opened = m_opened.back().get();
+            opened->initialize();
+            if (opened->status() !=
+                HydroCouple::IModelComponent::ComponentStatus::Finished)
+            {
+                message = "Component \"" + id +
+                          "\" (execution mode \"open\") failed to load its "
+                          "recorded results";
+                for (const auto &entry : opened->errors())
+                    message += "\n  - " + entry.message;
+                return false;
+            }
+            continue;
+        }
 
         {
             for (const auto &[argId, payload] : block.arguments.items())
@@ -530,8 +622,8 @@ bool ModelInitializer::applyConnections(std::string &message)
     {
         const std::string context = "connections[" + std::to_string(index) + "]";
 
-        HydroCouple::IModelComponent *source = m_resolver(link.fromComponent);
-        HydroCouple::IModelComponent *target = m_resolver(link.toComponent);
+        HydroCouple::IModelComponent *source = component(link.fromComponent);
+        HydroCouple::IModelComponent *target = component(link.toComponent);
         if (!source || !target)
         {
             message = context + ": unknown component id";
