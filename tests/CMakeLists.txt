@@ -8,6 +8,7 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_temporal.cpp
     hydrocouplesdk/test_io.cpp
     hydrocouplesdk/test_distributed.cpp
+    hydrocouplesdk/test_fluxpayload.cpp
     hydrocouplesdk/test_workflow.cpp
 )
 
@@ -49,3 +50,25 @@ endif()
 
 include(GoogleTest)
 gtest_discover_tests(HydroCoupleSDKTests)
+
+# ── MPI-launched transport tests (separate executable: own main owns MPI) ──
+if(USE_MPI)
+    add_executable(HydroCoupleSDKMpiTests
+        hydrocouplesdk/test_mpitransport.cpp
+    )
+    target_link_libraries(HydroCoupleSDKMpiTests
+        PRIVATE
+            HydroCoupleSDK
+            GTest::gtest
+            MPI::MPI_CXX
+    )
+    target_include_directories(HydroCoupleSDKMpiTests
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${HYDROCOUPLE_INCLUDE_DIR}
+    )
+    add_test(NAME MpiTransportSuite
+        COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 3
+                $<TARGET_FILE:HydroCoupleSDKMpiTests>
+    )
+endif()

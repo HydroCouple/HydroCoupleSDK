@@ -40,6 +40,7 @@ PRIVATE
     hydrocouplesdk/distributed/proxymodelcomponent.cpp
     hydrocouplesdk/distributed/haloexchanger.cpp
     hydrocouplesdk/distributed/partitioneddataitem.cpp
+    hydrocouplesdk/distributed/fluxpayload.cpp
 
     # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
     hydrocouplesdk/io/snapshot.cpp
@@ -65,6 +66,13 @@ PRIVATE
     hydrocouplesdk/spatial/regulargrid2d.cpp
     hydrocouplesdk/spatial/regulargrid3d.cpp
 )
+
+# ── MPI transport backend (optional) ──────────────────────────────────────
+if(USE_MPI)
+    target_sources(HydroCoupleSDK PRIVATE
+        hydrocouplesdk/distributed/mpitransport.cpp
+    )
+endif()
 
 # ── GDAL-backed raster sources (optional) ─────────────────────────────────
 if(USE_GDAL)
