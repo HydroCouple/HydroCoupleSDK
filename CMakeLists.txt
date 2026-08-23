@@ -31,6 +31,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ── Custom CMake modules (includes FindOpenMP.cmake for macOS/Homebrew) ──
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Standard install layout variables — needed by install() rules throughout.
+include(GNUInstallDirs)
+
 # ── Symbol visibility (GCC/Clang; probed portably) ────────────────────────
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-fvisibility=hidden"         COMPILER_HAS_VISIBILITY)
@@ -60,12 +63,30 @@ option(USE_MPI      "Build with MPI support"                OFF)
 option(USE_KOKKOS   "Build the Kokkos device backend"       OFF)
 option(BUILD_TOOLS  "Build HydroCouple Tools library"       OFF)
 option(BUILD_TESTS  "Build unit tests"                      ON)
+option(BUILD_EXAMPLES "Build runnable examples"             OFF)
 option(BUILD_DOCS   "Build Doxygen documentation"           OFF)
 
 # ── HydroCouple interface headers ─────────────────────────────────────────
-# Configurable so builds are not tied to a sibling checkout layout.
-set(HYDROCOUPLE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../HydroCouple/include"
+# Preferred: the interface project's installed CMake package (exports the
+# HydroCouple::HydroCouple INTERFACE target, so consumers of an installed
+# SDK inherit the interface include directory automatically).
+# Fallback: a loose header directory (sibling checkout, CI sandboxes).
+find_package(HydroCouple CONFIG QUIET)
+if(TARGET HydroCouple::HydroCouple)
+    get_target_property(_hc_interface_includes HydroCouple::HydroCouple
+                        INTERFACE_INCLUDE_DIRECTORIES)
+    list(GET _hc_interface_includes 0 HYDROCOUPLE_INCLUDE_DIR)
+    set(HYDROCOUPLESDK_HAVE_INTERFACE_PACKAGE ON)
+    message(STATUS "HydroCouple interface package found: ${HYDROCOUPLE_INCLUDE_DIR}")
+else()
+    set(HYDROCOUPLESDK_HAVE_INTERFACE_PACKAGE OFF)
+endif()
+set(HYDROCOUPLE_INCLUDE_DIR "${HYDROCOUPLE_INCLUDE_DIR}"
     CACHE PATH "Directory containing the HydroCouple interface headers")
+if(NOT HYDROCOUPLE_INCLUDE_DIR)
+    set(HYDROCOUPLE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../HydroCouple/include"
+        CACHE PATH "Directory containing the HydroCouple interface headers" FORCE)
+endif()
 if(NOT EXISTS "${HYDROCOUPLE_INCLUDE_DIR}/hydrocouple.h")
     message(FATAL_ERROR
         "HydroCouple interface headers not found at ${HYDROCOUPLE_INCLUDE_DIR}. "
@@ -278,12 +299,29 @@ target_include_directories(HydroCoupleSDK
         $<INSTALL_INTERFACE:include>
 )
 
+# The SDK's public headers include hydrocouple.h, so the interface headers
+# are a PUBLIC usage requirement. With the interface package present the
+# exported target carries them; without it, the headers are installed
+# alongside the SDK's own so an installed SDK is self-contained.
+if(HYDROCOUPLESDK_HAVE_INTERFACE_PACKAGE)
+    target_link_libraries(HydroCoupleSDK PUBLIC HydroCouple::HydroCouple)
+else()
+    install(
+        DIRECTORY ${HYDROCOUPLE_INCLUDE_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "hydrocouple*.h"
+    )
+endif()
+
 target_link_libraries(HydroCoupleSDK
     PUBLIC
         $<$<BOOL:${USE_GDAL}>:GDAL::GDAL>
+        # USE_MPI is a PUBLIC definition and the installed
+        # abstractmodelcomponent.h includes <mpi.h>, so consumers of an
+        # MPI-enabled SDK need the MPI usage requirements too.
+        $<$<BOOL:${USE_MPI}>:MPI::MPI_CXX>
     PRIVATE
         $<$<BOOL:${USE_OPENMP}>:OpenMP::OpenMP_CXX>
-        $<$<BOOL:${USE_MPI}>:MPI::MPI_CXX>
         $<$<BOOL:${USE_KOKKOS}>:Kokkos::kokkos>
 )
 
@@ -311,14 +349,21 @@ if(HYDROCOUPLESDK_HAVE_YAML_CPP)
     endif()
 endif()
 
+# nlohmann/json.hpp is included by the public abstractcomponentdataitem.h,
+# so it is a PUBLIC usage requirement of an installed SDK.
 if(nlohmann_json_FOUND)
+    # A real package: consumers resolve it through find_dependency().
     target_link_libraries(HydroCoupleSDK PUBLIC nlohmann_json::nlohmann_json)
 else()
-    # The fallback header-only target exists only in the build tree; keep it
-    # out of the install export set (installed consumers provide their own
-    # nlohmann_json via vcpkg/find_package).
+    # The fallback header-only target exists only in the build tree, so the
+    # single header ships with the SDK and is reached through the SDK's own
+    # installed include directory.
     target_link_libraries(HydroCoupleSDK PUBLIC
         $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>)
+    install(
+        FILES "${_NLOHMANN_DIR}/nlohmann/json.hpp"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/nlohmann
+    )
 endif()
 
 if(USE_NETCDF)
@@ -394,6 +439,11 @@ if(BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
+# ── Examples ──────────────────────────────────────────────────────────────
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
 # ── Documentation ─────────────────────────────────────────────────────────
 if(BUILD_DOCS)
     find_package(Doxygen REQUIRED)
@@ -427,13 +477,13 @@ install(
     EXPORT HydroCoupleSDKTargets
     FILE   HydroCoupleSDKTargets.cmake
     NAMESPACE HydroCoupleSDK::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/HydroCoupleSDK
 )
 
 configure_package_config_file(
     cmake/HydroCoupleSDKConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/HydroCoupleSDKConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/HydroCoupleSDK
     PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
 )
 
@@ -447,7 +497,7 @@ install(
     FILES
         ${CMAKE_CURRENT_BINARY_DIR}/HydroCoupleSDKConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/HydroCoupleSDKConfigVersion.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/HydroCoupleSDK
 )
 
 install(
@@ -456,7 +506,7 @@ install(
     FILES_MATCHING PATTERN "*.h"
 )
 
-install(FILES License Readme.md DESTINATION .)
+install(FILES License Readme.md CHANGELOG.md DESTINATION .)
 
 # ── CPack packaging (mirrors HydroCouple interface project) ───────────────
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_NAME)

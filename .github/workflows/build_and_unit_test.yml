@@ -12,6 +12,8 @@ permissions:
   contents: read
 
 jobs:
+  # Cross-platform matrix with the IO feature set: the release configuration
+  # every packaged build must satisfy.
   build_and_test:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -44,16 +46,31 @@ jobs:
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          "-DVCPKG_MANIFEST_FEATURES=tests;hdf5;geopackage;netcdf"
+          "-DVCPKG_MANIFEST_FEATURES=tests;hdf5;geopackage;netcdf;tools"
           -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
           -DUSE_GDAL=OFF -DUSE_NETCDF=ON -DUSE_HDF5=ON -DUSE_GEOPACKAGE=ON -DUSE_OPENMP=OFF
-          -DBUILD_TOOLS=OFF -DBUILD_TESTS=ON
+          -DBUILD_TOOLS=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
 
       - name: Build
         run: cmake --build build --parallel
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      - name: Run the serial example (JSON composition)
+        shell: bash
+        run: |
+          cd build/examples
+          ./serial_coupling composition.json example-output
+
+      - name: Install and consume the package from an external project
+        shell: bash
+        run: |
+          cmake --install build --prefix "$PWD/install-prefix"
+          cmake -S examples/serial_coupling -B build-standalone -G Ninja \
+            -DCMAKE_PREFIX_PATH="$PWD/install-prefix" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake --build build-standalone
 
       - name: Upload test artifacts on failure
         if: failure()
@@ -62,3 +79,51 @@ jobs:
           name: test-artifacts-${{ matrix.os }}
           path: tests/artifacts/
           if-no-files-found: ignore
+
+  # Distributed backend: the protocol suite runs over InProcTransport in the
+  # matrix above; this job additionally exercises MpiTransport under mpirun.
+  mpi:
+    name: ubuntu-latest (MPI)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout SDK
+        uses: actions/checkout@v4
+
+      - name: Checkout HydroCouple interface headers
+        uses: actions/checkout@v4
+        with:
+          repository: HydroCouple/HydroCouple
+          ref: dev
+          path: HydroCouple
+
+      - name: Install MPI and Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenmpi-dev openmpi-bin ninja-build
+
+      - name: Setup vcpkg (manifest mode)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          "-DVCPKG_MANIFEST_FEATURES=tests"
+          -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
+          -DUSE_MPI=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test (in-process protocol suite)
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Test (MPI transport, 3 ranks)
+        run: mpirun --oversubscribe -n 3 ./build/tests/HydroCoupleSDKMpiTests
+
+      - name: Run the distributed example (4 ranks)
+        run: mpirun --oversubscribe -n 4 ./build/examples/distributed_coupling

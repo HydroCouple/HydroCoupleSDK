@@ -1,0 +1,22 @@
+{
+  "components": [
+    {
+      "id": "catchment",
+      "arguments": {
+        "coefficients": { "values": [0.35, 0.20, 0.55] }
+      }
+    },
+    {
+      "id": "channel",
+      "arguments": {
+        "routing_weight": { "values": [0.25, 0.25, 0.25] }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": { "component": "catchment", "output": "runoff" },
+      "to": { "component": "channel", "input": "lateral_inflow" }
+    }
+  ]
+}
