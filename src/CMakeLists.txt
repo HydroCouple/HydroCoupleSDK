@@ -35,6 +35,7 @@ PRIVATE
     hydrocouplesdk/io/csvwriter.cpp
     hydrocouplesdk/io/modelinitializer.cpp
 
+
     # ── temporal (namespace HydroCouple::Temporal) ────────────────────────
     hydrocouplesdk/temporal/timedata.cpp
     hydrocouplesdk/temporal/timeseries.cpp
@@ -71,3 +72,9 @@ endif()
 #         threadsafenetcdf/threadsafencatt.cpp
 #     )
 # endif()
+
+if(USE_HDF5)
+    target_sources(HydroCoupleSDK PRIVATE
+        hydrocouplesdk/io/hdf5ugridwriter.cpp
+    )
+endif()

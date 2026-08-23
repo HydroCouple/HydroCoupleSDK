@@ -150,7 +150,25 @@ if(USE_NETCDF)
 endif()
 
 if(USE_HDF5)
-    find_package(HDF5 REQUIRED COMPONENTS C CXX)
+    # Config-mode first (vcpkg/self-built exports hdf5-targets), then
+    # module-mode FindHDF5 — the openswmm.engine fallback chain.
+    find_package(hdf5 CONFIG QUIET NAMES hdf5 HDF5)
+    if(TARGET hdf5::hdf5-shared)
+        set(HYDROCOUPLESDK_HDF5_TARGET hdf5::hdf5-shared)
+    elseif(TARGET hdf5::hdf5-static)
+        set(HYDROCOUPLESDK_HDF5_TARGET hdf5::hdf5-static)
+    elseif(TARGET hdf5::hdf5)
+        set(HYDROCOUPLESDK_HDF5_TARGET hdf5::hdf5)
+    else()
+        find_package(HDF5 REQUIRED COMPONENTS C)
+        set(HYDROCOUPLESDK_HDF5_TARGET HDF5::HDF5)
+    endif()
+    # Static HDF5 archives need zlib chained explicitly.
+    find_package(ZLIB QUIET)
+    if(TARGET ZLIB::ZLIB)
+        set(HYDROCOUPLESDK_HDF5_TARGET ${HYDROCOUPLESDK_HDF5_TARGET} ZLIB::ZLIB)
+    endif()
+    message(STATUS "HDF5 target: ${HYDROCOUPLESDK_HDF5_TARGET}")
 endif()
 
 if(USE_OPENMP)
@@ -236,6 +254,11 @@ target_link_libraries(HydroCoupleSDK
         $<$<BOOL:${USE_OPENMP}>:OpenMP::OpenMP_CXX>
         $<$<BOOL:${USE_MPI}>:MPI::MPI_CXX>
 )
+
+if(USE_HDF5)
+    target_compile_definitions(HydroCoupleSDK PUBLIC HYDROCOUPLESDK_HAVE_HDF5)
+    target_link_libraries(HydroCoupleSDK PRIVATE ${HYDROCOUPLESDK_HDF5_TARGET})
+endif()
 
 if(HYDROCOUPLESDK_HAVE_YAML_CPP)
     target_compile_definitions(HydroCoupleSDK PRIVATE HYDROCOUPLESDK_HAVE_YAML_CPP)

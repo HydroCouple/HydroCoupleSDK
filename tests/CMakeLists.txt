@@ -29,5 +29,11 @@ target_compile_definitions(HydroCoupleSDKTests
         TEST_ARTIFACTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/artifacts"
 )
 
+
+if(USE_HDF5)
+    target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_hdf5.cpp)
+    target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_HDF5_TARGET})
+endif()
+
 include(GoogleTest)
 gtest_discover_tests(HydroCoupleSDKTests)
