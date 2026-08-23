@@ -7,7 +7,7 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_MAKE_PROGRAM": "/opt/homebrew/bin/ninja"
+        "VCPKG_MANIFEST_FEATURES": "tests"
       }
     },
     {

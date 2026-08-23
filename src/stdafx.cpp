@@ -1,5 +1,5 @@
 /*!
- * \author Caleb Amoa Buahin <caleb.buahin@gmail.com>
+ * \author Caleb Buahin
  * \version 1.0.0
  * \description
  * \license

@@ -1,5 +1,5 @@
 PROJECT_NAME           = "@PROJECT_NAME@"
-PROJECT_NUMBER         = "@PROJECT_VERSION@"
+PROJECT_NUMBER         = "@HYDROCOUPLESDK_FULL_VERSION@"
 PROJECT_BRIEF          = "HydroCouple C++ Modeling Framework SDK"
 OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/doxygen
 CREATE_SUBDIRS         = YES
@@ -37,6 +37,17 @@ WARN_IF_DOC_ERROR      = YES
 # ── HTML output ───────────────────────────────────────────────────────────
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
+
+# ── doxygen-awesome theme (mirrors the HydroCouple interface repo) ────────
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+HTML_HEADER            = @CMAKE_CURRENT_SOURCE_DIR@/custom/html/header.html
+HTML_EXTRA_STYLESHEET  = @CMAKE_CURRENT_SOURCE_DIR@/custom/css/doxygen-awesome.css
+HTML_EXTRA_FILES       = @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-darkmode-toggle.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-fragment-copy-button.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-interactive-toc.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-paragraph-link.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-tabs.js
 HTML_COLORSTYLE_HUE    = 220
 HTML_COLORSTYLE_SAT    = 174
 HTML_COLORSTYLE_GAMMA  = 84

@@ -413,7 +413,7 @@ Current core dependencies include Qt, MPI, OpenMP, GDAL, netcdf-cxx4, and HDF5. 
 
 If you discover a potential security vulnerability in HydroCoupleSDK, please report it privately so that a fix can be prepared before the issue is publicly disclosed:
 
-- **Email:** [calebgh@gmail.com](mailto:calebgh@gmail.com) with the subject line `[HydroCoupleSDK] Security Vulnerability Report`
+- **Email:** [](mailto:) with the subject line `[HydroCoupleSDK] Security Vulnerability Report`
 - **GitHub Private Advisory:** Use the [Security Advisories](../../security/advisories) tab to submit a draft advisory directly on GitHub.
 
 Please include in your report:
@@ -453,7 +453,7 @@ HydroCoupleSDK is committed to providing a welcoming, respectful, and inclusive 
 - Accept constructive criticism of their contributions in good faith.
 - Prioritize the long-term health of the project over individual preferences.
 
-Harassment, personal attacks, or exclusionary behavior of any kind will not be tolerated. Violations may be reported to the Technical Manager at [calebgh@gmail.com](mailto:calebgh@gmail.com). Reported incidents will be reviewed and addressed promptly and confidentially.
+Harassment, personal attacks, or exclusionary behavior of any kind will not be tolerated. Violations may be reported to the Technical Manager at [](mailto:). Reported incidents will be reviewed and addressed promptly and confidentially.
 
 ---
 

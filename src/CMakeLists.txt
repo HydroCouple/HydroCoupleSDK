@@ -7,50 +7,55 @@ PRIVATE
     stdafx.cpp
 
     # ── core (namespace HydroCouple) ──────────────────────────────────────
-    hydrocouple/datatype.cpp
-    hydrocouple/safevariant.cpp
-    hydrocouple/description.cpp
-    hydrocouple/identity.cpp
-    hydrocouple/unit.cpp
-    hydrocouple/valuedefinition.cpp
-    hydrocouple/dimension.cpp
-    hydrocouple/componentinfo.cpp
-    hydrocouple/abstractmodelcomponentinfo.cpp
-    hydrocouple/abstractcomponentdataitem.cpp
-    hydrocouple/abstractargument.cpp
-    hydrocouple/abstractexchangeitem.cpp
-    hydrocouple/abstractinput.cpp
-    hydrocouple/abstractoutput.cpp
-    hydrocouple/abstractadaptedoutput.cpp
-    hydrocouple/componentstatuschangeeventargs.cpp
-    hydrocouple/exchangeitems1d.cpp
-    hydrocouple/exchangeitems2d.cpp
-    hydrocouple/argument1d.cpp
-    hydrocouple/argument2d.cpp
-    hydrocouple/abstractadaptedoutputfactory.cpp
-    hydrocouple/abstractmodelcomponent.cpp
+    hydrocouplesdk/core/description.cpp
+    hydrocouplesdk/core/identity.cpp
+    hydrocouplesdk/core/unit.cpp
+    hydrocouplesdk/core/valuedefinition.cpp
+    hydrocouplesdk/core/dimension.cpp
+    hydrocouplesdk/component/componentinfo.cpp
+    hydrocouplesdk/component/abstractmodelcomponentinfo.cpp
+    hydrocouplesdk/data/abstractcomponentdataitem.cpp
+    hydrocouplesdk/data/abstractargument.cpp
+    hydrocouplesdk/data/abstractexchangeitem.cpp
+    hydrocouplesdk/data/abstractinput.cpp
+    hydrocouplesdk/data/abstractoutput.cpp
+    hydrocouplesdk/data/abstractadaptedoutput.cpp
+    hydrocouplesdk/component/componentstatuschangeeventargs.cpp
+    hydrocouplesdk/data/exchangeitems1d.cpp
+    hydrocouplesdk/data/exchangeitems2d.cpp
+    hydrocouplesdk/data/argument1d.cpp
+    hydrocouplesdk/data/argument2d.cpp
+    hydrocouplesdk/data/idbasedargument.cpp
+    hydrocouplesdk/data/abstractadaptedoutputfactory.cpp
+    hydrocouplesdk/component/abstractmodelcomponent.cpp
 
     # ── temporal (namespace HydroCouple::Temporal) ────────────────────────
-    hydrocouple/temporal/timedata.cpp
-    hydrocouple/temporal/timeseries.cpp
-    hydrocouple/temporal/timeseriesexchangeitems.cpp
-    hydrocouple/temporal/timeseriesadaptedoutput.cpp
-    hydrocouple/temporal/timeseriesargument.cpp
+    hydrocouplesdk/temporal/timedata.cpp
+    hydrocouplesdk/temporal/timeseries.cpp
+    hydrocouplesdk/temporal/timeseriesexchangeitems.cpp
+    hydrocouplesdk/temporal/timeseriesadaptedoutput.cpp
+    hydrocouplesdk/temporal/timeseriesargument.cpp
 
     # ── spatial (namespace HydroCouple::Spatial) ──────────────────────────
-    hydrocouple/spatial/linestring.cpp
-    hydrocouple/spatial/polygon.cpp
-    hydrocouple/spatial/polyhedralsurface.cpp
-    hydrocouple/spatial/tin.cpp
-    hydrocouple/spatial/network.cpp
-    hydrocouple/spatial/raster.cpp
-    hydrocouple/spatial/regulargrid2d.cpp
-    hydrocouple/spatial/regulargrid3d.cpp
-    hydrocouple/spatial/rastercomponentdataitem.cpp
+    hydrocouplesdk/spatial/linestring.cpp
+    hydrocouplesdk/spatial/polygon.cpp
+    hydrocouplesdk/spatial/polyhedralsurface.cpp
+    hydrocouplesdk/spatial/tin.cpp
+    hydrocouplesdk/spatial/network.cpp
+    hydrocouplesdk/spatial/regulargrid2d.cpp
+    hydrocouplesdk/spatial/regulargrid3d.cpp
 )
 
+# ── GDAL-backed raster sources (optional) ─────────────────────────────────
+if(USE_GDAL)
+    target_sources(HydroCoupleSDK PRIVATE
+        hydrocouplesdk/spatial/raster.cpp
+        hydrocouplesdk/spatial/rastercomponentdataitem.cpp
+    )
+endif()
+
 # ── thread-safe NetCDF (conditional) ──────────────────────────────────────
-# TODO: upgrade to std::shared_mutex (currently uses Qt OpenMP critical sections)
+# TODO: port to std::shared_mutex before re-enabling (legacy sources predate the Qt removal)
 # if(USE_NETCDF)
 #     target_sources(HydroCoupleSDK PRIVATE
 #         threadsafenetcdf/threadsafencfile.cpp

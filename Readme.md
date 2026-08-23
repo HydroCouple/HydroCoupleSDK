@@ -1,21 +1,32 @@
 # HydroCoupleSDK
 
-[![AUR](https://img.shields.io/aur/license/yaourt.svg)](https://github.com/HydroCouple/HydroCouple/blob/master/License.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](License)
 
-The HydroCoupleSDK project is a software development kit that has been developed to simpilfy the model component development process for the HydroCouple component-based modeling interface definitions. It provides implementations of the core HydroCouple interfaces as well as implementations of various geotemporal data structures.
+HydroCoupleSDK is a software development kit that simplifies model component development for the [HydroCouple](https://github.com/HydroCouple/HydroCouple) component-based modeling interface definitions (v2.0.0-alpha.1). It provides concrete base implementations of the core interfaces — the typed hyperslab data plane, component lifecycle machinery, JSON argument IO, and temporal and spatial data structures — so component authors implement only their model-specific logic.
 
-## Dependencies
+The SDK is dependency-lean C++20 with no Qt dependence. Implementation classes live in `namespace HydroCouple::SDK`; headers are organized by domain under `include/hydrocouplesdk/` (`core/`, `component/`, `data/`, `temporal/`, `spatial/`). Dependencies are managed with vcpkg and the build with CMake, following the same conventions as [openswmm.engine](https://github.com/HydroCouple/openswmm.engine).
 
-HydroCoupleSDK can be compiled using the QtCreator project file included with this project or in visual studio using the Qt Visual Studio AddIn. Work is ongoing to add a CMake make file. Modify the project file to make sure that it points to the appropriate libraries on the target machine. Compilation of HydroCoupleSDK requires the following frameworks and libraries:
+## Highlights
 
-* Qt 5.x.x
-* MPI
-* OpenMP
-* GDAL 2.2.2
-* netcdf-cxx4 4.3.0
-* hdf5 1.8.17
+The v2 data plane replaces the former variant-based accessors: every data item advertises a `shape()` and `DataKind` and moves values through `getValuesInto()`/`setValuesFrom()` hyperslab copies described by a `BufferDescriptor` (DLPack/NumPy buffer-protocol style, strided destinations supported, `std::copy` fast path on contiguous runs). Concrete typed items are provided as class templates — `Argument1D<T>`, `Argument2D<T>`, `IdBasedArgument<T>`, `Input1D<T>`/`Output1D<T>`, `Input2D<T>`/`Output2D<T>`, and `Temporal::TimeSeriesInput<T>`/`TimeSeriesOutput<T>` — with `Int`/`Double`/`String` aliases exported from the library. Arguments serialize to JSON (string, file, or URL sources) and support the v2 `serialize()` write-side contract. `AbstractModelComponent` implements the v2 lifecycle including the `errors()` diagnostic queue and `capabilities()` advertisement.
 
+## Building
+
+Requires CMake ≥ 3.18, a C++20 compiler, and [vcpkg](https://github.com/microsoft/vcpkg) (`VCPKG_ROOT` set). The HydroCouple interface headers are located via `HYDROCOUPLE_INCLUDE_DIR` (defaults to a sibling `../HydroCouple/include` checkout).
+
+```bash
+cmake --preset macos          # or linux / windows
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+Core builds need only nlohmann-json (supplied by the vcpkg manifest, with a header-download fallback). Optional features are gated both in CMake and as vcpkg manifest features: `-DUSE_GDAL=ON` (feature `gdal`, raster data items), `-DUSE_NETCDF=ON` (feature `netcdf`), `-DUSE_HDF5=ON` (feature `hdf5`), `-DUSE_MPI=ON` (feature `mpi`), and tests via `-DBUILD_TESTS=ON` (feature `tests`, Google Test).
+
+## Documentation
+
+API documentation is generated with Doxygen (`-DBUILD_DOCS=ON`, target `docs`) and published via GitHub Pages by `.github/workflows/build_docs.yml`. The interface definitions themselves are documented at [hydrocouple.org](https://www.hydrocouple.org).
 
 ## References
 -------------------------------------------------------------------------------------------------------------------
-* Buahin, C. and J. Horsburgh, 2016. From OpenMI to HydroCouple: Advancing OpenMI to Support Experimental Simulations and Standard Geospatial Datasets. International Congress on Environmental Modelling and Software. Toulouse,          France. http://scholarsarchive.byu.edu/iemssconference/2016/Stream-A/11
+* Buahin, C. and J. Horsburgh, 2016. From OpenMI to HydroCouple: Advancing OpenMI to Support Experimental Simulations and Standard Geospatial Datasets. International Congress on Environmental Modelling and Software. Toulouse, France. http://scholarsarchive.byu.edu/iemssconference/2016/Stream-A/11
+* Buahin, C.A. and J.S. Horsburgh, 2018. Advancing the Open Modeling Interface (OpenMI) for Integrated Water Resources Modeling. Environmental Modelling & Software, 108: 133–153. https://doi.org/10.1016/j.envsoft.2018.07.015

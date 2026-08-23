@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import openswmm.engine, os; print\\(os.path.dirname\\(openswmm.engine.__file__\\)\\)\")",
+      "Bash(/tmp/mcp-test-venv/bin/python -m pytest tests/unit/ --no-header -q)"
+    ]
+  }
+}

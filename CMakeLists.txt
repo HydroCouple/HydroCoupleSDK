@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2014-2026 Caleb Amoa Buahin <caleb.buahin@gmail.com>
+# Copyright (c) 2014-2026 Caleb Buahin
 #
 # CMakeLists.txt — HydroCoupleSDK top-level build configuration
 #
@@ -12,11 +12,16 @@ cmake_minimum_required(VERSION 3.18)
 
 project(
     HydroCoupleSDK
-    VERSION 1.0.0
+    VERSION 2.0.0
     LANGUAGES C CXX
     HOMEPAGE_URL "https://hydrocouple.org"
     DESCRIPTION  "HydroCouple C++ Modeling Framework SDK"
 )
+
+# Pre-release suffix — appended to PROJECT_VERSION wherever the full version
+# string is used (packaging, docs). Mirrors the HydroCouple interface repo.
+set(HYDROCOUPLESDK_VERSION_SUFFIX "-alpha.1")
+set(HYDROCOUPLESDK_FULL_VERSION "${PROJECT_VERSION}${HYDROCOUPLESDK_VERSION_SUFFIX}")
 
 # ── Language standard ─────────────────────────────────────────────────────
 set(CMAKE_CXX_STANDARD 20)
@@ -44,17 +49,88 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
 endif()
 
 # ── Feature options ───────────────────────────────────────────────────────
-option(USE_NETCDF   "Build with NetCDF support"             ON)
-option(USE_HDF5     "Build with HDF5 support"               ON)
-option(USE_OPENMP   "Build with OpenMP support"             ON)
+# Defaults track vcpkg.json default-features (lean core; opt in per feature:
+# configure with -DUSE_<X>=ON and install the matching vcpkg --x-feature).
+option(USE_GDAL     "Build with GDAL support (raster IO)"   OFF)
+option(USE_NETCDF   "Build with NetCDF support"             OFF)
+option(USE_HDF5     "Build with HDF5 support"               OFF)
+option(USE_OPENMP   "Build with OpenMP support"             OFF)
 option(USE_MPI      "Build with MPI support"                OFF)
-option(BUILD_TOOLS  "Build HydroCouple Tools library"       ON)
+option(BUILD_TOOLS  "Build HydroCouple Tools library"       OFF)
 option(BUILD_TESTS  "Build unit tests"                      ON)
 option(BUILD_DOCS   "Build Doxygen documentation"           OFF)
 
-# ── Dependencies (all resolved by vcpkg toolchain) ────────────────────────
-find_package(GDAL          REQUIRED)
-find_package(nlohmann_json REQUIRED)
+# ── HydroCouple interface headers ─────────────────────────────────────────
+# Configurable so builds are not tied to a sibling checkout layout.
+set(HYDROCOUPLE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../HydroCouple/include"
+    CACHE PATH "Directory containing the HydroCouple interface headers")
+if(NOT EXISTS "${HYDROCOUPLE_INCLUDE_DIR}/hydrocouple.h")
+    message(FATAL_ERROR
+        "HydroCouple interface headers not found at ${HYDROCOUPLE_INCLUDE_DIR}. "
+        "Set -DHYDROCOUPLE_INCLUDE_DIR=<path>.")
+endif()
+
+# ── Version alignment with the interface definitions ──────────────────────
+# The SDK versions in lockstep with the HydroCouple interface: MAJOR.MINOR
+# must match the interface headers this build compiles against. The
+# interface's include/version.h is the source of truth.
+if(EXISTS "${HYDROCOUPLE_INCLUDE_DIR}/version.h")
+    file(STRINGS "${HYDROCOUPLE_INCLUDE_DIR}/version.h" _hc_version_line
+         REGEX "#define PROJECT_VERSION \"[0-9]+\\.[0-9]+\\.[0-9]+\"")
+    if(_hc_version_line MATCHES "\"([0-9]+)\\.([0-9]+)\\.([0-9]+)\"")
+        set(HYDROCOUPLE_INTERFACE_VERSION
+            "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
+        if(NOT (CMAKE_MATCH_1 STREQUAL PROJECT_VERSION_MAJOR AND
+                CMAKE_MATCH_2 STREQUAL PROJECT_VERSION_MINOR))
+            message(FATAL_ERROR
+                "Version misalignment: HydroCoupleSDK ${HYDROCOUPLESDK_FULL_VERSION} "
+                "must share MAJOR.MINOR with the HydroCouple interface headers "
+                "(found ${HYDROCOUPLE_INTERFACE_VERSION} at ${HYDROCOUPLE_INCLUDE_DIR}). "
+                "Bump the SDK version or point HYDROCOUPLE_INCLUDE_DIR at a matching "
+                "interface checkout.")
+        endif()
+        message(STATUS
+            "HydroCoupleSDK ${HYDROCOUPLESDK_FULL_VERSION} against HydroCouple "
+            "interface ${HYDROCOUPLE_INTERFACE_VERSION} — versions aligned")
+    endif()
+else()
+    message(WARNING
+        "Interface version.h not found at ${HYDROCOUPLE_INCLUDE_DIR}; "
+        "skipping version-alignment check.")
+endif()
+
+# ── Dependencies (resolved by vcpkg toolchain when present) ───────────────
+if(USE_GDAL)
+    find_package(GDAL REQUIRED)
+endif()
+
+# nlohmann_json: config package preferred; fall back to downloading the
+# MIT-licensed single header so bare environments (CI docs jobs, sandboxes)
+# can still build.
+find_package(nlohmann_json QUIET)
+if(NOT nlohmann_json_FOUND)
+    set(NLOHMANN_JSON_INCLUDE_DIR "" CACHE PATH
+        "Optional pre-provided directory containing nlohmann/json.hpp")
+    if(NLOHMANN_JSON_INCLUDE_DIR AND EXISTS "${NLOHMANN_JSON_INCLUDE_DIR}/nlohmann/json.hpp")
+        set(_NLOHMANN_DIR "${NLOHMANN_JSON_INCLUDE_DIR}")
+    else()
+        set(_NLOHMANN_DIR "${CMAKE_BINARY_DIR}/_deps/nlohmann/include")
+    endif()
+    if(NOT EXISTS "${_NLOHMANN_DIR}/nlohmann/json.hpp")
+        message(STATUS "nlohmann_json not found — downloading single header")
+        file(DOWNLOAD
+            https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
+            "${_NLOHMANN_DIR}/nlohmann/json.hpp"
+            STATUS _NLOHMANN_STATUS)
+        list(GET _NLOHMANN_STATUS 0 _NLOHMANN_CODE)
+        if(NOT _NLOHMANN_CODE EQUAL 0)
+            message(FATAL_ERROR "Failed to download nlohmann/json.hpp")
+        endif()
+    endif()
+    add_library(nlohmann_json INTERFACE)
+    add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
+    target_include_directories(nlohmann_json INTERFACE "${_NLOHMANN_DIR}")
+endif()
 
 if(USE_NETCDF)
     find_package(netCDF QUIET)
@@ -111,8 +187,8 @@ set(BUILD_COMMIT "${GIT_COMMIT_HASH}")
 set(BUILD_BRANCH "${GIT_BRANCH_NAME}")
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/version.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hydrocouplesdk/version.h.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hydrocouplesdk/version.h
     @ONLY
 )
 
@@ -131,22 +207,36 @@ endif()
 if(USE_MPI)
     target_compile_definitions(HydroCoupleSDK PUBLIC USE_MPI)
 endif()
+if(USE_GDAL)
+    target_compile_definitions(HydroCoupleSDK PUBLIC USE_GDAL)
+endif()
 
 target_include_directories(HydroCoupleSDK
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../HydroCouple/include>
+        $<BUILD_INTERFACE:${HYDROCOUPLE_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>
 )
 
 target_link_libraries(HydroCoupleSDK
     PUBLIC
-        GDAL::GDAL
-        nlohmann_json::nlohmann_json
+        $<$<BOOL:${USE_GDAL}>:GDAL::GDAL>
     PRIVATE
         $<$<BOOL:${USE_OPENMP}>:OpenMP::OpenMP_CXX>
         $<$<BOOL:${USE_MPI}>:MPI::MPI_CXX>
 )
+
+if(nlohmann_json_FOUND)
+    target_link_libraries(HydroCoupleSDK PUBLIC nlohmann_json::nlohmann_json)
+else()
+    # The fallback header-only target exists only in the build tree; keep it
+    # out of the install export set (installed consumers provide their own
+    # nlohmann_json via vcpkg/find_package).
+    target_link_libraries(HydroCoupleSDK PUBLIC
+        $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>)
+endif()
 
 if(USE_NETCDF)
     if(TARGET netCDF::netcdf-cxx4)
@@ -165,7 +255,7 @@ endif()
 
 # ── Precompiled header (CXX only — stdafx.h has C++ headers) ─────────────
 target_precompile_headers(HydroCoupleSDK PRIVATE
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/stdafx.h>"
+    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/src/stdafx.h>"
 )
 
 # ── Portable optimisation flags ───────────────────────────────────────────
@@ -270,7 +360,7 @@ install(
     FILES_MATCHING PATTERN "*.h"
 )
 
-install(FILES LICENSE README.md DESTINATION .)
+install(FILES License Readme.md DESTINATION .)
 
 # ── CPack packaging (mirrors HydroCouple interface project) ───────────────
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_NAME)
@@ -283,9 +373,9 @@ else()
 endif()
 
 set(CPACK_PACKAGE_NAME             HydroCoupleSDK)
-set(CPACK_PACKAGE_VERSION          ${PROJECT_VERSION})
+set(CPACK_PACKAGE_VERSION          ${HYDROCOUPLESDK_FULL_VERSION})
 set(CPACK_PACKAGE_VENDOR           "hydrocouple.org")
-set(CPACK_PACKAGE_CONTACT          "Caleb Buahin <caleb.buahin@gmail.com>")
+set(CPACK_PACKAGE_CONTACT          "Caleb Buahin")
 set(CPACK_RESOURCE_FILE_LICENSE    "${CMAKE_CURRENT_SOURCE_DIR}/License")
 set(CPACK_NUGET_PACKAGE_ID         HydroCoupleSDK)
 set(CPACK_NUGET_PACKAGE_NAME       "HydroCoupleSDK.${ARCH_NAME}.${OS_NAME}")

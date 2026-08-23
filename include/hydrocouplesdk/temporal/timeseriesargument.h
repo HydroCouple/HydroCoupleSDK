@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2014-2026 Caleb Buahin
+
+/*!
+ * \file   timeseriesargument.h
+ * \author Caleb Buahin
+ * \version 2.0.0-alpha.1
+ * \brief  Time-series argument for model configuration.
+ */
+
+#ifndef HYDROCOUPLESDK_TIMESERIESARGUMENT_H
+#define HYDROCOUPLESDK_TIMESERIESARGUMENT_H
+
+#include "hydrocouplesdk/data/abstractargument.h"
+#include "timeseries.h"
+
+#include <filesystem>
+#include <memory>
+#include <string>
+
+#include "hydrocoupletemporal.h"
+
+namespace HydroCouple::SDK::Temporal {
+
+// Interface types from the standard's Temporal namespace.
+using namespace HydroCouple::Temporal;
+
+/*!
+ * \brief Time-series argument holding a scalar double TimeSeries.
+ *
+ * Loads time-series data from CSV or JSON and provides interpolated values
+ * at query times. The v2 data plane exposes the stored values as a rank-1
+ * Float64 item of shape { count }; times are available via timeSeries().
+ * The item is read-only through the data plane — values are loaded via
+ * initialize().
+ *
+ * \threadsafety Not thread-safe on its own.
+ */
+class HYDROCOUPLESDK_EXPORT TimeSeriesArgumentDouble
+    : public HydroCouple::SDK::AbstractArgument
+{
+public:
+    /*!
+     * \brief Construct a time-series argument.
+     * \param id               Identifier.
+     * \param caption          Human-readable caption.
+     * \param modelComponent   Owning component.
+     * \param timeDim          Dimension for the time axis.
+     */
+    TimeSeriesArgumentDouble(std::string_view id,
+                             std::string_view caption,
+                             HydroCouple::IModelComponent *modelComponent,
+                             HydroCouple::SDK::Dimension *timeDim);
+
+    ~TimeSeriesArgumentDouble() override = default;
+
+    // ── v2 typed hyperslab data plane ────────────────────────────────────
+
+    [[nodiscard]] std::vector<int64_t> shape() const override;
+
+    [[nodiscard]] DataKind dataKind() const override;
+
+    [[nodiscard]] bool getValuesInto(const BufferDescriptor &destination,
+                                     std::span<const int64_t> start,
+                                     std::span<const int64_t> count,
+                                     std::string *message = nullptr) const override;
+
+    /*!
+     * \brief Always fails — the argument is read-only through the data
+     *        plane; load values via initialize().
+     */
+    [[nodiscard]] bool setValuesFrom(const BufferDescriptor &source,
+                                     std::span<const int64_t> start,
+                                     std::span<const int64_t> count,
+                                     std::string *message = nullptr) override;
+
+    // ── IArgument ─────────────────────────────────────────────────────────
+
+    /*!
+     * \brief Returns {"times": [...], "values": [...]} as a JSON string.
+     */
+    [[nodiscard]] std::string toString() const override;
+
+    /*!
+     * \brief Writes the series back to the input file (CSV for .csv paths,
+     *        JSON otherwise), if one was set via File initialisation.
+     */
+    void saveData() override;
+
+    /*!
+     * \brief Parses \p value according to \p argType.
+     *
+     * String/JSON: a JSON object with "times" and "values" arrays.
+     * File/URL: a .csv file (time,value rows) or a JSON file as above.
+     */
+    [[nodiscard]] bool initialize(const std::string &value,
+                                  HydroCouple::IArgument::ArgumentInputType argType,
+                                  std::string &message) override;
+
+    /*!
+     * \brief Copies times and values from another time-series data item.
+     */
+    [[nodiscard]] bool initialize(const HydroCouple::IComponentDataItem &componentDataItem,
+                                  std::string &message) override;
+
+    // ── JSON persistence ──────────────────────────────────────────────────
+
+    void readData(const nlohmann::json &j) override;
+    [[nodiscard]] nlohmann::json writeData() const override;
+
+    // ── Time-series access ────────────────────────────────────────────────
+
+    /*!
+     * \brief Load time-series from CSV file (time, value columns).
+     */
+    bool loadFromCSV(const std::string &filePath);
+
+    /*!
+     * \brief Get interpolated value at query time.
+     */
+    [[nodiscard]] double getInterpolatedValue(double julianDay) const;
+
+    /*!
+     * \brief Access the underlying TimeSeries.
+     */
+    [[nodiscard]] std::shared_ptr<TimeSeries> timeSeries() const noexcept
+    {
+        return m_timeSeries;
+    }
+
+private:
+    bool assignFromJson(const nlohmann::json &j, std::string &message);
+
+    std::shared_ptr<TimeSeries> m_timeSeries;
+    HydroCouple::SDK::Dimension     *m_timeDim;
+    std::filesystem::path       m_inputFile;
+};
+
+} // namespace HydroCouple::SDK::Temporal
+
+#endif // HYDROCOUPLESDK_TIMESERIESARGUMENT_H
