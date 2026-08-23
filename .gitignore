@@ -272,5 +272,8 @@ include/signal.h
 include/_probe_delete
 
 # Working plan documents (kept local, not committed)
-plans/*
-!plans/IMPLEMENTATION_PLAN.md
+# Working notes and plans stay local.
+plans/
+
+# Local AI/editor tool settings — machine-specific, never shared.
+.claude/
