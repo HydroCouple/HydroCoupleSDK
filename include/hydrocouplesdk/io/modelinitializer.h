@@ -39,11 +39,14 @@
 #define HYDROCOUPLESDK_IO_MODELINITIALIZER_H
 
 #include "hydrocouplesdk/export.h"
+#include "hydrocouplesdk/io/compositionspec.h"
 #include "hydrocouple.h"
 
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -137,6 +140,40 @@ public:
      */
     [[nodiscard]] static bool yamlSupported() noexcept;
 
+    // ── Composition Specification v1 ─────────────────────────────────────
+
+    /*!
+     * \brief The specification parsed by the most recent initialize().
+     *
+     * Blocks the initializer does not apply itself — \c workflow, \c writers,
+     * \c run, and each component's \c execution mode — are carried here as
+     * validated data for the host to act on (writers are feature-gated and
+     * workflows live outside SDK::IO, so building them is the host's job).
+     */
+    [[nodiscard]] const CompositionSpec &spec() const noexcept;
+
+    /*!
+     * \brief Structural + semantic validation without applying anything.
+     *
+     * Never loads component libraries: naming a library in a document makes
+     * it executable content, so resolution stays with the caller's resolver
+     * and happens only during initialize().
+     *
+     * \param[in]  document Composition document.
+     * \param[out] message  Actionable failure description when false.
+     */
+    [[nodiscard]] bool validateDocument(const nlohmann::json &document,
+                                        std::string &message) const;
+
+    /*!
+     * \brief Adapted outputs created while wiring connections (owned).
+     *
+     * IAdaptedOutputFactory::createAdaptedOutput() yields owning handles;
+     * the initializer keeps them alive for the composition's lifetime.
+     */
+    [[nodiscard]] const std::vector<std::unique_ptr<HydroCouple::IAdaptedOutput>> &
+    adaptedOutputs() const noexcept;
+
     // ── Sidecar binary references (efficiency contract, plan §4.7) ────────
 
     /*!
@@ -157,14 +194,26 @@ public:
     void setSidecarThresholdBytes(int64_t bytes);
 
 private:
-    [[nodiscard]] bool validate(const nlohmann::json &document,
-                                std::string &message) const;
-    [[nodiscard]] bool applyComponents(const nlohmann::json &document,
-                                       std::string &message);
-    [[nodiscard]] bool applyConnections(const nlohmann::json &document,
-                                        std::string &message);
+    /*!
+     * \brief Semantic validation of a parsed spec against live components.
+     */
+    [[nodiscard]] bool validateSpec(const CompositionSpec &spec,
+                                    std::string &message) const;
+    [[nodiscard]] bool applyComponents(std::string &message);
+    [[nodiscard]] bool applyConnections(std::string &message);
+
+    /*!
+     * \brief Builds a connection's adaptation chain, returning the output
+     *        the consumer should be wired to.
+     */
+    [[nodiscard]] HydroCouple::IOutput *buildAdaptedChain(
+        const ConnectionSpec &link, HydroCouple::IOutput *provider,
+        HydroCouple::IInput *consumer, const std::string &context,
+        std::string &message);
 
     ComponentResolver     m_resolver;
+    CompositionSpec       m_spec;
+    std::vector<std::unique_ptr<HydroCouple::IAdaptedOutput>> m_adaptedOutputs;
     std::filesystem::path m_sidecarDirectory; //!< Empty = sidecar mode off.
     std::filesystem::path m_documentDirectory; //!< Base for relative refs.
     int64_t               m_sidecarThresholdBytes = 1024;

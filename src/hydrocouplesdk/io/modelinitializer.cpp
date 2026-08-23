@@ -229,90 +229,119 @@ bool ModelInitializer::initializeFromJsonText(const std::string &text,
 bool ModelInitializer::initialize(const nlohmann::json &document,
                                   std::string &message)
 {
-    if (!validate(document, message))
+    // Structural parse first, then semantics against live components —
+    // nothing is applied until both pass.
+    if (!CompositionSpec::parse(document, m_spec, message))
         return false;
-    if (!applyComponents(document, message))
+    if (!validateSpec(m_spec, message))
         return false;
-    return applyConnections(document, message);
+    if (!applyComponents(message))
+        return false;
+    return applyConnections(message);
+}
+
+const CompositionSpec &ModelInitializer::spec() const noexcept
+{
+    return m_spec;
+}
+
+const std::vector<std::unique_ptr<HydroCouple::IAdaptedOutput>> &
+ModelInitializer::adaptedOutputs() const noexcept
+{
+    return m_adaptedOutputs;
+}
+
+bool ModelInitializer::validateDocument(const nlohmann::json &document,
+                                        std::string &message) const
+{
+    CompositionSpec spec;
+    if (!CompositionSpec::parse(document, spec, message))
+        return false;
+    return validateSpec(spec, message);
 }
 
 // ── Validation (before anything is applied) ───────────────────────────────
 
-bool ModelInitializer::validate(const nlohmann::json &document,
-                                std::string &message) const
+bool ModelInitializer::validateSpec(const CompositionSpec &spec,
+                                    std::string &message) const
 {
-    if (!document.is_object() || !document.contains("components") ||
-        !document["components"].is_array())
+    for (const ComponentSpec &block : spec.components)
     {
-        message = "Composition document must be an object with a "
-                  "\"components\" array";
-        return false;
-    }
-
-    for (const auto &block : document["components"])
-    {
-        if (!block.is_object() || !block.contains("id") ||
-            !block["id"].is_string())
-        {
-            message = "Every components[] entry must be an object with a "
-                      "string \"id\"";
-            return false;
-        }
-        const std::string id = block["id"].get<std::string>();
-
-        HydroCouple::IModelComponent *component = m_resolver(id);
+        HydroCouple::IModelComponent *component = m_resolver(block.id);
         if (!component)
         {
-            message = "Unknown component id \"" + id +
+            message = "Unknown component id \"" + block.id +
                       "\" — the resolver returned no instance for it";
             return false;
         }
-        if (block.contains("arguments"))
+
+        if (block.mode == ExecutionMode::Resume)
         {
-            if (!block["arguments"].is_object())
+            message = "Component \"" + block.id +
+                      "\": execution mode \"resume\" is reserved and not yet "
+                      "implemented (see ICheckpointableModelComponent)";
+            return false;
+        }
+
+        for (const auto &[argId, payload] : block.arguments.items())
+        {
+            if (!findById(component->arguments(), argId))
             {
-                message = "components[\"" + id +
-                          "\"].arguments must be an object of "
-                          "argumentId → payload";
+                message = "Component \"" + block.id + "\" has no argument \"" +
+                          argId + "\"";
                 return false;
             }
-            for (const auto &[argId, payload] : block["arguments"].items())
-            {
-                if (!findById(component->arguments(), argId))
-                {
-                    message = "Component \"" + id +
-                              "\" has no argument \"" + argId + "\"";
-                    return false;
-                }
-                (void)payload;
-            }
+            (void)payload;
         }
     }
 
-    if (document.contains("connections"))
+    int index = 0;
+    for (const ConnectionSpec &link : spec.connections)
     {
-        if (!document["connections"].is_array())
+        const std::string context = "connections[" + std::to_string(index) + "]";
+        HydroCouple::IModelComponent *source = m_resolver(link.fromComponent);
+        HydroCouple::IModelComponent *target = m_resolver(link.toComponent);
+        if (!source || !target)
         {
-            message = "\"connections\" must be an array";
+            message = context + ": unknown component id";
             return false;
         }
-        int index = 0;
-        for (const auto &connection : document["connections"])
+
+        // Exchange items exist only after a component initializes, so item
+        // level checks are deferred to apply time; role and factory names
+        // are checkable now for components already past Created.
+        if (!link.role.empty())
         {
-            for (const char *end : {"from", "to"})
+            HydroCouple::IInput *input =
+                findById(target->inputs(), link.input);
+            if (auto *multi =
+                    dynamic_cast<HydroCouple::IMultiInput *>(input))
             {
-                if (!connection.contains(end) ||
-                    !connection[end].is_object() ||
-                    !connection[end].contains("component"))
+                bool known = false;
+                for (HydroCouple::IIdentity *label : multi->providerLabels())
                 {
-                    message = "connections[" + std::to_string(index) +
-                              "] must carry \"from\"/\"to\" objects with a "
-                              "\"component\" id";
+                    if (label && label->id() == link.role)
+                    {
+                        known = true;
+                        break;
+                    }
+                }
+                if (!known)
+                {
+                    message = context + ".to.role \"" + link.role +
+                              "\" is not a provider role of input \"" +
+                              link.input + "\"";
                     return false;
                 }
             }
-            ++index;
+            else if (input)
+            {
+                message = context + ".to.role was given but input \"" +
+                          link.input + "\" is not an IMultiInput";
+                return false;
+            }
         }
+        ++index;
     }
 
     message.clear();
@@ -321,17 +350,15 @@ bool ModelInitializer::validate(const nlohmann::json &document,
 
 // ── Application ───────────────────────────────────────────────────────────
 
-bool ModelInitializer::applyComponents(const nlohmann::json &document,
-                                       std::string &message)
+bool ModelInitializer::applyComponents(std::string &message)
 {
-    for (const auto &block : document["components"])
+    for (const ComponentSpec &block : m_spec.components)
     {
-        const std::string id = block["id"].get<std::string>();
+        const std::string id = block.id;
         HydroCouple::IModelComponent *component = m_resolver(id);
 
-        if (block.contains("arguments"))
         {
-            for (const auto &[argId, payload] : block["arguments"].items())
+            for (const auto &[argId, payload] : block.arguments.items())
             {
                 HydroCouple::IArgument *argument =
                     findById(component->arguments(), argId);
@@ -381,11 +408,22 @@ bool ModelInitializer::applyComponents(const nlohmann::json &document,
         }
 
         component->initialize();
-        if (component->status() !=
-            HydroCouple::IModelComponent::ComponentStatus::Initialized)
+
+        // A component opened from recorded results legitimately finishes
+        // during initialize() — its values are already computed. Every
+        // other mode must reach Initialized.
+        using Status = HydroCouple::IModelComponent::ComponentStatus;
+        const Status status = component->status();
+        const bool acceptable =
+            status == Status::Initialized ||
+            (block.mode == ExecutionMode::Open && status == Status::Finished);
+        if (!acceptable)
         {
-            message = "Component \"" + id +
-                      "\" failed to reach Initialized after initialize()";
+            message = "Component \"" + id + "\" failed to reach " +
+                      (block.mode == ExecutionMode::Open
+                           ? "Initialized or Finished"
+                           : "Initialized") +
+                      " after initialize()";
             for (const auto &entry : component->errors())
                 message += "\n  - " + entry.message;
             return false;
@@ -395,63 +433,171 @@ bool ModelInitializer::applyComponents(const nlohmann::json &document,
     return true;
 }
 
-bool ModelInitializer::applyConnections(const nlohmann::json &document,
-                                        std::string &message)
+HydroCouple::IOutput *ModelInitializer::buildAdaptedChain(
+    const ConnectionSpec &link, HydroCouple::IOutput *provider,
+    HydroCouple::IInput *consumer, const std::string &context,
+    std::string &message)
 {
-    if (!document.contains("connections"))
-        return true;
+    HydroCouple::IOutput *current = provider;
 
-    int index = 0;
-    for (const auto &connection : document["connections"])
+    for (const AdaptedOutputSpec &step : link.adaptedOutputs)
     {
-        const auto &from = connection["from"];
-        const auto &to   = connection["to"];
+        HydroCouple::IModelComponent *owner = current->modelComponent();
+        HydroCouple::IModelComponentInfo *info =
+            owner ? owner->componentInfo() : nullptr;
+        if (!info)
+        {
+            message = context + ": adapted output \"" + step.id +
+                      "\" requested but the provider's component exposes no "
+                      "componentInfo() to find factories on";
+            return nullptr;
+        }
 
-        HydroCouple::IModelComponent *source =
-            m_resolver(from["component"].get<std::string>());
-        HydroCouple::IModelComponent *target =
-            m_resolver(to["component"].get<std::string>());
+        HydroCouple::IAdaptedOutput *created = nullptr;
+        for (HydroCouple::IAdaptedOutputFactory *factory :
+             info->adaptedOutputFactories())
+        {
+            if (!factory)
+                continue;
+            if (!step.factory.empty() && factory->id() != step.factory)
+                continue;
+
+            for (HydroCouple::IIdentity *available :
+                 factory->getAvailableAdaptedOutputIds(current, consumer))
+            {
+                if (!available || available->id() != step.id)
+                    continue;
+                std::unique_ptr<HydroCouple::IAdaptedOutput> adapted =
+                    factory->createAdaptedOutput(available, current, consumer);
+                if (!adapted)
+                {
+                    message = context + ": factory \"" + factory->id() +
+                              "\" returned no adapted output for \"" +
+                              step.id + "\"";
+                    return nullptr;
+                }
+                created = adapted.get();
+                m_adaptedOutputs.push_back(std::move(adapted));
+                break;
+            }
+            if (created)
+                break;
+        }
+
+        if (!created)
+        {
+            message = context + ": no factory on component \"" +
+                      (owner ? owner->id() : std::string("?")) +
+                      "\" offers adapted output \"" + step.id + "\"" +
+                      (step.factory.empty()
+                           ? std::string()
+                           : (" from factory \"" + step.factory + "\""));
+            return nullptr;
+        }
+
+        // Adapted-output arguments are applied before initialize(), the
+        // same contract component arguments follow.
+        for (const auto &[argId, payload] : step.arguments.items())
+        {
+            HydroCouple::IArgument *argument =
+                findById(created->arguments(), argId);
+            if (!argument)
+            {
+                message = context + ": adapted output \"" + step.id +
+                          "\" has no argument \"" + argId + "\"";
+                return nullptr;
+            }
+            std::string argMessage;
+            if (!argument->initialize(payload.dump(), AT::JSON, argMessage))
+            {
+                message = context + ": adapted output \"" + step.id +
+                          "\", argument \"" + argId + "\": " + argMessage;
+                return nullptr;
+            }
+        }
+
+        created->initialize();
+        current = created;
+    }
+
+    return current;
+}
+
+bool ModelInitializer::applyConnections(std::string &message)
+{
+    int index = 0;
+    for (const ConnectionSpec &link : m_spec.connections)
+    {
+        const std::string context = "connections[" + std::to_string(index) + "]";
+
+        HydroCouple::IModelComponent *source = m_resolver(link.fromComponent);
+        HydroCouple::IModelComponent *target = m_resolver(link.toComponent);
         if (!source || !target)
         {
-            message = "connections[" + std::to_string(index) +
-                      "]: unknown component id";
+            message = context + ": unknown component id";
             return false;
         }
 
-        const std::string outputId = from.value("output", "");
-        const std::string inputId  = to.value("input", "");
-
-        HydroCouple::IOutput *output = findById(source->outputs(), outputId);
+        HydroCouple::IOutput *output = findById(source->outputs(), link.output);
         if (!output)
         {
-            message = "connections[" + std::to_string(index) +
-                      "]: component \"" + source->id() +
-                      "\" has no output \"" + outputId + "\"";
+            message = context + ": component \"" + source->id() +
+                      "\" has no output \"" + link.output + "\"";
             return false;
         }
-        HydroCouple::IInput *input = findById(target->inputs(), inputId);
+        HydroCouple::IInput *input = findById(target->inputs(), link.input);
         if (!input)
         {
-            message = "connections[" + std::to_string(index) +
-                      "]: component \"" + target->id() +
-                      "\" has no input \"" + inputId + "\"";
+            message = context + ": component \"" + target->id() +
+                      "\" has no input \"" + link.input + "\"";
             return false;
         }
+
+        HydroCouple::IOutput *effective =
+            buildAdaptedChain(link, output, input, context, message);
+        if (!effective)
+            return false;
 
         bool wired = false;
         if (auto *multi = dynamic_cast<HydroCouple::IMultiInput *>(input))
-            wired = multi->addProvider(output);
+        {
+            HydroCouple::IIdentity *role = nullptr;
+            if (!link.role.empty())
+            {
+                for (HydroCouple::IIdentity *label : multi->providerLabels())
+                {
+                    if (label && label->id() == link.role)
+                    {
+                        role = label;
+                        break;
+                    }
+                }
+                if (!role)
+                {
+                    message = context + ": input \"" + link.input +
+                              "\" has no provider role \"" + link.role + "\"";
+                    return false;
+                }
+            }
+            wired = multi->addProvider(effective, role);
+        }
         else
-            wired = input->setProvider(output);
+        {
+            wired = input->setProvider(effective);
+        }
+
         if (!wired)
         {
             std::string why;
-            (void)input->canConsume(output, why);
-            message = "connections[" + std::to_string(index) + "]: input \"" +
-                      inputId + "\" rejected output \"" + outputId +
-                      "\"" + (why.empty() ? "" : (": " + why));
+            (void)input->canConsume(effective, why);
+            message = context + ": input \"" + link.input +
+                      "\" rejected output \"" + effective->id() + "\"" +
+                      (why.empty() ? "" : (": " + why));
             return false;
         }
+
+        // Keep the provider's consumer list symmetric with the wiring.
+        effective->addConsumer(input);
         ++index;
     }
     message.clear();
@@ -463,6 +609,16 @@ bool ModelInitializer::applyConnections(const nlohmann::json &document,
 nlohmann::json ModelInitializer::serialize(
     const std::vector<std::string> &componentIds, std::string &message) const
 {
+    // The write side of Composition Specification v1: preserve the blocks
+    // the initializer does not own (metadata, workflow, writers, run,
+    // per-component execution modes) and regenerate what it does.
+    CompositionSpec out;
+    out.schemaVersion = kCompositionSchemaVersion;
+    out.metadata      = m_spec.metadata;
+    out.workflow      = m_spec.workflow;
+    out.writers       = m_spec.writers;
+    out.runManifest   = m_spec.runManifest;
+
     nlohmann::json document;
     document["components"]  = nlohmann::json::array();
     document["connections"] = nlohmann::json::array();
@@ -478,6 +634,29 @@ nlohmann::json ModelInitializer::serialize(
 
         nlohmann::json block;
         block["id"]        = id;
+        if (const ComponentSpec *previous = m_spec.component(id))
+        {
+            if (!previous->caption.empty())
+                block["caption"] = previous->caption;
+            if (!previous->info.empty())
+            {
+                nlohmann::json info = nlohmann::json::object();
+                if (!previous->info.library.empty())
+                    info["library"] = previous->info.library;
+                if (!previous->info.componentInfoId.empty())
+                    info["component_info_id"] = previous->info.componentInfoId;
+                block["info"] = std::move(info);
+            }
+            if (previous->mode != ExecutionMode::Run ||
+                !previous->resultsManifest.empty())
+            {
+                nlohmann::json execution;
+                execution["mode"] = executionModeName(previous->mode);
+                if (!previous->resultsManifest.empty())
+                    execution["results"] = previous->resultsManifest;
+                block["execution"] = std::move(execution);
+            }
+        }
         block["arguments"] = nlohmann::json::object();
         for (HydroCouple::IArgument *argument : component->arguments())
         {
@@ -527,6 +706,15 @@ nlohmann::json ModelInitializer::serialize(
                 {"to",   {{"component", id}, {"input", input->id()}}},
             });
         }
+    }
+
+    // Blocks the initializer carries but does not regenerate.
+    nlohmann::json carried = out.toJson();
+    document["schema_version"] = carried["schema_version"];
+    for (const char *key : {"metadata", "workflow", "writers", "run"})
+    {
+        if (carried.contains(key))
+            document[key] = carried[key];
     }
 
     message.clear();

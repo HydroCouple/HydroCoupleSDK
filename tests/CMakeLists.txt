@@ -7,6 +7,7 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_component.cpp
     hydrocouplesdk/test_temporal.cpp
     hydrocouplesdk/test_io.cpp
+    hydrocouplesdk/test_compositionspec.cpp
     hydrocouplesdk/test_distributed.cpp
     hydrocouplesdk/test_fluxpayload.cpp
     hydrocouplesdk/test_device.cpp

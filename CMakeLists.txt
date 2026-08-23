@@ -508,6 +508,14 @@ install(
 
 install(FILES License Readme.md CHANGELOG.md DESTINATION .)
 
+# Formal JSON Schemas for composition documents and run manifests. Shipped
+# so editors, CI, and external tools can validate without any C++.
+install(
+    DIRECTORY share/schema/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/hydrocouplesdk/schema
+    FILES_MATCHING PATTERN "*.json"
+)
+
 # ── CPack packaging (mirrors HydroCouple interface project) ───────────────
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_NAME)
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_NAME)
