@@ -87,6 +87,12 @@
           ]
         }
       ]
+    },
+    "gpu": {
+      "description": "Kokkos device backend (USE_KOKKOS=ON); pair with kokkos platform features for CUDA/HIP/SYCL",
+      "dependencies": [
+        "kokkos"
+      ]
     }
   },
   "overrides": [

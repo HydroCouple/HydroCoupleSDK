@@ -42,6 +42,11 @@ PRIVATE
     hydrocouplesdk/distributed/partitioneddataitem.cpp
     hydrocouplesdk/distributed/fluxpayload.cpp
 
+    # ── device (namespace HydroCouple::SDK::Device) ───────────────────────
+    hydrocouplesdk/device/devicebackend.cpp
+    hydrocouplesdk/device/devicebufferregistry.cpp
+    hydrocouplesdk/device/spacetransfer.cpp
+
     # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
     hydrocouplesdk/io/snapshot.cpp
     hydrocouplesdk/io/meshdefinition.cpp
@@ -66,6 +71,13 @@ PRIVATE
     hydrocouplesdk/spatial/regulargrid2d.cpp
     hydrocouplesdk/spatial/regulargrid3d.cpp
 )
+
+# ── Kokkos device backend (optional) ──────────────────────────────────────
+if(USE_KOKKOS)
+    target_sources(HydroCoupleSDK PRIVATE
+        hydrocouplesdk/device/kokkosbackend.cpp
+    )
+endif()
 
 # ── MPI transport backend (optional) ──────────────────────────────────────
 if(USE_MPI)

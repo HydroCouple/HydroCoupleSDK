@@ -57,6 +57,7 @@ option(USE_HDF5     "Build with HDF5 support"               OFF)
 option(USE_GEOPACKAGE "Build with GeoPackage (SQLite) output" OFF)
 option(USE_OPENMP   "Build with OpenMP support"             OFF)
 option(USE_MPI      "Build with MPI support"                OFF)
+option(USE_KOKKOS   "Build the Kokkos device backend"       OFF)
 option(BUILD_TOOLS  "Build HydroCouple Tools library"       OFF)
 option(BUILD_TESTS  "Build unit tests"                      ON)
 option(BUILD_DOCS   "Build Doxygen documentation"           OFF)
@@ -202,6 +203,10 @@ if(USE_MPI)
     find_package(MPI REQUIRED)
 endif()
 
+if(USE_KOKKOS)
+    find_package(Kokkos CONFIG REQUIRED)
+endif()
+
 # ── Version metadata (mirrors HydroCouple interface project) ─────────────
 string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S UTC")
 set(BUILD_DATE "${BUILD_TIMESTAMP}")
@@ -257,6 +262,9 @@ endif()
 if(USE_MPI)
     target_compile_definitions(HydroCoupleSDK PUBLIC USE_MPI)
 endif()
+if(USE_KOKKOS)
+    target_compile_definitions(HydroCoupleSDK PUBLIC USE_KOKKOS)
+endif()
 if(USE_GDAL)
     target_compile_definitions(HydroCoupleSDK PUBLIC USE_GDAL)
 endif()
@@ -276,6 +284,7 @@ target_link_libraries(HydroCoupleSDK
     PRIVATE
         $<$<BOOL:${USE_OPENMP}>:OpenMP::OpenMP_CXX>
         $<$<BOOL:${USE_MPI}>:MPI::MPI_CXX>
+        $<$<BOOL:${USE_KOKKOS}>:Kokkos::kokkos>
 )
 
 if(USE_HDF5)
