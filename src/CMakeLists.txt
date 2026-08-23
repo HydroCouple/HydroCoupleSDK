@@ -27,6 +27,7 @@ PRIVATE
     hydrocouplesdk/data/argument2d.cpp
     hydrocouplesdk/data/idbasedargument.cpp
     hydrocouplesdk/data/abstractadaptedoutputfactory.cpp
+    hydrocouplesdk/data/idbasedexchangeitems.cpp
     hydrocouplesdk/component/abstractmodelcomponent.cpp
     hydrocouplesdk/component/workflowstatuschangeeventargs.cpp
     hydrocouplesdk/component/abstractworkflowcomponent.cpp
@@ -61,6 +62,9 @@ PRIVATE
     hydrocouplesdk/temporal/timeseriesexchangeitems.cpp
     hydrocouplesdk/temporal/timeseriesadaptedoutput.cpp
     hydrocouplesdk/temporal/timeseriesargument.cpp
+
+    # ── spatiotemporal (namespace HydroCouple::SDK::SpatioTemporal) ───────
+    hydrocouplesdk/spatiotemporal/spatiotemporalitems.cpp
 
     # ── spatial (namespace HydroCouple::Spatial) ──────────────────────────
     hydrocouplesdk/spatial/linestring.cpp
