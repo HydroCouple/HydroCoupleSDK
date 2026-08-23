@@ -35,6 +35,11 @@ target_compile_definitions(HydroCoupleSDKTests
 )
 
 
+if(BUILD_TOOLS)
+    target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_tools.cpp)
+    target_link_libraries(HydroCoupleSDKTests PRIVATE HydroCoupleTools)
+endif()
+
 if(USE_HDF5)
     target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_hdf5.cpp)
     target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_HDF5_TARGET})

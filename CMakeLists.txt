@@ -348,10 +348,28 @@ target_compile_options(HydroCoupleSDK PRIVATE
     $<$<AND:$<CONFIG:Release>,$<BOOL:${HAS_TREE_VECTORIZE}>>:-ftree-vectorize>
 )
 
-# ── Tools library (optional) ──────────────────────────────────────────────
-if(BUILD_TOOLS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/domain/terraindomain.cpp")
-    add_library(HydroCoupleTools SHARED)
-    add_subdirectory(src/tools)
+# ── Tools library (optional): mesh generation (plan §7b) ──────────────────
+if(BUILD_TOOLS)
+    # CDT (MIT, header-only) provides the constrained Delaunay engine:
+    # vcpkg config first, plain include directory as the fallback.
+    find_package(CDT CONFIG QUIET)
+    if(NOT CDT_FOUND)
+        set(CDT_INCLUDE_DIR "" CACHE PATH
+            "Directory containing CDT.h (artem-ogre/CDT single headers)")
+        if(NOT EXISTS "${CDT_INCLUDE_DIR}/CDT.h")
+            message(FATAL_ERROR
+                "BUILD_TOOLS requires CDT: enable the vcpkg 'tools' feature "
+                "or set CDT_INCLUDE_DIR to a directory containing CDT.h")
+        endif()
+    endif()
+
+    add_library(HydroCoupleTools SHARED
+        src/hydrocoupletools/sigmagrid.cpp
+        src/hydrocoupletools/curvilineargrid.cpp
+        src/hydrocoupletools/triangulator.cpp
+        src/hydrocoupletools/quadmesher.cpp
+        src/hydrocoupletools/terrainsampler.cpp
+    )
 
     target_compile_definitions(HydroCoupleTools PRIVATE HYDROCOUPLETOOLS_LIBRARY)
     target_compile_features(HydroCoupleTools PUBLIC cxx_std_20)
@@ -361,16 +379,11 @@ if(BUILD_TOOLS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/domain/terraind
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:include>
     )
-    target_link_libraries(HydroCoupleTools PUBLIC HydroCoupleSDK GDAL::GDAL)
-
-    # Triangle library for Delaunay generation (CDT is the MIT replacement; Triangle kept for non-commercial)
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/triangle/triangle.c)
-        add_library(triangle_lib STATIC
-            src/vendor/triangle/triangle.c)
-        target_compile_definitions(triangle_lib PRIVATE
-            TRILIBRARY ANSI_DECLARATORS NO_TIMER)
-        set_property(TARGET triangle_lib PROPERTY C_STANDARD 99)
-        target_link_libraries(HydroCoupleTools PRIVATE triangle_lib)
+    target_link_libraries(HydroCoupleTools PUBLIC HydroCoupleSDK)
+    if(CDT_FOUND)
+        target_link_libraries(HydroCoupleTools PRIVATE CDT::CDT)
+    else()
+        target_include_directories(HydroCoupleTools PRIVATE ${CDT_INCLUDE_DIR})
     endif()
 endif()
 
