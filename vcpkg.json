@@ -43,19 +43,18 @@
           "name": "netcdf-c",
           "default-features": false,
           "features": [
-            "hdf5"
+            "netcdf-4"
           ]
         }
       ]
     },
     "hdf5": {
-      "description": "Thread-safe HDF5/UGRID output persistence (USE_HDF5=ON; HDF5 built with its global-lock threadsafe mode as belt-and-braces \u2014 the SDK's single-writer IOThread is the primary concurrency guarantee)",
+      "description": "HDF5/UGRID output persistence (USE_HDF5=ON). Concurrency is guaranteed by the SDK's single-writer IOThread, not by HDF5's global-lock threadsafe mode \u2014 which the port declares incompatible with the high-level library that netcdf-c requires.",
       "dependencies": [
         {
           "name": "hdf5",
           "default-features": false,
           "features": [
-            "threadsafe",
             "zlib"
           ]
         }
@@ -68,12 +67,8 @@
       ]
     },
     "tools": {
-      "description": "Mesh generation and interpolation tools",
+      "description": "Mesh generation tools: constrained Delaunay triangulation, quad-dominant meshing, curvilinear and terrain-following sigma grids (BUILD_TOOLS=ON)",
       "dependencies": [
-        {
-          "name": "gdal",
-          "default-features": false
-        },
         "cdt"
       ]
     },

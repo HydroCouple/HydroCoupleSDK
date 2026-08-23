@@ -6,7 +6,7 @@
  * \author Caleb Buahin
  * \version 2.0.0-alpha.1
  * \brief  Constrained Delaunay triangulation (plan §7b.1) over the CDT
- *         library (MIT).
+ *         library (MPL-2.0 AND BSD-3-Clause).
  *
  * Triangulates a boundary polygon with optional holes, constraint
  * segments, and interior (Steiner) points. Boundary and constraint edges

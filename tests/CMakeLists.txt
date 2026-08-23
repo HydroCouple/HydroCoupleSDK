@@ -59,6 +59,8 @@ if(USE_NETCDF)
     target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_NETCDF_TARGET})
 endif()
 
+hydrocouplesdk_colocate_runtime_dlls(HydroCoupleSDKTests)
+
 include(GoogleTest)
 gtest_discover_tests(HydroCoupleSDKTests)
 
@@ -78,8 +80,21 @@ if(USE_MPI)
             ${CMAKE_SOURCE_DIR}/include
             ${HYDROCOUPLE_INCLUDE_DIR}
     )
+    hydrocouplesdk_colocate_runtime_dlls(HydroCoupleSDKMpiTests)
+
+    # Rank count is configurable, and the launcher's own flags come from
+    # FindMPI's MPIEXEC_PREFLAGS. CI machines usually have fewer cores than
+    # ranks, and OpenMPI refuses to oversubscribe unless told to
+    # (--oversubscribe), while MPICH rejects that flag outright — so the
+    # flag belongs to the environment, not to this file.
+    set(HYDROCOUPLESDK_MPI_TEST_RANKS 3 CACHE STRING
+        "Ranks used by the MPI transport test suite (3 exercises the ring)")
+
     add_test(NAME MpiTransportSuite
-        COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 3
+        COMMAND ${MPIEXEC_EXECUTABLE}
+                ${MPIEXEC_NUMPROC_FLAG} ${HYDROCOUPLESDK_MPI_TEST_RANKS}
+                ${MPIEXEC_PREFLAGS}
                 $<TARGET_FILE:HydroCoupleSDKMpiTests>
+                ${MPIEXEC_POSTFLAGS}
     )
 endif()

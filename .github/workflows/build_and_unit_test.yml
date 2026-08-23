@@ -65,6 +65,11 @@ jobs:
           # Reads the run manifest with no model components linked.
           ./analysis_reopen example-output/run.json
 
+      - name: Set up Python for schema validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Validate documents against the shipped JSON Schemas
         shell: bash
         run: |
@@ -143,6 +148,7 @@ jobs:
           "-DVCPKG_MANIFEST_FEATURES=tests"
           -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
           -DUSE_MPI=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+          "-DMPIEXEC_PREFLAGS=--oversubscribe"
 
       - name: Build
         run: cmake --build build --parallel

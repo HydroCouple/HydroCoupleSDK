@@ -8,6 +8,7 @@
 
 add_executable(serial_coupling serial_coupling/main.cpp)
 target_link_libraries(serial_coupling PRIVATE HydroCoupleSDK)
+hydrocouplesdk_colocate_runtime_dlls(serial_coupling)
 
 # Composition documents live beside the binary so it runs from the build dir.
 add_custom_command(TARGET serial_coupling POST_BUILD
@@ -21,9 +22,11 @@ add_custom_command(TARGET serial_coupling POST_BUILD
 # and visualization case the run manifest exists for.
 add_executable(analysis_reopen analysis_reopen/main.cpp)
 target_link_libraries(analysis_reopen PRIVATE HydroCoupleSDK)
+hydrocouplesdk_colocate_runtime_dlls(analysis_reopen)
 
 if(USE_MPI)
     add_executable(distributed_coupling distributed_coupling/main.cpp)
     target_link_libraries(distributed_coupling
         PRIVATE HydroCoupleSDK MPI::MPI_CXX)
+    hydrocouplesdk_colocate_runtime_dlls(distributed_coupling)
 endif()

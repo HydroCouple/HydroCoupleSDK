@@ -606,12 +606,20 @@ TEST_F(SidecarTest, TenMillionElementRoundTripAtBulkSpeed)
     ASSERT_EQ(fresh->coeffs->length(), kCount);
     EXPECT_DOUBLE_EQ((*fresh->coeffs)[kCount - 1],
                      static_cast<double>((kCount - 1) % 1000));
-    // The document stayed flat — a reference object, not a 10⁷-element array.
+    // The document stayed flat — a reference object, not a 10⁷-element
+    // array. This is the assertion that actually proves the sidecar took
+    // the bulk path: a DOM-shaped serialization of 10⁷ doubles produces a
+    // ~70 MB document, so it cannot pass this bound at any speed.
     EXPECT_LT(document.dump().size(), 4096u);
-    // Bulk speed: 160 MB moved (write + read); anything DOM-shaped takes
-    // minutes — bulk copies take well under 10 s even on slow disks.
+
+    // Wall-clock is reported, not asserted tightly. Throughput on a shared
+    // CI runner is set by the machine's disk and by whatever else is running
+    // on it — a threshold near the observed time (~3 s here) measures the
+    // runner, not the SDK, and flakes under load. The bound below is a
+    // pathology guard only; the structural assertion above is what fails if
+    // the sidecar path regresses.
     const double mb = 2.0 * kCount * sizeof(double) / (1024.0 * 1024.0);
     std::printf("[ sidecar ] %.0f MB round trip in %.2f s (%.0f MB/s)\n",
                 mb, elapsed, mb / elapsed);
-    EXPECT_LT(elapsed, 10.0);
+    EXPECT_LT(elapsed, 120.0);
 }

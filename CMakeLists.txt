@@ -95,31 +95,61 @@ endif()
 
 # ── Version alignment with the interface definitions ──────────────────────
 # The SDK versions in lockstep with the HydroCouple interface: MAJOR.MINOR
-# must match the interface headers this build compiles against. The
-# interface's include/version.h is the source of truth.
+# must match the interface headers this build compiles against.
+#
+# The interface's generated include/version.h is the source of truth when a
+# built or installed tree is used. A plain source checkout (what CI does)
+# only carries version.h.in, so fall back to the version declared in the
+# interface's own CMakeLists.txt — otherwise the check silently skips
+# exactly where it matters most.
+set(HYDROCOUPLE_INTERFACE_VERSION "")
 if(EXISTS "${HYDROCOUPLE_INCLUDE_DIR}/version.h")
     file(STRINGS "${HYDROCOUPLE_INCLUDE_DIR}/version.h" _hc_version_line
          REGEX "#define PROJECT_VERSION \"[0-9]+\\.[0-9]+\\.[0-9]+\"")
     if(_hc_version_line MATCHES "\"([0-9]+)\\.([0-9]+)\\.([0-9]+)\"")
         set(HYDROCOUPLE_INTERFACE_VERSION
             "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
-        if(NOT (CMAKE_MATCH_1 STREQUAL PROJECT_VERSION_MAJOR AND
-                CMAKE_MATCH_2 STREQUAL PROJECT_VERSION_MINOR))
-            message(FATAL_ERROR
-                "Version misalignment: HydroCoupleSDK ${HYDROCOUPLESDK_FULL_VERSION} "
-                "must share MAJOR.MINOR with the HydroCouple interface headers "
-                "(found ${HYDROCOUPLE_INTERFACE_VERSION} at ${HYDROCOUPLE_INCLUDE_DIR}). "
-                "Bump the SDK version or point HYDROCOUPLE_INCLUDE_DIR at a matching "
-                "interface checkout.")
-        endif()
-        message(STATUS
-            "HydroCoupleSDK ${HYDROCOUPLESDK_FULL_VERSION} against HydroCouple "
-            "interface ${HYDROCOUPLE_INTERFACE_VERSION} — versions aligned")
+        set(_hc_version_source "${HYDROCOUPLE_INCLUDE_DIR}/version.h")
     endif()
+endif()
+
+if(NOT HYDROCOUPLE_INTERFACE_VERSION)
+    # include/ is a sibling of the interface project root in every layout we
+    # support (source checkout or install prefix).
+    get_filename_component(_hc_project_root "${HYDROCOUPLE_INCLUDE_DIR}" DIRECTORY)
+    if(EXISTS "${_hc_project_root}/CMakeLists.txt")
+        file(STRINGS "${_hc_project_root}/CMakeLists.txt" _hc_project_lines)
+        string(JOIN " " _hc_project_text ${_hc_project_lines})
+        if(_hc_project_text MATCHES
+           "project[ \t]*\\([ \t]*HydroCouple[ \t]+VERSION[ \t]+([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+            set(HYDROCOUPLE_INTERFACE_VERSION
+                "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
+            set(_hc_version_source "${_hc_project_root}/CMakeLists.txt")
+        endif()
+    endif()
+endif()
+
+if(HYDROCOUPLE_INTERFACE_VERSION)
+    string(REPLACE "." ";" _hc_version_parts "${HYDROCOUPLE_INTERFACE_VERSION}")
+    list(GET _hc_version_parts 0 _hc_major)
+    list(GET _hc_version_parts 1 _hc_minor)
+    if(NOT (_hc_major STREQUAL PROJECT_VERSION_MAJOR AND
+            _hc_minor STREQUAL PROJECT_VERSION_MINOR))
+        message(FATAL_ERROR
+            "Version misalignment: HydroCoupleSDK ${HYDROCOUPLESDK_FULL_VERSION} "
+            "must share MAJOR.MINOR with the HydroCouple interface "
+            "(found ${HYDROCOUPLE_INTERFACE_VERSION} via ${_hc_version_source}). "
+            "Bump the SDK version or point HYDROCOUPLE_INCLUDE_DIR at a matching "
+            "interface checkout.")
+    endif()
+    message(STATUS
+        "HydroCoupleSDK ${HYDROCOUPLESDK_FULL_VERSION} against HydroCouple "
+        "interface ${HYDROCOUPLE_INTERFACE_VERSION} — versions aligned")
 else()
     message(WARNING
-        "Interface version.h not found at ${HYDROCOUPLE_INCLUDE_DIR}; "
-        "skipping version-alignment check.")
+        "Could not determine the HydroCouple interface version from "
+        "${HYDROCOUPLE_INCLUDE_DIR} (no version.h, and no project(HydroCouple "
+        "VERSION ...) nearby); skipping the version-alignment check.")
 endif()
 
 # ── Dependencies (resolved by vcpkg toolchain when present) ───────────────
@@ -262,9 +292,16 @@ string(
 set(BUILD_COMMIT "${GIT_COMMIT_HASH}")
 set(BUILD_BRANCH "${GIT_BRANCH_NAME}")
 
+# version.h is generated into the build tree, not the source tree. It stamps
+# the git commit, branch, and configure date, so writing it back into
+# include/ left every working tree permanently dirty and committed whichever
+# branch happened to be checked out when someone last configured — provenance
+# that is wrong for every other checkout. Only version.h.in is tracked.
+set(HYDROCOUPLESDK_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hydrocouplesdk/version.h.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/hydrocouplesdk/version.h
+    ${HYDROCOUPLESDK_GENERATED_INCLUDE_DIR}/hydrocouplesdk/version.h
     @ONLY
 )
 
@@ -294,6 +331,9 @@ target_include_directories(HydroCoupleSDK
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     PUBLIC
+        # Generated first, so a stale version.h left in the source tree by an
+        # older checkout cannot shadow the current one.
+        $<BUILD_INTERFACE:${HYDROCOUPLESDK_GENERATED_INCLUDE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${HYDROCOUPLE_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>
@@ -395,7 +435,8 @@ target_compile_options(HydroCoupleSDK PRIVATE
 
 # ── Tools library (optional): mesh generation (plan §7b) ──────────────────
 if(BUILD_TOOLS)
-    # CDT (MIT, header-only) provides the constrained Delaunay engine:
+    # CDT (MPL-2.0 AND BSD-3-Clause, header-only) provides the constrained
+    # Delaunay engine:
     # vcpkg config first, plain include directory as the fallback.
     find_package(CDT CONFIG QUIET)
     if(NOT CDT_FOUND)
@@ -431,6 +472,22 @@ if(BUILD_TOOLS)
         target_include_directories(HydroCoupleTools PRIVATE ${CDT_INCLUDE_DIR})
     endif()
 endif()
+
+
+# ── Windows runtime co-location ───────────────────────────────────────────
+# Windows has no rpath: an executable finds a sibling shared library only if
+# the DLL sits next to it (or on PATH). Tests and examples live in their own
+# build subdirectories, so copy the DLLs they link against alongside them.
+# vcpkg app-local deployment handles its own ports; HydroCoupleSDK is ours.
+function(hydrocouplesdk_colocate_runtime_dlls target)
+    if(WIN32 AND NOT CMAKE_VERSION VERSION_LESS "3.21")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    $<TARGET_RUNTIME_DLLS:${target}> $<TARGET_FILE_DIR:${target}>
+            COMMAND_EXPAND_LISTS
+        )
+    endif()
+endfunction()
 
 # ── Tests ─────────────────────────────────────────────────────────────────
 if(BUILD_TESTS)
@@ -500,10 +557,19 @@ install(
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/HydroCoupleSDK
 )
 
+# The source tree's headers, minus version.h — that one is generated, and a
+# stale copy in an older checkout must not be the one that ships.
 install(
     DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING PATTERN "*.h"
+    FILES_MATCHING
+        PATTERN "hydrocouplesdk/version.h" EXCLUDE
+        PATTERN "*.h"
+)
+
+install(
+    FILES ${HYDROCOUPLESDK_GENERATED_INCLUDE_DIR}/hydrocouplesdk/version.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hydrocouplesdk
 )
 
 install(FILES License Readme.md CHANGELOG.md DESTINATION .)

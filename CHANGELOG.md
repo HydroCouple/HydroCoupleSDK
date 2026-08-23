@@ -76,6 +76,39 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   → compare round trip. Previously only CSV and HDF5 were, which is how
   the GeoPackage column bug above escaped into a commit; the new tests
   fail if it is reintroduced.
+- **The vcpkg manifest named features that do not exist**, which failed
+  dependency resolution before a single file compiled — on every job in
+  the matrix. `netcdf-c`'s HDF5 backing is the `netcdf-4` feature (there
+  is no `hdf5` feature); `hdf5[threadsafe]` conflicts with the `hl` and
+  `cpp` features the port needs and would have force-enabled
+  `HDF5_ALLOW_UNSUPPORTED` (the SDK's concurrency guarantee is the
+  single-writer IO thread, not a thread-safe HDF5); and the `tools`
+  feature pulled GDAL though `HydroCoupleTools` links only CDT.
+- The MPI test hardcoded three ranks, so it failed on any runner with
+  fewer cores ("not enough slots"). Rank count is now
+  `HYDROCOUPLESDK_MPI_TEST_RANKS`, and launcher flags come from FindMPI's
+  `MPIEXEC_PREFLAGS` — OpenMPI needs `--oversubscribe` to pack ranks onto
+  fewer cores and MPICH rejects that flag outright, so it belongs to the
+  environment rather than the build file.
+- The configure-time version-alignment check silently passed whenever the
+  interface was consumed from a source checkout, because it only read a
+  generated `version.h`; it now falls back to the interface's
+  `project(HydroCouple VERSION …)` declaration.
+- `version.h` was generated *into the source tree* and tracked, so every
+  configure dirtied the working tree and commits carried whichever branch
+  and commit happened to be checked out when someone last configured —
+  wrong provenance for every other checkout. It is now generated into the
+  build tree, installed from there, and ignored in git; only
+  `version.h.in` is tracked.
+- Windows test and example executables now have their dependent DLLs
+  copied beside them (`$<TARGET_RUNTIME_DLLS:…>`), which is what the
+  runner needs to launch them at all.
+- The 10⁷-element sidecar benchmark asserted a 10 s wall clock, which
+  measures the runner rather than the SDK and flaked under load. The
+  structural assertion (a flat document under 4 KB) is what actually
+  proves the bulk path was taken — a DOM-shaped serialization cannot pass
+  it at any speed — so the timing bound is now a pathology guard only.
+- CDT is licensed MPL-2.0 AND BSD-3-Clause; three places said MIT.
 
 ## [2.0.0-alpha.1] — 2026-08-23
 
@@ -119,7 +152,7 @@ build system, and execution layers against HydroCouple v2.0.0-alpha.1.
   time-and-identifier item.
 - **Meshing tools** (`c4f4940`) — `HydroCoupleTools`: terrain-following
   sigma grids, boundary-fitted curvilinear grids (transfinite + Winslow,
-  quality metrics), constrained Delaunay triangulation over CDT,
+  quality metrics), constrained Delaunay triangulation over CDT (MPL-2.0/BSD-3-Clause),
   quad-dominant meshing, and IDW terrain sampling.
 - **Examples** — a YAML/JSON-initialized two-component serial coupling
   writing CSV/GeoPackage/HDF5 through the IO thread, and the same domain
