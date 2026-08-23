@@ -33,7 +33,7 @@
 #define HYDROCOUPLESDK_IO_GEOPACKAGEWRITER_H
 
 #include "hydrocouplesdk/io/outputwriter.h"
-#include "hydrocouplesdk/io/hdf5ugridwriter.h" // MeshDefinition
+#include "hydrocouplesdk/io/meshdefinition.h"
 
 #include <filesystem>
 #include <memory>

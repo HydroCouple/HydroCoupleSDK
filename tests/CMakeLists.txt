@@ -40,5 +40,10 @@ if(USE_GEOPACKAGE)
     target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_SQLITE_TARGET})
 endif()
 
+if(USE_NETCDF)
+    target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_netcdf.cpp)
+    target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_NETCDF_TARGET})
+endif()
+
 include(GoogleTest)
 gtest_discover_tests(HydroCoupleSDKTests)

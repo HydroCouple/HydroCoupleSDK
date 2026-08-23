@@ -143,11 +143,20 @@ if(NOT nlohmann_json_FOUND)
 endif()
 
 if(USE_NETCDF)
-    find_package(netCDF QUIET)
-    if(NOT netCDF_FOUND)
-        # Fallback: some vcpkg builds expose it as netcdf-cxx4
-        find_package(netcdf-cxx4 REQUIRED)
+    # Config-mode first (netCDFConfig.cmake exports netCDF::netcdf), then a
+    # manual header/library probe — the openswmm.engine fallback chain.
+    find_package(netCDF CONFIG QUIET)
+    if(TARGET netCDF::netcdf)
+        set(HYDROCOUPLESDK_NETCDF_TARGET netCDF::netcdf)
+    else()
+        find_path(NETCDF_INCLUDE_DIR netcdf.h REQUIRED)
+        find_library(NETCDF_LIBRARY NAMES netcdf REQUIRED)
+        add_library(hydrocouplesdk_netcdf INTERFACE)
+        target_include_directories(hydrocouplesdk_netcdf INTERFACE ${NETCDF_INCLUDE_DIR})
+        target_link_libraries(hydrocouplesdk_netcdf INTERFACE ${NETCDF_LIBRARY})
+        set(HYDROCOUPLESDK_NETCDF_TARGET hydrocouplesdk_netcdf)
     endif()
+    message(STATUS "NetCDF target: ${HYDROCOUPLESDK_NETCDF_TARGET}")
 endif()
 
 if(USE_HDF5)
@@ -277,6 +286,11 @@ endif()
 if(USE_GEOPACKAGE)
     target_compile_definitions(HydroCoupleSDK PUBLIC HYDROCOUPLESDK_HAVE_GEOPACKAGE)
     target_link_libraries(HydroCoupleSDK PRIVATE ${HYDROCOUPLESDK_SQLITE_TARGET})
+endif()
+
+if(USE_NETCDF)
+    target_compile_definitions(HydroCoupleSDK PUBLIC HYDROCOUPLESDK_HAVE_NETCDF)
+    target_link_libraries(HydroCoupleSDK PRIVATE ${HYDROCOUPLESDK_NETCDF_TARGET})
 endif()
 
 if(HYDROCOUPLESDK_HAVE_YAML_CPP)

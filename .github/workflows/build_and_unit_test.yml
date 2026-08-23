@@ -44,9 +44,9 @@ jobs:
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          "-DVCPKG_MANIFEST_FEATURES=tests;hdf5;geopackage"
+          "-DVCPKG_MANIFEST_FEATURES=tests;hdf5;geopackage;netcdf"
           -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
-          -DUSE_GDAL=OFF -DUSE_NETCDF=OFF -DUSE_HDF5=ON -DUSE_GEOPACKAGE=ON -DUSE_OPENMP=OFF
+          -DUSE_GDAL=OFF -DUSE_NETCDF=ON -DUSE_HDF5=ON -DUSE_GEOPACKAGE=ON -DUSE_OPENMP=OFF
           -DBUILD_TOOLS=OFF -DBUILD_TESTS=ON
 
       - name: Build

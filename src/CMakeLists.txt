@@ -31,6 +31,7 @@ PRIVATE
 
     # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
     hydrocouplesdk/io/snapshot.cpp
+    hydrocouplesdk/io/meshdefinition.cpp
     hydrocouplesdk/io/iothread.cpp
     hydrocouplesdk/io/csvwriter.cpp
     hydrocouplesdk/io/modelinitializer.cpp
@@ -82,5 +83,11 @@ endif()
 if(USE_GEOPACKAGE)
     target_sources(HydroCoupleSDK PRIVATE
         hydrocouplesdk/io/geopackagewriter.cpp
+    )
+endif()
+
+if(USE_NETCDF)
+    target_sources(HydroCoupleSDK PRIVATE
+        hydrocouplesdk/io/netcdfugridwriter.cpp
     )
 endif()

@@ -37,9 +37,15 @@
       ]
     },
     "netcdf": {
-      "description": "NetCDF output persistence (USE_NETCDF=ON)",
+      "description": "NetCDF-4/UGRID output persistence (USE_NETCDF=ON)",
       "dependencies": [
-        "netcdf-cxx4"
+        {
+          "name": "netcdf-c",
+          "default-features": false,
+          "features": [
+            "hdf5"
+          ]
+        }
       ]
     },
     "hdf5": {
