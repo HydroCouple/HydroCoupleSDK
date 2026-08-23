@@ -470,3 +470,146 @@ TEST(IOEndToEnd, ComposeCaptureWriteVerify)
         ++lines;
     EXPECT_EQ(lines, 1 + 9);
 }
+
+// ── Sidecar binary references (efficiency contract, plan §4.7) ────────────
+
+#include "hydrocouplesdk/io/sidecar.h"
+#include <chrono>
+
+class SidecarTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        m_dir = std::filesystem::path(TEST_ARTIFACTS_DIR) / "sidecars";
+        std::filesystem::remove_all(m_dir);
+        std::filesystem::create_directories(m_dir);
+
+        m_component = std::make_unique<IOTestComponent>("model");
+        m_resolver  = [this](const std::string &id) -> IModelComponent * {
+            return id == "model" ? m_component.get() : nullptr;
+        };
+    }
+
+    std::filesystem::path               m_dir;
+    std::unique_ptr<IOTestComponent>    m_component;
+    ModelInitializer::ComponentResolver m_resolver;
+};
+
+TEST_F(SidecarTest, SmallPayloadsStayInline)
+{
+    ModelInitializer initializer(m_resolver);
+    initializer.setSidecarDirectory(m_dir);
+    std::string message;
+    ASSERT_TRUE(initializer.initializeFromJsonText(R"({
+        "components": [{ "id": "model",
+                         "arguments": { "coeffs": { "values": [1.0, 2.0] } } }]
+    })", message)) << message;
+
+    const auto document = initializer.serialize({"model"}, message);
+    ASSERT_FALSE(document.is_null()) << message;
+    // 2 doubles = 16 bytes < 1024 → inline array, no sidecar file.
+    EXPECT_TRUE(document["components"][0]["arguments"]["coeffs"]
+                    .contains("values"));
+    EXPECT_TRUE(std::filesystem::is_empty(m_dir));
+}
+
+TEST_F(SidecarTest, LargePayloadBecomesReferenceAndRoundTrips)
+{
+    // 1000 doubles = 8000 bytes > 1024 → sidecar.
+    std::string message;
+    m_component->initialize();
+    m_component->coeffs->resizeDataArray(1000);
+    for (int i = 0; i < 1000; ++i)
+        (*m_component->coeffs)[i] = i * 0.5;
+
+    ModelInitializer initializer(m_resolver);
+    initializer.setSidecarDirectory(m_dir);
+    const auto document = initializer.serialize({"model"}, message);
+    ASSERT_FALSE(document.is_null()) << message;
+
+    const auto &payload = document["components"][0]["arguments"]["coeffs"];
+    ASSERT_TRUE(payload.contains("@ref")) << payload.dump();
+    EXPECT_EQ(payload["kind"], "Float64");
+    EXPECT_EQ(payload["shape"], nlohmann::json::parse("[1000]"));
+    EXPECT_TRUE(std::filesystem::exists(m_dir / "model_coeffs.bin"));
+    EXPECT_EQ(std::filesystem::file_size(m_dir / "model_coeffs.bin"),
+              1000u * sizeof(double));
+
+    // Re-initialize a fresh component from the document + sidecar.
+    auto fresh = std::make_unique<IOTestComponent>("model");
+    ModelInitializer second(
+        [&](const std::string &id) -> IModelComponent * {
+            return id == "model" ? fresh.get() : nullptr;
+        });
+    second.setSidecarDirectory(m_dir);
+    ASSERT_TRUE(second.initialize(document, message)) << message;
+    ASSERT_EQ(fresh->coeffs->length(), 1000);
+    EXPECT_DOUBLE_EQ((*fresh->coeffs)[999], 999 * 0.5);
+}
+
+TEST_F(SidecarTest, CorruptedSidecarFailsWithActionableMessage)
+{
+    std::string message;
+    m_component->initialize();
+    m_component->coeffs->resizeDataArray(1000);
+    ModelInitializer initializer(m_resolver);
+    initializer.setSidecarDirectory(m_dir);
+    const auto document = initializer.serialize({"model"}, message);
+    ASSERT_FALSE(document.is_null()) << message;
+
+    // Truncate the sidecar.
+    std::filesystem::resize_file(m_dir / "model_coeffs.bin", 100);
+
+    auto fresh = std::make_unique<IOTestComponent>("model");
+    ModelInitializer second(
+        [&](const std::string &id) -> IModelComponent * {
+            return id == "model" ? fresh.get() : nullptr;
+        });
+    second.setSidecarDirectory(m_dir);
+    EXPECT_FALSE(second.initialize(document, message));
+    EXPECT_NE(message.find("100"), std::string::npos);
+}
+
+TEST_F(SidecarTest, TenMillionElementRoundTripAtBulkSpeed)
+{
+    // The plan's §4.7 benchmark: a 10⁷-element (80 MB) argument round-trips
+    // through a sidecar reference with a flat document and bulk-copy speed.
+    constexpr int64_t kCount = 10'000'000;
+    std::string message;
+    m_component->initialize();
+    m_component->coeffs->resizeDataArray(static_cast<int>(kCount));
+    auto &raw = m_component->coeffs->rawData();
+    for (int64_t i = 0; i < kCount; ++i)
+        raw[static_cast<size_t>(i)] = static_cast<double>(i % 1000);
+
+    ModelInitializer initializer(m_resolver);
+    initializer.setSidecarDirectory(m_dir);
+
+    const auto begin = std::chrono::steady_clock::now();
+    const auto document = initializer.serialize({"model"}, message);
+    ASSERT_FALSE(document.is_null()) << message;
+
+    auto fresh = std::make_unique<IOTestComponent>("model");
+    ModelInitializer second(
+        [&](const std::string &id) -> IModelComponent * {
+            return id == "model" ? fresh.get() : nullptr;
+        });
+    second.setSidecarDirectory(m_dir);
+    ASSERT_TRUE(second.initialize(document, message)) << message;
+    const auto elapsed = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - begin).count();
+
+    // Correctness.
+    ASSERT_EQ(fresh->coeffs->length(), kCount);
+    EXPECT_DOUBLE_EQ((*fresh->coeffs)[kCount - 1],
+                     static_cast<double>((kCount - 1) % 1000));
+    // The document stayed flat — a reference object, not a 10⁷-element array.
+    EXPECT_LT(document.dump().size(), 4096u);
+    // Bulk speed: 160 MB moved (write + read); anything DOM-shaped takes
+    // minutes — bulk copies take well under 10 s even on slow disks.
+    const double mb = 2.0 * kCount * sizeof(double) / (1024.0 * 1024.0);
+    std::printf("[ sidecar ] %.0f MB round trip in %.2f s (%.0f MB/s)\n",
+                mb, elapsed, mb / elapsed);
+    EXPECT_LT(elapsed, 10.0);
+}

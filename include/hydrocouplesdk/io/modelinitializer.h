@@ -137,6 +137,25 @@ public:
      */
     [[nodiscard]] static bool yamlSupported() noexcept;
 
+    // ── Sidecar binary references (efficiency contract, plan §4.7) ────────
+
+    /*!
+     * \brief Enables sidecar mode: serialize() replaces argument payloads
+     *        larger than the byte threshold with \c \@ref objects whose
+     *        bulk bytes are written to \p directory, and initialize()
+     *        resolves relative references against it.
+     *
+     * Without a sidecar directory, initialize() resolves relative
+     * references against the composition document's directory.
+     */
+    void setSidecarDirectory(std::filesystem::path directory);
+
+    /*!
+     * \brief Payload size (in value bytes) above which serialize() emits a
+     *        sidecar reference instead of an inline array (default 1024).
+     */
+    void setSidecarThresholdBytes(int64_t bytes);
+
 private:
     [[nodiscard]] bool validate(const nlohmann::json &document,
                                 std::string &message) const;
@@ -145,7 +164,10 @@ private:
     [[nodiscard]] bool applyConnections(const nlohmann::json &document,
                                         std::string &message);
 
-    ComponentResolver m_resolver;
+    ComponentResolver     m_resolver;
+    std::filesystem::path m_sidecarDirectory; //!< Empty = sidecar mode off.
+    std::filesystem::path m_documentDirectory; //!< Base for relative refs.
+    int64_t               m_sidecarThresholdBytes = 1024;
 };
 
 } // namespace HydroCouple::SDK::IO

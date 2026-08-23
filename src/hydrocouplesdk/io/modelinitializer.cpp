@@ -3,6 +3,9 @@
 
 #include "stdafx.h"
 #include "hydrocouplesdk/io/modelinitializer.h"
+#include "hydrocouplesdk/io/sidecar.h"
+#include "hydrocouplesdk/data/abstractcomponentdataitem.h"
+#include "hydrocouplesdk/data/bufferio.h"
 
 #include <fstream>
 #include <sstream>
@@ -71,7 +74,86 @@ nlohmann::json yamlToJson(const YAML::Node &node)
 }
 #endif
 
+/*!
+ * Read-only IComponentDataItem over sidecar bytes. Passing it to
+ * IArgument::initialize(const IComponentDataItem&) lets every argument
+ * implementation resize and bulk-copy through the typed data plane —
+ * sidecar payloads never touch a JSON DOM.
+ */
+class SidecarSourceItem final
+    : public HydroCouple::SDK::AbstractComponentDataItem
+{
+public:
+    SidecarSourceItem(SidecarRef ref, std::vector<std::byte> bytes)
+        : AbstractComponentDataItem("sidecar", {}, nullptr, nullptr),
+          m_ref(std::move(ref)),
+          m_bytes(std::move(bytes))
+    {
+    }
+
+    [[nodiscard]] std::vector<int64_t> shape() const override
+    {
+        return m_ref.shape;
+    }
+
+    [[nodiscard]] DataKind dataKind() const override { return m_ref.kind; }
+
+    [[nodiscard]] bool getValuesInto(const BufferDescriptor &destination,
+                                     std::span<const int64_t> start,
+                                     std::span<const int64_t> count,
+                                     std::string *message = nullptr)
+        const override
+    {
+        switch (m_ref.kind)
+        {
+#define HC_SIDECAR_CASE(K, T)                                                \
+    case DataKind::K:                                                        \
+        return HydroCouple::SDK::detail::readHyperslab<T>(                   \
+            reinterpret_cast<const T *>(m_bytes.data()), m_ref.shape,        \
+            destination, start, count, message)
+        HC_SIDECAR_CASE(Float64, double);
+        HC_SIDECAR_CASE(Float32, float);
+        HC_SIDECAR_CASE(Int64, int64_t);
+        HC_SIDECAR_CASE(UInt64, uint64_t);
+        HC_SIDECAR_CASE(Int32, int32_t);
+        HC_SIDECAR_CASE(UInt32, uint32_t);
+        HC_SIDECAR_CASE(Int16, int16_t);
+        HC_SIDECAR_CASE(UInt16, uint16_t);
+        HC_SIDECAR_CASE(Int8, int8_t);
+        HC_SIDECAR_CASE(UInt8, uint8_t);
+        HC_SIDECAR_CASE(Boolean, bool);
+#undef HC_SIDECAR_CASE
+        default:
+            if (message) *message = "sidecar has an unsupported DataKind";
+            return false;
+        }
+    }
+
+    [[nodiscard]] bool setValuesFrom(const BufferDescriptor &,
+                                     std::span<const int64_t>,
+                                     std::span<const int64_t>,
+                                     std::string *message = nullptr) override
+    {
+        if (message) *message = "sidecar source items are read-only";
+        return false;
+    }
+
+private:
+    SidecarRef             m_ref;
+    std::vector<std::byte> m_bytes;
+};
+
 } // namespace
+
+void ModelInitializer::setSidecarDirectory(std::filesystem::path directory)
+{
+    m_sidecarDirectory = std::move(directory);
+}
+
+void ModelInitializer::setSidecarThresholdBytes(int64_t bytes)
+{
+    m_sidecarThresholdBytes = std::max<int64_t>(1, bytes);
+}
 
 ModelInitializer::ModelInitializer(ComponentResolver resolver)
     : m_resolver(std::move(resolver))
@@ -100,6 +182,8 @@ bool ModelInitializer::initializeFromFile(const std::filesystem::path &path,
     }
     std::ostringstream text;
     text << file.rdbuf();
+    m_documentDirectory = path.has_parent_path() ? path.parent_path()
+                                                 : std::filesystem::path(".");
 
     const auto extension = path.extension().string();
     if (extension == ".yaml" || extension == ".yml")
@@ -252,8 +336,42 @@ bool ModelInitializer::applyComponents(const nlohmann::json &document,
                 HydroCouple::IArgument *argument =
                     findById(component->arguments(), argId);
                 std::string argMessage;
-                if (!argument->initialize(payload.dump(), AT::JSON,
-                                          argMessage))
+                if (isSidecarRef(payload))
+                {
+                    SidecarRef ref;
+                    if (!parseSidecarRef(payload, ref, argMessage))
+                    {
+                        message = "Component \"" + id + "\", argument \"" +
+                                  argId + "\": " + argMessage;
+                        return false;
+                    }
+                    if (ref.path.is_relative())
+                    {
+                        const std::filesystem::path base =
+                            !m_sidecarDirectory.empty() ? m_sidecarDirectory
+                            : !m_documentDirectory.empty()
+                                ? m_documentDirectory
+                                : std::filesystem::path(".");
+                        ref.path = base / ref.path;
+                    }
+                    std::vector<std::byte> bytes;
+                    if (!readSidecarBytes(ref, bytes, argMessage))
+                    {
+                        message = "Component \"" + id + "\", argument \"" +
+                                  argId + "\": " + argMessage;
+                        return false;
+                    }
+                    SidecarSourceItem source(std::move(ref),
+                                             std::move(bytes));
+                    if (!argument->initialize(source, argMessage))
+                    {
+                        message = "Component \"" + id + "\", argument \"" +
+                                  argId + "\": " + argMessage;
+                        return false;
+                    }
+                }
+                else if (!argument->initialize(payload.dump(), AT::JSON,
+                                               argMessage))
                 {
                     message = "Component \"" + id + "\", argument \"" +
                               argId + "\": " + argMessage;
@@ -363,7 +481,29 @@ nlohmann::json ModelInitializer::serialize(
         block["arguments"] = nlohmann::json::object();
         for (HydroCouple::IArgument *argument : component->arguments())
         {
-            std::string value, argMessage;
+            std::string argMessage;
+            const int64_t elementSize =
+                HydroCouple::Helpers::dataKindSize(argument->dataKind());
+            int64_t valueBytes = elementSize;
+            for (int64_t extent : argument->shape())
+                valueBytes *= extent;
+            if (!m_sidecarDirectory.empty() && elementSize > 0 &&
+                valueBytes > m_sidecarThresholdBytes)
+            {
+                nlohmann::json ref;
+                const std::filesystem::path sidecarPath =
+                    m_sidecarDirectory / (id + "_" + argument->id() + ".bin");
+                if (!writeSidecar(*argument, sidecarPath, ref, argMessage))
+                {
+                    message = "serialize: component \"" + id +
+                              "\", argument \"" + argument->id() +
+                              "\": " + argMessage;
+                    return {};
+                }
+                block["arguments"][argument->id()] = std::move(ref);
+                continue;
+            }
+            std::string value;
             if (!argument->serialize(AT::JSON, value, argMessage))
             {
                 message = "serialize: component \"" + id +
