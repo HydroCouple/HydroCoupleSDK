@@ -23,7 +23,14 @@
 #ifdef HYDROCOUPLESDK_HAVE_HDF5
 #include "hydrocouplesdk/io/hdf5ugridwriter.h"
 #endif
+#ifdef HYDROCOUPLESDK_HAVE_NETCDF
+#include "hydrocouplesdk/io/netcdfugridwriter.h"
+#endif
+#ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
+#include "hydrocouplesdk/io/geopackagewriter.h"
+#endif
 
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <memory>
@@ -127,17 +134,38 @@ std::filesystem::path recordRun(const std::filesystem::path &directory)
     io.addWriter(csv);
     recorder.addWriter(csv);
 
-#ifdef HYDROCOUPLESDK_HAVE_HDF5
+    // Every format this build can write is recorded, so every reader the
+    // build ships is exercised by the tests below.
+#if defined(HYDROCOUPLESDK_HAVE_HDF5) || defined(HYDROCOUPLESDK_HAVE_NETCDF)
     MeshDefinition mesh;
     mesh.meshName = "reaches";
     mesh.nodeX    = {0.0, 1.0, 2.0};
     mesh.nodeY    = {0.0, 0.0, 0.0};
+#endif
+
+#ifdef HYDROCOUPLESDK_HAVE_HDF5
     auto hdf5 = std::make_shared<HDF5UGRIDWriter>(directory / "results.h5",
                                                   mesh);
     // UGRID writers need their fields declared before initialize().
     hdf5->addField("flow", MeshLocation::Node, "m3/s", "routed_flow");
     io.addWriter(hdf5);
     recorder.addWriter(hdf5);
+#endif
+
+#ifdef HYDROCOUPLESDK_HAVE_NETCDF
+    auto netcdf = std::make_shared<NetCDFUGRIDWriter>(
+        directory / "results.nc", mesh);
+    netcdf->addField("flow", MeshLocation::Node, "m3/s", "routed_flow");
+    io.addWriter(netcdf);
+    recorder.addWriter(netcdf);
+#endif
+
+#ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
+    auto geopackage = std::make_shared<GeoPackageWriter>(
+        directory / "results.gpkg", "reopen-test");
+    geopackage->addField("flow", "m3/s", "routed flow");
+    io.addWriter(geopackage);
+    recorder.addWriter(geopackage);
 #endif
 
     recorder.addComponent(&producer);
@@ -406,46 +434,146 @@ TEST(ResultReaderTest, RegistryReportsWhatThisBuildCanRead)
 #endif
 }
 
-#ifdef HYDROCOUPLESDK_HAVE_HDF5
-TEST(ResultsReopenTest, HDF5AndCsvArtifactsAgree)
+// ── Every shipped reader is exercised against its own writer ──────────────
+
+namespace {
+
+/*!
+ * Reads a whole recorded variable through the reader its format selects.
+ */
+void readWholeVariable(const RunManifest &manifest, const ResultEntry &entry,
+                       std::vector<double> &values)
+{
+    std::string message;
+    auto reader = createResultReader(entry.format, message);
+    ASSERT_NE(reader, nullptr) << entry.format << ": " << message;
+    ASSERT_TRUE(reader->open(manifest.artifactPath(entry), message))
+        << entry.format << ": " << message;
+
+    values.assign(static_cast<size_t>(entry.elementCount()), 0.0);
+    const std::array<int64_t, 2> start{0, 0};
+    const std::vector<int64_t>   count = entry.shape;
+    const std::array<int64_t, 1> flat{entry.elementCount()};
+    ASSERT_TRUE(reader->read(entry, start, count,
+                             hostBuffer(values.data(), DataKind::Float64,
+                                        flat),
+                             message))
+        << entry.format << ": " << message;
+}
+
+} // namespace
+
+TEST(ResultsReopenTest, EveryRecordedFormatReadsBackTheSameValues)
 {
     const auto manifestPath = recordRun(reopenDir() / "formats");
     RunManifest manifest;
     std::string message;
     ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
 
-    // The same item was recorded by both writers.
-    const ResultEntry *csvEntry  = nullptr;
-    const ResultEntry *hdf5Entry = nullptr;
+    // Whatever this build wrote, it must be able to read — and every
+    // format must agree with the values the producer computed.
+    ASSERT_FALSE(manifest.results.empty());
+    std::vector<std::string> formatsChecked;
+
     for (const ResultEntry &entry : manifest.results)
     {
-        if (entry.format == "csv")        csvEntry  = &entry;
-        if (entry.format == "hdf5_ugrid") hdf5Entry = &entry;
-    }
-    ASSERT_NE(csvEntry, nullptr);
-    ASSERT_NE(hdf5Entry, nullptr);
-    EXPECT_EQ(csvEntry->shape, hdf5Entry->shape);
+        SCOPED_TRACE("format: " + entry.format);
+        EXPECT_TRUE(resultFormatSupported(entry.format))
+            << "this build wrote " << entry.format
+            << " but cannot read it back";
+        EXPECT_EQ(entry.shape, (std::vector<int64_t>{kSteps, kReaches}));
 
-    auto readAll = [&](const ResultEntry &entry, std::vector<double> &values) {
+        std::vector<double> values;
+        readWholeVariable(manifest, entry, values);
+        ASSERT_EQ(values.size(), static_cast<size_t>(kSteps * kReaches));
+
+        for (int step = 0; step < kSteps; ++step)
+        {
+            for (int reach = 0; reach < kReaches; ++reach)
+            {
+                EXPECT_DOUBLE_EQ(values[step * kReaches + reach],
+                                 ProducerComponent::value(step, reach))
+                    << entry.format << " step " << step << " reach " << reach;
+            }
+        }
+        formatsChecked.push_back(entry.format);
+    }
+
+    // CSV is always present; the gated formats appear when built.
+    EXPECT_NE(std::find(formatsChecked.begin(), formatsChecked.end(), "csv"),
+              formatsChecked.end());
+#ifdef HYDROCOUPLESDK_HAVE_HDF5
+    EXPECT_NE(std::find(formatsChecked.begin(), formatsChecked.end(),
+                        "hdf5_ugrid"),
+              formatsChecked.end());
+#endif
+#ifdef HYDROCOUPLESDK_HAVE_NETCDF
+    EXPECT_NE(std::find(formatsChecked.begin(), formatsChecked.end(),
+                        "netcdf_ugrid"),
+              formatsChecked.end());
+#endif
+#ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
+    EXPECT_NE(std::find(formatsChecked.begin(), formatsChecked.end(),
+                        "geopackage"),
+              formatsChecked.end());
+#endif
+}
+
+TEST(ResultsReopenTest, EveryRecordedFormatServesHyperslabsAndTimes)
+{
+    const auto manifestPath = recordRun(reopenDir() / "format-slabs");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+
+    for (const ResultEntry &entry : manifest.results)
+    {
+        SCOPED_TRACE("format: " + entry.format);
         auto reader = createResultReader(entry.format, message);
         ASSERT_NE(reader, nullptr) << message;
         ASSERT_TRUE(reader->open(manifest.artifactPath(entry), message))
             << message;
-        values.assign(static_cast<size_t>(entry.elementCount()), 0.0);
-        const std::array<int64_t, 2> start{0, 0};
-        const std::vector<int64_t>   count = entry.shape;
-        const std::array<int64_t, 1> flat{entry.elementCount()};
-        ASSERT_TRUE(reader->read(
-            entry, start, count,
-            hostBuffer(values.data(), DataKind::Float64, flat), message))
-            << message;
-    };
 
-    std::vector<double> fromCsv, fromHdf5;
-    readAll(*csvEntry, fromCsv);
-    readAll(*hdf5Entry, fromHdf5);
-    ASSERT_EQ(fromCsv.size(), fromHdf5.size());
-    for (size_t i = 0; i < fromCsv.size(); ++i)
-        EXPECT_DOUBLE_EQ(fromCsv[i], fromHdf5[i]) << "element " << i;
+        // A single time level — the query a UI makes constantly.
+        std::vector<double> level(kReaches, 0.0);
+        const std::array<int64_t, 2> start{2, 0};
+        const std::array<int64_t, 2> count{1, kReaches};
+        const std::array<int64_t, 1> shape{kReaches};
+        ASSERT_TRUE(reader->read(entry, start, count,
+                                 hostBuffer(level.data(), DataKind::Float64,
+                                            shape),
+                                 message)) << message;
+        for (int reach = 0; reach < kReaches; ++reach)
+            EXPECT_DOUBLE_EQ(level[reach],
+                             ProducerComponent::value(2, reach));
+
+        // A single reach across time — the time-series query a plot makes.
+        std::vector<double> series(kSteps, 0.0);
+        const std::array<int64_t, 2> seriesStart{0, 1};
+        const std::array<int64_t, 2> seriesCount{kSteps, 1};
+        const std::array<int64_t, 1> seriesShape{kSteps};
+        ASSERT_TRUE(reader->read(entry, seriesStart, seriesCount,
+                                 hostBuffer(series.data(), DataKind::Float64,
+                                            seriesShape),
+                                 message)) << message;
+        for (int step = 0; step < kSteps; ++step)
+            EXPECT_DOUBLE_EQ(series[step],
+                             ProducerComponent::value(step, 1));
+
+        // Time coordinates: from the artifact where stored, otherwise
+        // reconstructed from the recorded axis. Either way, the values.
+        std::vector<double> times;
+        ASSERT_TRUE(reader->readTimes(entry, times, message)) << message;
+        ASSERT_EQ(times.size(), static_cast<size_t>(kSteps));
+        EXPECT_DOUBLE_EQ(times.front(), 1000.0);
+        EXPECT_DOUBLE_EQ(times.back(), 1000.0 + kSteps - 1);
+
+        // Out-of-range selections are refused, not silently clamped.
+        const std::array<int64_t, 2> badStart{kSteps, 0};
+        EXPECT_FALSE(reader->read(entry, badStart, count,
+                                  hostBuffer(level.data(), DataKind::Float64,
+                                             shape),
+                                  message));
+        EXPECT_NE(message.find("out of range"), std::string::npos);
+    }
 }
-#endif

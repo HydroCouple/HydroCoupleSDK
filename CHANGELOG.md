@@ -72,6 +72,10 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   analysis example end to end).
 - The serial example attached an HDF5 writer without declaring its
   fields, so `results.h5` carried a mesh but no data.
+- Every shipped result reader is now covered by a write → catalog → read
+  → compare round trip. Previously only CSV and HDF5 were, which is how
+  the GeoPackage column bug above escaped into a commit; the new tests
+  fail if it is reintroduced.
 
 ## [2.0.0-alpha.1] — 2026-08-23
 
