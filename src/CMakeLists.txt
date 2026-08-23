@@ -32,6 +32,8 @@ PRIVATE
     # ── distributed (namespace HydroCouple::SDK::Distributed) ────────────
     hydrocouplesdk/distributed/valuepacker.cpp
     hydrocouplesdk/distributed/inproctransport.cpp
+    hydrocouplesdk/distributed/componentworker.cpp
+    hydrocouplesdk/distributed/proxymodelcomponent.cpp
 
     # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
     hydrocouplesdk/io/snapshot.cpp

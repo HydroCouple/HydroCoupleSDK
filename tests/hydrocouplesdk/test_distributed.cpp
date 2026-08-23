@@ -345,3 +345,216 @@ TEST_F(InProcTransportTest, EnvelopePlusPayloadPattern)
                            &message)) << message;
     worker.join();
 }
+
+// ── Proxy / worker command loop (plan §5.3) ───────────────────────────────
+
+#include "hydrocouplesdk/distributed/componentworker.h"
+#include "hydrocouplesdk/distributed/proxymodelcomponent.h"
+#include "hydrocouplesdk/component/abstractmodelcomponent.h"
+#include "hydrocouplesdk/data/exchangeitems1d.h"
+#include "hydrocouplesdk/core/dimension.h"
+#include "hydrocouplesdk/core/valuedefinition.h"
+
+#include <memory>
+
+namespace {
+
+using SDK::AbstractModelComponent;
+using SDK::Dimension;
+using SDK::Quantity;
+using SDK::Input1DDouble;
+using SDK::Output1DDouble;
+
+/*!
+ * Remote-side component: doubles its "inflow" input into its "flow"
+ * output on every update().
+ */
+class RemoteDoublerComponent : public AbstractModelComponent
+{
+public:
+    explicit RemoteDoublerComponent(std::string_view id)
+        : AbstractModelComponent(id)
+    {}
+
+    std::vector<std::string> validate() override { return {}; }
+    void prepare() override {}
+    void update(const std::vector<HydroCouple::IOutput *> & = {}) override
+    {
+        for (int i = 0; i < inflow->length(); ++i)
+            (*flow)[i] = 2.0 * (*inflow)[i];
+        ++updateCount;
+    }
+    void finish() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finished);
+    }
+
+    Input1DDouble  *inflow = nullptr;
+    Output1DDouble *flow   = nullptr;
+    int             updateCount = 0;
+
+protected:
+    void createArguments() override {}
+    bool initializeArguments(std::string &message) override
+    {
+        message.clear();
+        return true;
+    }
+    void createInputs() override
+    {
+        inflow = new Input1DDouble("inflow", &m_dim, 3, m_quantity.get(), this);
+        addInput(inflow);
+    }
+    void createOutputs() override
+    {
+        m_quantity.reset(Quantity::unitLess("RemoteQ"));
+        flow = new Output1DDouble("flow", &m_dim, 3, m_quantity.get(), this);
+        addOutput(flow);
+    }
+    void initializeFailureCleanUp() override {}
+
+private:
+    Dimension m_dim{"i", "Index"};
+    std::unique_ptr<Quantity> m_quantity;
+};
+
+} // namespace
+
+class ProxyWorkerTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        m_hub             = InProcHub::create(2);
+        m_proxyTransport  = m_hub->createTransport(0);
+        m_workerTransport = m_hub->createTransport(1);
+        m_remote          = std::make_unique<RemoteDoublerComponent>("doubler");
+        // Outputs are created during initialize(); pre-create so createOutputs
+        // ordering (quantity before inputs) is respected via lazy arguments +
+        // explicit initialize on the worker side driven remotely.
+        m_worker = std::make_unique<ComponentWorker>(m_workerTransport.get(),
+                                                     m_remote.get());
+        m_workerThread = std::thread([this] { m_served = m_worker->run(); });
+
+        m_proxy = std::make_unique<ProxyModelComponent>(
+            "doubler-proxy", m_proxyTransport.get(), /*remoteRank=*/1,
+            "doubler");
+        m_proxy->setRequestTimeout(5.0);
+    }
+
+    void TearDown() override
+    {
+        if (m_workerThread.joinable())
+        {
+            // Orderly shutdown via the protocol.
+            std::string message;
+            Envelope shutdown = makeEnvelope(
+                OpCode::Shutdown, 0, 1, /*tag=*/9999, 0);
+            const int64_t shape = static_cast<int64_t>(sizeof(Envelope));
+            BufferDescriptor descriptor;
+            descriptor.data  = &shutdown;
+            descriptor.kind  = DataKind::UInt8;
+            descriptor.rank  = 1;
+            descriptor.shape = &shape;
+            descriptor.space = MemorySpace::Host;
+            (void)m_proxyTransport->send({"inproc", 1}, 0, descriptor,
+                                         &message);
+            m_workerThread.join();
+        }
+    }
+
+    std::shared_ptr<InProcHub>               m_hub;
+    std::unique_ptr<InProcTransport>         m_proxyTransport;
+    std::unique_ptr<InProcTransport>         m_workerTransport;
+    std::unique_ptr<RemoteDoublerComponent>  m_remote;
+    std::unique_ptr<ComponentWorker>         m_worker;
+    std::unique_ptr<ProxyModelComponent>     m_proxy;
+    std::thread                              m_workerThread;
+    int                                      m_served = 0;
+};
+
+TEST_F(ProxyWorkerTest, ConnectHandshakeAndPing)
+{
+    std::string message;
+    EXPECT_FALSE(m_proxy->isConnected());
+    ASSERT_TRUE(m_proxy->connect(message)) << message;
+    EXPECT_TRUE(m_proxy->isConnected());
+    EXPECT_TRUE(m_proxy->ping(2.0));
+    m_proxy->disconnect();
+    EXPECT_FALSE(m_proxy->isConnected());
+}
+
+TEST_F(ProxyWorkerTest, RemoteLifecycleMirrorsStatus)
+{
+    using Status = IModelComponent::ComponentStatus;
+    std::string message;
+    ASSERT_TRUE(m_proxy->connect(message)) << message;
+
+    m_proxy->initialize();
+    EXPECT_EQ(m_proxy->status(), Status::Initialized);
+    EXPECT_EQ(m_remote->status(), Status::Initialized);
+
+    EXPECT_TRUE(m_proxy->validate().empty());
+    m_proxy->update();
+    EXPECT_EQ(m_remote->updateCount, 1);
+    m_proxy->finish();
+    EXPECT_EQ(m_proxy->status(), Status::Finished);
+    EXPECT_EQ(m_remote->status(), Status::Finished);
+}
+
+TEST_F(ProxyWorkerTest, RemoteValueRoundTripThroughUpdate)
+{
+    std::string message;
+    ASSERT_TRUE(m_proxy->connect(message)) << message;
+    m_proxy->initialize();
+
+    // Push inflow {1,2,3} → remote update() doubles → pull flow {2,4,6}.
+    std::array<double, 3> inflow{1.0, 2.0, 3.0};
+    const std::array<int64_t, 1> shape{3};
+    ASSERT_TRUE(m_proxy->setRemoteValues(
+        "inflow", hostBuffer(inflow.data(), DataKind::Float64, shape),
+        message)) << message;
+
+    m_proxy->update();
+
+    std::array<double, 3> flow{};
+    ASSERT_TRUE(m_proxy->getRemoteValues(
+        "flow", hostBuffer(flow.data(), DataKind::Float64, shape), message))
+        << message;
+    EXPECT_EQ(flow, (std::array<double, 3>{2.0, 4.0, 6.0}));
+}
+
+TEST_F(ProxyWorkerTest, UnknownItemSurfacesRemoteError)
+{
+    std::string message;
+    ASSERT_TRUE(m_proxy->connect(message)) << message;
+    m_proxy->initialize();
+
+    std::array<double, 3> values{};
+    const std::array<int64_t, 1> shape{3};
+    EXPECT_FALSE(m_proxy->getRemoteValues(
+        "no_such_item", hostBuffer(values.data(), DataKind::Float64, shape),
+        message));
+    EXPECT_NE(message.find("no_such_item"), std::string::npos);
+}
+
+TEST(ProxyWorkerDeath, DeadPeerLatchesFailedWithDiagnostic)
+{
+    // No worker running: every request times out; the proxy must latch
+    // Failed and queue a Fatal diagnostic (kill-a-worker semantics).
+    auto hub       = InProcHub::create(2);
+    auto transport = hub->createTransport(0);
+    ProxyModelComponent proxy("orphan-proxy", transport.get(), 1, "ghost");
+    proxy.setRequestTimeout(0.2);
+
+    std::string message;
+    EXPECT_FALSE(proxy.connect(message));
+    EXPECT_NE(message.find("timed out"), std::string::npos);
+
+    proxy.initialize();
+    EXPECT_EQ(proxy.status(), IModelComponent::ComponentStatus::Failed);
+    const auto errors = proxy.errors();
+    ASSERT_FALSE(errors.empty());
+    EXPECT_EQ(errors.back().severity, ErrorEntry::Severity::Fatal);
+    EXPECT_NE(errors.back().message.find("timed out"), std::string::npos);
+}
