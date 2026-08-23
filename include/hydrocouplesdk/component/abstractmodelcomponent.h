@@ -243,6 +243,12 @@ public:
 protected:
     // ── Pure-virtual lifecycle hooks ──────────────────────────────────────
 
+    /*!
+     * \brief Runs createArguments() exactly once (lazy; shared by
+     *        arguments() in the Created state and by initialize()).
+     */
+    void ensureArgumentsCreated();
+
     virtual void createArguments()  = 0;
     virtual bool initializeArguments(std::string &message) = 0;
     virtual void createInputs()     = 0;
@@ -323,6 +329,7 @@ private:
 
     bool m_initialized = false;
     bool m_prepared    = false;
+    bool m_argumentsCreated = false;
     int  m_index       = 0;
 
     std::filesystem::path m_referenceDir;

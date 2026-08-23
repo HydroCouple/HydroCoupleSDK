@@ -1,52 +1,77 @@
 {
   "name": "hydrocouplesdk",
   "version-semver": "2.0.0-alpha.1",
-  "description": "HydroCouple SDK — concrete base implementations of the HydroCouple v2 component-based modeling interfaces (typed hyperslab data plane, JSON/YAML argument IO, temporal and spatial data items).",
+  "description": "HydroCouple SDK \u2014 concrete base implementations of the HydroCouple v2 component-based modeling interfaces (typed hyperslab data plane, JSON/YAML argument IO, temporal and spatial data items).",
   "license": "MIT",
   "homepage": "https://www.hydrocouple.org",
   "builtin-baseline": "9e593bb18ea69cc5095e012465dcd675a822ed0d",
   "dependencies": [
-    { "name": "vcpkg-cmake",        "host": true },
-    { "name": "vcpkg-cmake-config", "host": true },
-    "nlohmann-json"
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "nlohmann-json",
+    "yaml-cpp"
   ],
   "default-features": [],
   "features": {
     "tests": {
       "description": "Unit test harness (Google Test)",
       "dependencies": [
-        { "name": "gtest" }
+        {
+          "name": "gtest"
+        }
       ]
     },
     "gdal": {
       "description": "GDAL-backed raster data items (USE_GDAL=ON)",
       "dependencies": [
-        { "name": "gdal", "default-features": false }
+        {
+          "name": "gdal",
+          "default-features": false
+        }
       ]
     },
     "netcdf": {
       "description": "NetCDF output persistence (USE_NETCDF=ON)",
-      "dependencies": ["netcdf-cxx4"]
+      "dependencies": [
+        "netcdf-cxx4"
+      ]
     },
     "hdf5": {
       "description": "Thread-safe HDF5/UGRID output persistence (USE_HDF5=ON)",
       "dependencies": [
-        { "name": "hdf5", "default-features": false }
+        {
+          "name": "hdf5",
+          "default-features": false
+        }
       ]
     },
     "mpi": {
       "description": "MPI transport for distributed coupling (USE_MPI=ON)",
-      "dependencies": ["mpi"]
+      "dependencies": [
+        "mpi"
+      ]
     },
     "tools": {
       "description": "Mesh generation and interpolation tools",
       "dependencies": [
-        { "name": "gdal", "default-features": false },
+        {
+          "name": "gdal",
+          "default-features": false
+        },
         "cdt"
       ]
     }
   },
   "overrides": [
-    { "name": "gtest", "version": "1.15.2" }
+    {
+      "name": "gtest",
+      "version": "1.15.2"
+    }
   ]
 }

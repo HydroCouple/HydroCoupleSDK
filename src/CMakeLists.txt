@@ -29,6 +29,12 @@ PRIVATE
     hydrocouplesdk/data/abstractadaptedoutputfactory.cpp
     hydrocouplesdk/component/abstractmodelcomponent.cpp
 
+    # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
+    hydrocouplesdk/io/snapshot.cpp
+    hydrocouplesdk/io/iothread.cpp
+    hydrocouplesdk/io/csvwriter.cpp
+    hydrocouplesdk/io/modelinitializer.cpp
+
     # ── temporal (namespace HydroCouple::Temporal) ────────────────────────
     hydrocouplesdk/temporal/timedata.cpp
     hydrocouplesdk/temporal/timeseries.cpp

@@ -44,11 +44,24 @@ HydroCouple::IModelComponent::ComponentStatus AbstractModelComponent::status() c
 
 std::vector<HydroCouple::IArgument *> AbstractModelComponent::arguments() const
 {
+    // The v2 lifecycle contract allows arguments() in the Created state, so
+    // the argument set is materialized lazily on first access (initialize()
+    // reuses the same guard and will not create them twice).
+    const_cast<AbstractModelComponent *>(this)->ensureArgumentsCreated();
     std::vector<HydroCouple::IArgument *> result;
     result.reserve(m_orderedArguments.size());
     for (auto *a : m_orderedArguments)
         result.push_back(a);
     return result;
+}
+
+void AbstractModelComponent::ensureArgumentsCreated()
+{
+    if (!m_argumentsCreated)
+    {
+        m_argumentsCreated = true;
+        createArguments();
+    }
 }
 
 std::vector<HydroCouple::IInput *> AbstractModelComponent::inputs() const
@@ -86,7 +99,7 @@ void AbstractModelComponent::initialize()
 
     // Populate arguments if not yet done
     if (m_orderedArguments.empty())
-        createArguments();
+        ensureArgumentsCreated();
 
     std::string msg;
     if (!initializeArguments(msg)) {

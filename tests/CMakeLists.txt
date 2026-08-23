@@ -6,6 +6,7 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_dataitems.cpp
     hydrocouplesdk/test_component.cpp
     hydrocouplesdk/test_temporal.cpp
+    hydrocouplesdk/test_io.cpp
 )
 
 target_link_libraries(HydroCoupleSDKTests

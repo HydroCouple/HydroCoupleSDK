@@ -104,6 +104,15 @@ if(USE_GDAL)
     find_package(GDAL REQUIRED)
 endif()
 
+# yaml-cpp: optional — YAML composition documents convert to JSON at the
+# boundary; without it the ModelInitializer accepts JSON only.
+find_package(yaml-cpp CONFIG QUIET)
+if(TARGET yaml-cpp::yaml-cpp OR TARGET yaml-cpp)
+    set(HYDROCOUPLESDK_HAVE_YAML_CPP ON)
+else()
+    set(HYDROCOUPLESDK_HAVE_YAML_CPP OFF)
+endif()
+
 # nlohmann_json: config package preferred; fall back to downloading the
 # MIT-licensed single header so bare environments (CI docs jobs, sandboxes)
 # can still build.
@@ -227,6 +236,15 @@ target_link_libraries(HydroCoupleSDK
         $<$<BOOL:${USE_OPENMP}>:OpenMP::OpenMP_CXX>
         $<$<BOOL:${USE_MPI}>:MPI::MPI_CXX>
 )
+
+if(HYDROCOUPLESDK_HAVE_YAML_CPP)
+    target_compile_definitions(HydroCoupleSDK PRIVATE HYDROCOUPLESDK_HAVE_YAML_CPP)
+    if(TARGET yaml-cpp::yaml-cpp)
+        target_link_libraries(HydroCoupleSDK PRIVATE yaml-cpp::yaml-cpp)
+    else()
+        target_link_libraries(HydroCoupleSDK PRIVATE yaml-cpp)
+    endif()
+endif()
 
 if(nlohmann_json_FOUND)
     target_link_libraries(HydroCoupleSDK PUBLIC nlohmann_json::nlohmann_json)
