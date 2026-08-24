@@ -406,20 +406,14 @@ else()
     )
 endif()
 
-if(USE_NETCDF)
-    if(TARGET netCDF::netcdf-cxx4)
-        target_link_libraries(HydroCoupleSDK PUBLIC netCDF::netcdf-cxx4)
-    elseif(TARGET netcdf-cxx4)
-        target_link_libraries(HydroCoupleSDK PUBLIC netcdf-cxx4)
-    endif()
-    if(TARGET netCDF::netcdf)
-        target_link_libraries(HydroCoupleSDK PUBLIC netCDF::netcdf)
-    endif()
-endif()
-
-if(USE_HDF5)
-    target_link_libraries(HydroCoupleSDK PUBLIC HDF5::HDF5)
-endif()
+# NOTE: HDF5, NetCDF and SQLite are linked once, above, through the
+# HYDROCOUPLESDK_*_TARGET variables the detection blocks resolve. Nothing
+# links them a second time by hardcoded name here: config-mode packages
+# export hdf5::hdf5-static / hdf5::hdf5-shared, and only module-mode
+# FindHDF5 defines HDF5::HDF5, so a hardcoded name configures on whichever
+# machine happens to use module mode and fails everywhere else. They are
+# PRIVATE deliberately — no installed public header includes netcdf.h or
+# hdf5.h, so consumers need neither the headers nor the libraries.
 
 # ── Precompiled header (CXX only — stdafx.h has C++ headers) ─────────────
 target_precompile_headers(HydroCoupleSDK PRIVATE

@@ -109,6 +109,16 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   proves the bulk path was taken — a DOM-shaped serialization cannot pass
   it at any speed — so the timing bound is now a pathology guard only.
 - CDT is licensed MPL-2.0 AND BSD-3-Clause; three places said MIT.
+- **`HydroCoupleSDK` linked `HDF5::HDF5` by hardcoded name**, so CMake
+  generation failed on every machine where HDF5 arrives in config mode —
+  which is every CI runner, since vcpkg exports `hdf5::hdf5-static`. Only
+  module-mode `FindHDF5` defines `HDF5::HDF5`, which is why local builds
+  configured fine. The detection block already resolved the right target
+  into `HYDROCOUPLESDK_HDF5_TARGET` and the library already linked it a few
+  lines earlier; the hardcoded line was a second, redundant link. Removed,
+  along with the `netcdf-cxx4` half of the same block — the SDK uses the
+  NetCDF C API (`netcdf.h`) and never declared a C++ dependency. Both stay
+  PRIVATE: no installed public header includes `hdf5.h` or `netcdf.h`.
 
 ## [2.0.0-alpha.1] — 2026-08-23
 
