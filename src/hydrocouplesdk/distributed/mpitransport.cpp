@@ -259,10 +259,24 @@ MpiEnvironment::MpiEnvironment(int &argc, char **&argv)
     MPI_Initialized(&initialized);
     if (!initialized)
     {
-        int provided = 0;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+        // SERIALIZED, not MULTIPLE. The SDK needs only FUNNELED — nothing
+        // in the distributed layer starts a thread and the IO thread never
+        // calls MPI — and asking for MULTIPLE excludes implementations that
+        // do not offer it (Microsoft MPI among them) while providing no
+        // benefit here. The answer is kept rather than discarded so a host
+        // can query what it actually got.
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &m_provided);
         m_ownsInit = true;
     }
+    else
+    {
+        MPI_Query_thread(&m_provided);
+    }
+}
+
+bool MpiEnvironment::threadLevelSufficient() const noexcept
+{
+    return m_provided >= MPI_THREAD_FUNNELED;
 }
 
 MpiEnvironment::~MpiEnvironment()

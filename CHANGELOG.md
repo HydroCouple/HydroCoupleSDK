@@ -15,6 +15,12 @@ Composition IO moves into the SDK, and completed runs become reopenable.
 
 ### Added
 
+- **Microsoft MPI on Windows** — the MPI job is a matrix over
+  ubuntu-latest and windows-latest. Launcher differences stay out of the
+  build files: rank count comes from `HYDROCOUPLESDK_MPI_TEST_RANKS` and
+  launcher flags from FindMPI's `MPIEXEC_PREFLAGS`, so OpenMPI gets
+  `--oversubscribe` while MS-MPI — which rejects unknown flags and
+  oversubscribes by default — gets none.
 - **Composition Specification v1** — the composition document becomes an
   SDK-owned, versioned specification replacing the Composer's XML:
   `schema_version`, `metadata`, per-component `info` (instantiation hint)
@@ -109,6 +115,17 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   proves the bulk path was taken — a DOM-shaped serialization cannot pass
   it at any speed — so the timing bound is now a pathology guard only.
 - CDT is licensed MPL-2.0 AND BSD-3-Clause; three places said MIT.
+- **`MpiEnvironment` requested `MPI_THREAD_MULTIPLE` and discarded the
+  answer.** `MPI_Init_thread` reports what it actually granted through its
+  out-parameter; that value was never read, so the SDK proceeded as though
+  full multithreading had been guaranteed no matter what the implementation
+  said. Nothing in the distributed layer starts a thread and the IO thread
+  never calls MPI, so the real requirement is `MPI_THREAD_FUNNELED`. The
+  environment now requests `MPI_THREAD_SERIALIZED` (leaving room for a host
+  to drive components from a worker thread), queries the level when MPI was
+  initialized elsewhere, and exposes `providedThreadLevel()` and
+  `threadLevelSufficient()` so a host can check instead of assume. Asking
+  for `MULTIPLE` also excluded Microsoft MPI, which does not offer it.
 - **Exported classes owning move-only members did not compile under MSVC.**
   `__declspec(dllexport)` instantiates *every* member of a class, including
   the implicit copy assignment; against a `std::vector<std::unique_ptr<…>>`

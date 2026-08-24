@@ -137,8 +137,16 @@ jobs:
   # Distributed backend: the protocol suite runs over InProcTransport in the
   # matrix above; this job additionally exercises MpiTransport under mpirun.
   mpi:
-    name: ubuntu-latest (MPI)
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} (MPI)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout SDK
@@ -151,25 +159,51 @@ jobs:
           ref: dev
           path: HydroCouple
 
-      - name: Install MPI and Ninja
+      - name: Install OpenMPI and Ninja (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev openmpi-bin ninja-build
+
+      # Microsoft MPI: the runtime (msmpisetup.exe) provides mpiexec, the SDK
+      # (msmpisdk.msi) provides mpi.h and msmpi.lib. Both are needed -- the
+      # runtime alone cannot build. See
+      # https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi
+      - name: Install Microsoft MPI (Windows)
+        if: runner.os == 'Windows'
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: msmpi
+
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v5
 
       - name: Setup vcpkg (manifest mode)
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: 9e593bb18ea69cc5095e012465dcd675a822ed0d
 
+      # --oversubscribe packs more ranks than cores, which the runners need.
+      # It is an OpenMPI spelling; MS-MPI's mpiexec rejects unknown flags, and
+      # oversubscribes by default anyway, so Windows passes none.
       - name: Configure
-        run: >
-          cmake -S . -B build -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          "-DVCPKG_MANIFEST_FEATURES=tests"
-          -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
-          -DUSE_MPI=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
-          "-DMPIEXEC_PREFLAGS=--oversubscribe"
+        run: |
+          preflags=""
+          if [ "$RUNNER_OS" = "Linux" ]; then preflags="--oversubscribe"; fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            "-DVCPKG_MANIFEST_FEATURES=tests" \
+            -DHYDROCOUPLE_INCLUDE_DIR="${{ github.workspace }}/HydroCouple/include" \
+            -DUSE_MPI=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON \
+            "-DMPIEXEC_PREFLAGS=$preflags"
 
       - name: Build
         run: cmake --build build --parallel
@@ -177,8 +211,17 @@ jobs:
       - name: Test (in-process protocol suite)
         run: ctest --test-dir build --output-on-failure
 
+      # Launched through the mpiexec CMake found, so this works with both
+      # OpenMPI's mpirun and MS-MPI's mpiexec without spelling either here.
       - name: Test (MPI transport, 3 ranks)
-        run: mpirun --oversubscribe -n 3 ./build/tests/HydroCoupleSDKMpiTests
+        run: ctest --test-dir build --output-on-failure -R MpiTransportSuite
 
+      # Both OpenMPI and MS-MPI ship an `mpiexec`; only OpenMPI understands
+      # --oversubscribe, and only Windows appends .exe.
       - name: Run the distributed example (4 ranks)
-        run: mpirun --oversubscribe -n 4 ./build/examples/distributed_coupling
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            mpiexec -n 4 ./build/examples/distributed_coupling.exe
+          else
+            mpiexec --oversubscribe -n 4 ./build/examples/distributed_coupling
+          fi

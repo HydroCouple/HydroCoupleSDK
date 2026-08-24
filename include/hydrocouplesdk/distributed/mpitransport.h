@@ -56,8 +56,34 @@ public:
     MpiEnvironment(const MpiEnvironment &)            = delete;
     MpiEnvironment &operator=(const MpiEnvironment &) = delete;
 
+    /*!
+     * \brief The threading level MPI actually provided.
+     *
+     * The SDK's own requirement is only MPI_THREAD_FUNNELED: nothing in the
+     * distributed layer starts a thread, and the IO thread never touches
+     * MPI. SERIALIZED is *requested* so a host may drive components from a
+     * worker thread, but a lower level is not fatal — implementations
+     * differ, and Microsoft MPI in particular does not offer the full range
+     * that OpenMPI and MPICH do.
+     *
+     * A host that intends to call MPI from several threads concurrently
+     * must check this rather than assume; the previous code requested
+     * MPI_THREAD_MULTIPLE and discarded the answer, which reads as a
+     * guarantee that was never actually obtained.
+     */
+    [[nodiscard]] int providedThreadLevel() const noexcept
+    {
+        return m_provided;
+    }
+
+    /*!
+     * \brief Whether MPI met the SDK's minimum (MPI_THREAD_FUNNELED).
+     */
+    [[nodiscard]] bool threadLevelSufficient() const noexcept;
+
 private:
     bool m_ownsInit = false;
+    int  m_provided = 0;
 };
 
 /*!
