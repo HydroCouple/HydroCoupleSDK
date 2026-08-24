@@ -126,6 +126,15 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   initialized elsewhere, and exposes `providedThreadLevel()` and
   `threadLevelSufficient()` so a host can check instead of assume. Asking
   for `MULTIPLE` also excluded Microsoft MPI, which does not offer it.
+- **`AbstractAdaptedOutputFactoryComponentInfo`'s constructor was declared
+  but never defined.** Every sibling `*ComponentInfo` has a `.cpp` carrying
+  its out-of-line constructor; this one's was never written, so the symbol
+  was absent from the built library entirely (`nm` found zero occurrences).
+  GCC and Clang emit only what is used and the class is abstract, so nothing
+  ever referenced it — but `__declspec(dllexport)` requires a definition for
+  every declared member, so MSVC failed to link the DLL with LNK2019. Same
+  root cause as the move-only fix below: MSVC's dllexport instantiates the
+  whole class, and two defects hid behind toolchains that do not.
 - **Exported classes owning move-only members did not compile under MSVC.**
   `__declspec(dllexport)` instantiates *every* member of a class, including
   the implicit copy assignment; against a `std::vector<std::unique_ptr<…>>`
