@@ -1,6 +1,9 @@
 # HydroCoupleSDK
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](License)
+[![Build and Unit Test](https://github.com/HydroCouple/HydroCoupleSDK/actions/workflows/build_and_unit_test.yml/badge.svg)](https://github.com/HydroCouple/HydroCoupleSDK/actions/workflows/build_and_unit_test.yml)
+[![Documentation](https://github.com/HydroCouple/HydroCoupleSDK/actions/workflows/build_docs.yml/badge.svg)](https://github.com/HydroCouple/HydroCoupleSDK/actions/workflows/build_docs.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/HydroCouple/HydroCoupleSDK/blob/master/License)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
 HydroCoupleSDK is a software development kit that simplifies model component development for the [HydroCouple](https://github.com/HydroCouple/HydroCouple) component-based modeling interface definitions (v2.0.0-alpha.1). It provides concrete base implementations of the core interfaces — the typed hyperslab data plane, component lifecycle machinery, JSON argument IO, and temporal and spatial data structures — so component authors implement only their model-specific logic.
 
