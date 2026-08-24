@@ -55,6 +55,14 @@ public:
 
     ~ProxyModelComponent() override = default;
 
+    //! Not copyable: owns non-copyable state (unique_ptr / mutex /
+    //! atomic). Declared rather than left implicit because the class is
+    //! exported, and __declspec(dllexport) instantiates every member --
+    //! including the implicit copy assignment, which cannot compile
+    //! against those members. Other toolchains only instantiate it on use.
+    ProxyModelComponent(const ProxyModelComponent &)            = delete;
+    ProxyModelComponent &operator=(const ProxyModelComponent &) = delete;
+
     // ── IDistributedModelComponent ───────────────────────────────────────
 
     [[nodiscard]] HydroCouple::Distributed::ITransport *transport()

@@ -36,6 +36,14 @@ public:
     explicit AbstractAdaptedOutputFactory(std::string_view id);
     ~AbstractAdaptedOutputFactory() override = default;
 
+    //! Not copyable: owns non-copyable state (unique_ptr / mutex /
+    //! atomic). Declared rather than left implicit because the class is
+    //! exported, and __declspec(dllexport) instantiates every member --
+    //! including the implicit copy assignment, which cannot compile
+    //! against those members. Other toolchains only instantiate it on use.
+    AbstractAdaptedOutputFactory(const AbstractAdaptedOutputFactory &)            = delete;
+    AbstractAdaptedOutputFactory &operator=(const AbstractAdaptedOutputFactory &) = delete;
+
     // IAdaptedOutputFactory — pure virtual, subclasses implement
     std::vector<HydroCouple::IIdentity *>
     getAvailableAdaptedOutputIds(const HydroCouple::IOutput *provider,

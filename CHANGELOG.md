@@ -109,6 +109,24 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   proves the bulk path was taken — a DOM-shaped serialization cannot pass
   it at any speed — so the timing bound is now a pathology guard only.
 - CDT is licensed MPL-2.0 AND BSD-3-Clause; three places said MIT.
+- **Exported classes owning move-only members did not compile under MSVC.**
+  `__declspec(dllexport)` instantiates *every* member of a class, including
+  the implicit copy assignment; against a `std::vector<std::unique_ptr<…>>`
+  member that is ill-formed. GCC and Clang instantiate it only if something
+  calls it, so `ModelInitializer` compiled everywhere except MSVC. It is now
+  explicitly move-only, and the seven other exported classes owning
+  `unique_ptr`/`mutex`/`atomic` state (`InProcHub`, `InProcTransport`,
+  `ProxyModelComponent`, `ResultsModelComponent`, `AbstractModelComponent`,
+  `AbstractWorkflowComponent`, `AbstractAdaptedOutputFactory`,
+  `TimeSliceOutput`) declare their copy operations deleted. All eight already
+  declared destructors, so none were movable and none were copyable in
+  practice — the declarations change no behaviour, they only stop MSVC
+  generating a member that cannot exist.
+- The standalone consume step could not resolve `nlohmann_json`. Unlike the
+  IO backends, this one is a genuine usage requirement — `nlohmann/json.hpp`
+  is included by the SDK's public headers — so the fix is to give the
+  example build access to the vcpkg tree the SDK was built against, as a
+  real consumer would have.
 - **The installed package demanded dependencies consumers do not need.**
   `HydroCoupleSDKConfig.cmake` called `find_dependency()` for HDF5, NetCDF,
   SQLite, yaml-cpp and Kokkos, so an external project consuming an

@@ -77,6 +77,24 @@ public:
      */
     explicit ModelInitializer(ComponentResolver resolver);
 
+    /*!
+     * \brief Move-only: the initializer owns the components and adapted
+     *        outputs it created (`std::unique_ptr` members), so copying it
+     *        would duplicate ownership.
+     *
+     * Declared rather than left implicit because this class is exported:
+     * `__declspec(dllexport)` instantiates *every* member of the class,
+     * including the implicit copy assignment, which then fails to compile
+     * against the move-only members. Other toolchains only instantiate it
+     * if something calls it, so an implicit declaration compiles there and
+     * breaks on MSVC alone.
+     */
+    ModelInitializer(const ModelInitializer &)            = delete;
+    ModelInitializer &operator=(const ModelInitializer &) = delete;
+    ModelInitializer(ModelInitializer &&) noexcept;
+    ModelInitializer &operator=(ModelInitializer &&) noexcept;
+    ~ModelInitializer();
+
     // ── Loading ───────────────────────────────────────────────────────────
 
     /*!

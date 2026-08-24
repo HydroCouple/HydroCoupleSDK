@@ -112,8 +112,17 @@ jobs:
         shell: bash
         run: |
           cmake --install build --prefix "$PWD/install-prefix"
+          # nlohmann/json.hpp is included by the SDK's public headers, so it
+          # is a genuine usage requirement and the package resolves it with
+          # find_dependency(). A real consumer satisfies that from its own
+          # vcpkg tree; this standalone build has no manifest of its own, so
+          # point it at the one the SDK was built against. (The IO backends
+          # deliberately do NOT need this - they are private to the shared
+          # library and no longer appear in the package config.)
+          triplet_dir=$(echo "$PWD"/build/vcpkg_installed/*-*/ | cut -d' ' -f1)
+          echo "Resolving public dependencies from: $triplet_dir"
           cmake -S examples/serial_coupling -B build-standalone -G Ninja \
-            -DCMAKE_PREFIX_PATH="$PWD/install-prefix" \
+            -DCMAKE_PREFIX_PATH="$PWD/install-prefix;${triplet_dir%/}" \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
           cmake --build build-standalone
 

@@ -161,6 +161,13 @@ ModelInitializer::ModelInitializer(ComponentResolver resolver)
 {
 }
 
+// Defined out of line so the header does not need the complete types behind
+// the owned pointers.
+ModelInitializer::ModelInitializer(ModelInitializer &&) noexcept = default;
+ModelInitializer &ModelInitializer::operator=(
+    ModelInitializer &&) noexcept = default;
+ModelInitializer::~ModelInitializer() = default;
+
 bool ModelInitializer::yamlSupported() noexcept
 {
 #ifdef HYDROCOUPLESDK_HAVE_YAML_CPP

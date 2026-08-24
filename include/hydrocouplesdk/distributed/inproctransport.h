@@ -60,6 +60,14 @@ public:
 
     ~InProcHub();
 
+    //! Not copyable: owns non-copyable state (unique_ptr / mutex /
+    //! atomic). Declared rather than left implicit because the class is
+    //! exported, and __declspec(dllexport) instantiates every member --
+    //! including the implicit copy assignment, which cannot compile
+    //! against those members. Other toolchains only instantiate it on use.
+    InProcHub(const InProcHub &)            = delete;
+    InProcHub &operator=(const InProcHub &) = delete;
+
     /*!
      * \brief Number of ranks this hub connects.
      */
@@ -98,6 +106,14 @@ public:
     using IExchangeRequest = HydroCouple::Distributed::IExchangeRequest;
 
     ~InProcTransport() override;
+
+    //! Not copyable: owns non-copyable state (unique_ptr / mutex /
+    //! atomic). Declared rather than left implicit because the class is
+    //! exported, and __declspec(dllexport) instantiates every member --
+    //! including the implicit copy assignment, which cannot compile
+    //! against those members. Other toolchains only instantiate it on use.
+    InProcTransport(const InProcTransport &)            = delete;
+    InProcTransport &operator=(const InProcTransport &) = delete;
 
     // ── ITransport ────────────────────────────────────────────────────────
 
