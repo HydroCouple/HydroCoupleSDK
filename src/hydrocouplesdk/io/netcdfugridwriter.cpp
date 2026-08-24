@@ -470,6 +470,16 @@ int NetCDFUGRIDWriter::finalize()
     if (!impl.open)
         return 0;
     impl.open = false;
+
+    // EXPERIMENT (remove if it proves inert): nc_close already writes
+    // buffered data and releases resources by contract, so this should be
+    // redundant. It is here only to rule out an incomplete flush as the
+    // cause of the macOS nc_open failures in one CI run, alongside the
+    // probe in tests/hydrocouplesdk/test_netcdf.cpp. Deliberately not
+    // fatal: nc_sync is invalid in define mode, and a diagnostic aid must
+    // not become a new failure path.
+    (void)nc_sync(impl.ncid);
+
     HC_NC_CHECK(nc_close(impl.ncid), impl.error, 65);
     impl.ncid = -1;
     return 0;

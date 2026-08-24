@@ -9,6 +9,7 @@
 
 #include "hydrocouplesdk/io/netcdfugridwriter.h"
 #include "hydrocouplesdk/io/iothread.h"
+#include "hydrocouplesdk/io/resultreader.h"
 
 #include <netcdf.h>
 
@@ -92,6 +93,42 @@ int openForRead(const std::filesystem::path &path, int &ncid)
         std::fprintf(stderr, "  HDF5 error stack (if any):\n");
         H5Eprint2(H5E_DEFAULT, stderr);
 #endif
+
+        // Same file, same process, same instant -- but opened from inside
+        // libHydroCoupleSDK instead of from this executable. The two are
+        // distinguishable because the test binary links its own copy of
+        // netcdf and hdf5 alongside the copies already inside the shared
+        // library (the macOS linker warns: "ignoring duplicate libraries:
+        // libhdf5.a").
+        //
+        //   SDK read OK  -> the file is fine and the bytes are on disk;
+        //                   the failure belongs to *this* executable's
+        //                   library instance, not to the writer.
+        //   SDK read bad -> the writer really did produce something
+        //                   unreadable, and the flush/close path is the
+        //                   place to look.
+        std::string readerMessage;
+        auto reader = HydroCouple::SDK::IO::createResultReader("netcdf_ugrid",
+                                                               readerMessage);
+        if (!reader)
+        {
+            std::fprintf(stderr, "  SDK reader unavailable: %s\n",
+                         readerMessage.c_str());
+        }
+        else if (reader->open(path, readerMessage))
+        {
+            std::fprintf(stderr,
+                         "  SDK reader opened the SAME file successfully.\n"
+                         "  => the file is valid; the duplicate netcdf/hdf5\n"
+                         "     instance in this executable is the problem.\n");
+        }
+        else
+        {
+            std::fprintf(stderr,
+                         "  SDK reader ALSO failed: %s\n"
+                         "  => the written file is genuinely unreadable.\n",
+                         readerMessage.c_str());
+        }
     }
     return status;
 }
