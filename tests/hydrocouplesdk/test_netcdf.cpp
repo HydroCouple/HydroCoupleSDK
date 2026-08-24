@@ -12,9 +12,19 @@
 
 #include <netcdf.h>
 
+// Only to print HDF5's error stack when a NetCDF-4 file fails to open; the
+// tests themselves never touch the HDF5 API. The test target links HDF5
+// under the same condition.
+#ifdef HYDROCOUPLESDK_HAVE_HDF5
+#include <hdf5.h>
+#endif
+
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <string>
+#include <system_error>
 
 using namespace HydroCouple;
 using namespace HydroCouple::SDK::IO;
@@ -53,6 +63,37 @@ FieldSlice doubleField(const std::string &id, std::vector<double> values)
     field.data.resize(values.size() * sizeof(double));
     std::memcpy(field.data.data(), values.data(), field.data.size());
     return field;
+}
+
+/*!
+ * \brief Opens a file this suite just wrote, reporting *why* on failure.
+ *
+ * A bare ASSERT_EQ on nc_open prints only the numeric code, which for a
+ * NetCDF-4 file is usually NC_EHDFERR (-101) -- "error at HDF5 layer" and
+ * nothing more. The file exists and the writer reported success, so the
+ * interesting question is what the netCDF and HDF5 layers have to say. This
+ * prints nc_strerror plus the HDF5 error stack that netCDF suppresses by
+ * default, so a CI log is enough to diagnose the failure.
+ */
+int openForRead(const std::filesystem::path &path, int &ncid)
+{
+    const int status = nc_open(path.string().c_str(), NC_NOWRITE, &ncid);
+    if (status != NC_NOERR)
+    {
+        std::error_code ec;
+        const auto size = std::filesystem::file_size(path, ec);
+        ADD_FAILURE() << "nc_open(" << path.string() << ") -> " << status
+                      << " (" << nc_strerror(status) << ")\n"
+                      << "  file " << (ec ? "size unavailable"
+                                          : "exists, " + std::to_string(size)
+                                                + " bytes")
+                      << "\n  netcdf " << nc_inq_libvers();
+#ifdef HYDROCOUPLESDK_HAVE_HDF5
+        std::fprintf(stderr, "  HDF5 error stack (if any):\n");
+        H5Eprint2(H5E_DEFAULT, stderr);
+#endif
+    }
+    return status;
 }
 
 std::string readTextAttribute(int ncid, int varid, const char *attribute)
@@ -94,7 +135,8 @@ TEST(NetCDFUGRIDWriterTest, WritesConventionsAndTopology)
     const auto path = writeThreeLevels("io_ugrid.nc");
 
     int ncid = -1;
-    ASSERT_EQ(nc_open(path.string().c_str(), NC_NOWRITE, &ncid), NC_NOERR);
+    ASSERT_EQ(openForRead(path, ncid), NC_NOERR)
+        << "nc_open failed on a file this suite just wrote";
 
     EXPECT_EQ(readTextAttribute(ncid, NC_GLOBAL, "Conventions"),
               "CF-1.11 UGRID-1.0");
@@ -113,7 +155,8 @@ TEST(NetCDFUGRIDWriterTest, AppendsUnlimitedTimeAndFieldValues)
     const auto path = writeThreeLevels("io_ugrid.nc");
 
     int ncid = -1;
-    ASSERT_EQ(nc_open(path.string().c_str(), NC_NOWRITE, &ncid), NC_NOERR);
+    ASSERT_EQ(openForRead(path, ncid), NC_NOERR)
+        << "nc_open failed on a file this suite just wrote";
 
     int timeDim = -1;
     size_t timeLength = 0;
@@ -143,7 +186,8 @@ TEST(NetCDFUGRIDWriterTest, ConnectivityIsPackedWithStartIndexZero)
     const auto path = writeThreeLevels("io_ugrid.nc");
 
     int ncid = -1;
-    ASSERT_EQ(nc_open(path.string().c_str(), NC_NOWRITE, &ncid), NC_NOERR);
+    ASSERT_EQ(openForRead(path, ncid), NC_NOERR)
+        << "nc_open failed on a file this suite just wrote";
     int faceNodesVar = -1;
     ASSERT_EQ(nc_inq_varid(ncid, "mesh2d_face_nodes", &faceNodesVar),
               NC_NOERR);
@@ -199,7 +243,8 @@ TEST(NetCDFUGRIDWriterTest, RunsBehindIOThread)
     ASSERT_EQ(io.errorCode(), 0) << io.errorMessage();
 
     int ncid = -1;
-    ASSERT_EQ(nc_open(path.string().c_str(), NC_NOWRITE, &ncid), NC_NOERR);
+    ASSERT_EQ(openForRead(path, ncid), NC_NOERR)
+        << "nc_open failed on a file this suite just wrote";
     int timeDim = -1;
     size_t timeLength = 0;
     nc_inq_dimid(ncid, "time", &timeDim);

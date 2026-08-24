@@ -33,6 +33,18 @@ jobs:
           ref: dev
           path: HydroCouple
 
+      # Ninja needs cl.exe/link.exe on PATH; the Visual Studio generator used
+      # to supply them implicitly. Without this the runner's MinGW g++ is
+      # picked up instead, and it is handed MSVC flags (/utf-8) by the
+      # MSVC-built vcpkg packages -- which it reads as a missing input file.
+      # Runs before run-vcpkg so the vcpkg root that step exports is not
+      # overwritten by vcvars64, which also sets VCPKG_ROOT.
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Setup vcpkg (manifest mode, tests feature)
         uses: lukka/run-vcpkg@v11
         with:

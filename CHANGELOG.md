@@ -109,6 +109,25 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   proves the bulk path was taken — a DOM-shaped serialization cannot pass
   it at any speed — so the timing bound is now a pathology guard only.
 - CDT is licensed MPL-2.0 AND BSD-3-Clause; three places said MIT.
+- **The installed package demanded dependencies consumers do not need.**
+  `HydroCoupleSDKConfig.cmake` called `find_dependency()` for HDF5, NetCDF,
+  SQLite, yaml-cpp and Kokkos, so an external project consuming an
+  HDF5-enabled SDK failed at `find_package(HydroCoupleSDK)` unless it could
+  also find HDF5 — a dependency it never asked for and that is entirely
+  encapsulated in the shared library. The comment justifying those calls
+  claimed CMake exports a target's PRIVATE dependencies as
+  `$<LINK_ONLY:...>`; that is true of **static** libraries only. For the
+  SHARED `HydroCoupleSDK` nothing is exported, so the calls were pure
+  overhead. Removed; the `HYDROCOUPLESDK_WITH_*` variables still report how
+  the SDK was configured, for consumers that want a backend on their own
+  terms.
+- **Windows CI compiled with MinGW instead of MSVC.** The job runs Ninja,
+  which needs `cl.exe` on `PATH`; without the MSVC environment CMake picked
+  up the runner's `g++`, which was then handed `/utf-8` by the MSVC-built
+  vcpkg packages and reported it as a missing linker input. Beyond the flag,
+  MinGW objects and MSVC-built `x64-windows` packages would not have linked.
+  The job now sets up the MSVC environment before vcpkg, matching the other
+  HydroCouple projects.
 - **`HydroCoupleSDK` linked `HDF5::HDF5` by hardcoded name**, so CMake
   generation failed on every machine where HDF5 arrives in config mode —
   which is every CI runner, since vcpkg exports `hdf5::hdf5-static`. Only

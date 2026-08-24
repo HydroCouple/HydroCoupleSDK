@@ -365,6 +365,12 @@ target_link_libraries(HydroCoupleSDK
         $<$<BOOL:${USE_KOKKOS}>:Kokkos::kokkos>
 )
 
+# The IO backends below are PRIVATE and stay that way. HydroCoupleSDK is a
+# SHARED library, and CMake does not put a shared library's PRIVATE
+# dependencies into its exported link interface, so none of these reach a
+# consumer. (For a STATIC library CMake would export them as
+# $<LINK_ONLY:...>, and the installed package config would then have to
+# resolve them -- see cmake/HydroCoupleSDKConfig.cmake.in.)
 if(USE_HDF5)
     target_compile_definitions(HydroCoupleSDK PUBLIC HYDROCOUPLESDK_HAVE_HDF5)
     target_link_libraries(HydroCoupleSDK PRIVATE ${HYDROCOUPLESDK_HDF5_TARGET})
