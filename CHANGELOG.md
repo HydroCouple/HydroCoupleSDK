@@ -13,8 +13,43 @@ MAJOR.MINOR must match the interface headers it is built against
 
 Composition IO moves into the SDK, and completed runs become reopenable.
 
+### Fixed
+
+- **`NetCDFUGRIDWriter` now names every node coordinate variable it writes.**
+  `node_coordinates` listed only `_node_x` and `_node_y`, so an elevation
+  written as `_node_z` was present in the file but undiscoverable: a
+  conventions-driven reader looks for coordinates through that attribute and
+  would never find it. Elevations round-trip now.
+
 ### Added
 
+- **Spatial interface adapters** (`spatial/geometryadapters.h`,
+  `spatial/meshadapters.h`) — the SDK's spatial value types served through the
+  standard's `IGeometry` family. Before these, `EnvelopeAdapter` was the only
+  implementation of any spatial interface in the SDK, so a component wanting
+  to publish a geometry data item had to implement `IGeometry` itself —
+  **thirty-two methods** — plus `IPoint`/`IPolygon`/`INetwork` as applicable,
+  and each would have done it differently. `PointAdapter`,
+  `LineStringAdapter`, `PolygonAdapter`, `VertexAdapter`, `EdgeAdapter`,
+  `NetworkAdapter` and `PolyhedralSurfaceAdapter` follow the
+  `EnvelopeAdapter` precedent: the value types stay values, and the adapter
+  owns a copy and serves the interface over it. `MeshViewAdapter` exposes a
+  `MeshDefinition` as an `IMeshView` — the two were written to the same
+  vocabulary, so it hands out spans rather than copying.
+  The relational predicates and constructive operations (`intersects`,
+  `buffer`, `convexHull`, …) need a geometry engine the SDK does not link and
+  report `false`/`nullptr` rather than guessing; the WKB the adapters do
+  produce is what a caller with GEOS or GDAL uses instead.
+- **UGRID mesh reader** (`io/ugridreader.h`) — the counterpart the writers
+  lacked. The SDK could produce UGRID files that nothing in the ecosystem
+  could read back, so every consumer had to write its own NetCDF walker.
+  Driven by the conventions rather than by our own variable names: the
+  topology variable is found by its `cf_role` and the coordinate and
+  connectivity variables by the attributes it names, so a mesh written by
+  another tool reads as readily as one of ours. Honours `start_index` (a
+  1-based file is converted once, here) and drops `_FillValue` padding from
+  rectangular connectivity. `ugridReadSupported()` answers at runtime, so a
+  consumer linking a prebuilt SDK need not know how it was configured.
 - **Microsoft MPI on Windows** — the MPI job is a matrix over
   ubuntu-latest and windows-latest. Launcher differences stay out of the
   build files: rank count comes from `HYDROCOUPLESDK_MPI_TEST_RANKS` and

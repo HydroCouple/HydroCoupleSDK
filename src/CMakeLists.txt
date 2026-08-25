@@ -58,6 +58,7 @@ PRIVATE
     hydrocouplesdk/io/csvwriter.cpp
     hydrocouplesdk/io/resultentry.cpp
     hydrocouplesdk/io/resultreader.cpp
+    hydrocouplesdk/io/ugridreader.cpp
     hydrocouplesdk/io/runmanifest.cpp
     hydrocouplesdk/io/compositionspec.cpp
     hydrocouplesdk/io/modelinitializer.cpp
@@ -74,6 +75,8 @@ PRIVATE
     hydrocouplesdk/spatiotemporal/spatiotemporalitems.cpp
 
     # ── spatial (namespace HydroCouple::Spatial) ──────────────────────────
+    hydrocouplesdk/spatial/geometryadapters.cpp
+    hydrocouplesdk/spatial/meshadapters.cpp
     hydrocouplesdk/spatial/linestring.cpp
     hydrocouplesdk/spatial/polygon.cpp
     hydrocouplesdk/spatial/polyhedralsurface.cpp
@@ -133,4 +136,8 @@ if(USE_NETCDF)
     target_sources(HydroCoupleSDK PRIVATE
         hydrocouplesdk/io/netcdfugridwriter.cpp
     )
+
+    # The UGRID reader is always compiled so ugridReadSupported() can answer
+    # in every build; the project-wide HYDROCOUPLESDK_HAVE_NETCDF define set
+    # in the top-level CMakeLists is what makes its NetCDF half real.
 endif()

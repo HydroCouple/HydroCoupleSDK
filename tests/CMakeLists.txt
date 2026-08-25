@@ -14,6 +14,7 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_distributed.cpp
     hydrocouplesdk/test_fluxpayload.cpp
     hydrocouplesdk/test_device.cpp
+    hydrocouplesdk/test_spatialadapters.cpp
     hydrocouplesdk/test_spatiotemporal.cpp
     hydrocouplesdk/test_workflow.cpp
 )
@@ -55,7 +56,9 @@ if(USE_GEOPACKAGE)
 endif()
 
 if(USE_NETCDF)
-    target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_netcdf.cpp)
+    target_sources(HydroCoupleSDKTests PRIVATE
+        hydrocouplesdk/test_netcdf.cpp
+        hydrocouplesdk/test_ugridreader.cpp)
     target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_NETCDF_TARGET})
 endif()
 

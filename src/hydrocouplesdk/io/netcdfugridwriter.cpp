@@ -222,10 +222,23 @@ int NetCDFUGRIDWriter::initialize()
                                    &topologyDimension),
                     impl.error, 54);
     }
-    HC_NC_CHECK(putVarText(topologyVar, "node_coordinates",
-                           mesh.meshName + "_node_x " + mesh.meshName +
-                               "_node_y"),
-                impl.error, 54);
+    {
+        // Every node coordinate variable this file writes is named here.
+        // Listing only x and y left the elevation written but undiscoverable:
+        // a conventions-driven reader looks for coordinates through this
+        // attribute and would never find _node_z.
+        std::string nodeCoordinates =
+            mesh.meshName + "_node_x " + mesh.meshName + "_node_y";
+
+        if (!mesh.nodeZ.empty())
+        {
+            nodeCoordinates += " " + mesh.meshName + "_node_z";
+        }
+
+        HC_NC_CHECK(putVarText(topologyVar, "node_coordinates",
+                               nodeCoordinates),
+                    impl.error, 54);
+    }
     if (mesh.faceCount() > 0)
         HC_NC_CHECK(putVarText(topologyVar, "face_node_connectivity",
                                mesh.meshName + "_face_nodes"),
