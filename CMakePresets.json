@@ -36,8 +36,11 @@
     {
       "name": "macos",
       "inherits": "default",
-      "description": "macOS build using Unix Makefiles",
+      "description": "macOS (Apple silicon) build using Unix Makefiles; dynamic vcpkg linkage so the SDK library and its consumers share one hdf5/netcdf instance",
       "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-osx-dynamic"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",

@@ -73,6 +73,23 @@ Composition IO moves into the SDK, and completed runs become reopenable.
 
 ### Fixed
 
+- **macOS carried two HDF5 instances in one process**, so the four
+  `NetCDFUGRIDWriterTest` cases failed with `NC_EHDFERR` on files the SDK
+  had just written — while the SDK's own reader opened those same files.
+  The default `arm64-osx` triplet builds hdf5/netcdf as static archives,
+  which `libHydroCoupleSDK.dylib` absorbs *and re-exports* (a prebuilt C
+  archive is untouched by `-fvisibility=hidden`); the test executable
+  links its own copies, and its netcdf then binds its `H5*` calls to the
+  dylib's instance while the direct HDF5 tests use the executable's. macOS
+  builds now use the `*-osx-dynamic` triplet, leaving one instance per
+  process, as on Windows.
+- **The Windows package-consumption check never found the package it had
+  just installed.** `CMAKE_PREFIX_PATH` is `;`-separated, and MSYS reads
+  that separator as proof the value is already in Windows form, so Git
+  Bash's `/d/a/…` reached CMake verbatim (a lone path argument, such as
+  the `cmake --install` prefix, *is* converted — which is why the install
+  itself looked fine). The workflow now converts each entry with
+  `cygpath -m`.
 - The GeoPackage result reader queried a non-existent column; it now
   matches the writer's `variables.item_id` schema (found by running the
   analysis example end to end).

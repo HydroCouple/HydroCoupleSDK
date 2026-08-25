@@ -45,6 +45,20 @@ jobs:
         with:
           arch: x64
 
+      # macOS: the default arm64-osx triplet builds hdf5/netcdf as static
+      # archives, so each is absorbed twice -- once into
+      # libHydroCoupleSDK.dylib (which re-exports every symbol it pulled from
+      # a prebuilt C archive) and once into the test executable. The
+      # executable's netcdf then binds its H5 calls to the dylib's copy while
+      # the direct H5 tests use its own, and the split library state makes
+      # nc_open fail with NC_EHDFERR on files the SDK just wrote. Dynamic
+      # linkage leaves one instance per process, as on Windows.
+      - name: Use dynamic vcpkg linkage (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          triplet="$(uname -m | sed 's/x86_64/x64/')-osx-dynamic"
+          echo "VCPKG_TRIPLET_OPTION=-DVCPKG_TARGET_TRIPLET=$triplet" >> "$GITHUB_ENV"
+
       - name: Setup vcpkg (manifest mode, tests feature)
         uses: lukka/run-vcpkg@v11
         with:
@@ -58,6 +72,7 @@ jobs:
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          ${{ env.VCPKG_TRIPLET_OPTION }}
           "-DVCPKG_MANIFEST_FEATURES=tests;hdf5;geopackage;netcdf;tools"
           -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
           -DUSE_GDAL=OFF -DUSE_NETCDF=ON -DUSE_HDF5=ON -DUSE_GEOPACKAGE=ON -DUSE_OPENMP=OFF
@@ -120,9 +135,16 @@ jobs:
           # deliberately do NOT need this - they are private to the shared
           # library and no longer appear in the package config.)
           triplet_dir=$(echo "$PWD"/build/vcpkg_installed/*-*/ | cut -d' ' -f1)
-          echo "Resolving public dependencies from: $triplet_dir"
+          # CMAKE_PREFIX_PATH is a ';'-separated list, and MSYS leaves such an
+          # argument alone -- it reads the ';' as proof the value is already in
+          # Windows form. Git Bash's "/d/a/..." would therefore reach CMake
+          # verbatim, so convert each entry ourselves. cygpath is a no-op
+          # elsewhere because it only exists on Windows runners.
+          native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
+          prefix_path="$(native "$PWD/install-prefix");$(native "${triplet_dir%/}")"
+          echo "Resolving the package and its public dependencies from: $prefix_path"
           cmake -S examples/serial_coupling -B build-standalone -G Ninja \
-            -DCMAKE_PREFIX_PATH="$PWD/install-prefix;${triplet_dir%/}" \
+            -DCMAKE_PREFIX_PATH="$prefix_path" \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
           cmake --build build-standalone
 
