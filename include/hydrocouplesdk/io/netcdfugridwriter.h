@@ -76,6 +76,32 @@ public:
 
     // ── IOutputWriter ─────────────────────────────────────────────────────
 
+    /*!
+     * \brief Gives the file a CF vertical coordinate.
+     *
+     * Turns a 2-D mesh file into a layered one: the topology stays
+     * two-dimensional, as the conventions intend, and the water column is
+     * described by a sigma coordinate over it. Without this the file is
+     * plain 2-D, which is what most meshes are.
+     *
+     * The arguments are in CF's conventions, matching what readVerticalCoordinate()
+     * returns: sigma runs 0 at the surface to -1 at the bed, and depth is
+     * positive **down**. Both are written verbatim, together with the
+     * \c formula_terms that let any CF-aware reader rebuild elevations.
+     *
+     * Must be called before initialize().
+     *
+     * \param interfaceSigma Sigma at the layer interfaces, 0 to -1.
+     * \param depth Bed depth per face, positive down.
+     * \param surface Water surface elevation per face, positive up. Several
+     *        time levels may be given as one run of \c faces values per
+     *        level; a moving surface is what makes sigma layers real
+     *        elevations at each step rather than only at the first.
+     */
+    void setVerticalCoordinate(std::vector<double> interfaceSigma,
+                               std::vector<double> depth,
+                               std::vector<double> surface);
+
     [[nodiscard]] std::string name() const override;
 
     /*!

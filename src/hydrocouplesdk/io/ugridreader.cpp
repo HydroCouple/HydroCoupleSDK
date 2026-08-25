@@ -14,6 +14,8 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
+#include <map>
 #include <sstream>
 
 namespace HydroCouple::SDK::IO {
@@ -42,6 +44,19 @@ bool readUGRIDMesh(const std::filesystem::path &, const std::string &,
 {
     message = "This build has no NetCDF support, so UGRID files cannot be "
               "read.";
+    return false;
+}
+
+bool readVerticalCoordinate(const std::filesystem::path &, const std::string &,
+                            size_t, VerticalCoordinate &, std::string &message)
+{
+    message = "This build has no NetCDF support, so UGRID files cannot be "
+              "read.";
+    return false;
+}
+
+bool hasVerticalCoordinate(const std::filesystem::path &, const std::string &)
+{
     return false;
 }
 
@@ -426,6 +441,369 @@ bool readUGRIDMesh(const std::filesystem::path &path,
     }
 
     return true;
+}
+
+
+namespace {
+
+//! Splits "sigma: a eta: b depth: c" into its key/value pairs.
+std::map<std::string, std::string> parseFormulaTerms(const std::string &value)
+{
+    std::map<std::string, std::string> terms;
+    const std::vector<std::string> words = splitNames(value);
+
+    for (size_t index = 0; index + 1 < words.size(); index += 2)
+    {
+        std::string key = words[index];
+
+        // The conventions write "key: value"; the colon belongs to the key.
+        if (!key.empty() && key.back() == ':')
+        {
+            key.pop_back();
+            terms[key] = words[index + 1];
+        }
+    }
+
+    return terms;
+}
+
+//! The sigma coordinate variable of a mesh, or -1.
+int findSigmaVariable(int ncid, std::string &formulaTerms)
+{
+    int variables = 0;
+
+    if (nc_inq_nvars(ncid, &variables) != NC_NOERR)
+    {
+        return -1;
+    }
+
+    for (int varId = 0; varId < variables; ++varId)
+    {
+        // By what it *is*, not by what it is called: the standard name says
+        // this is a sigma coordinate, and formula_terms says what it is
+        // built from. A file from another model reads the same way.
+        const std::string standardName =
+            textAttribute(ncid, varId, "standard_name");
+
+        if (standardName != "ocean_sigma_coordinate" &&
+            standardName != "ocean_s_coordinate")
+        {
+            continue;
+        }
+
+        formulaTerms = textAttribute(ncid, varId, "formula_terms");
+
+        if (!formulaTerms.empty())
+        {
+            return varId;
+        }
+    }
+
+    return -1;
+}
+
+//! Reads a rank-1 double variable by id.
+bool readDoublesById(int ncid, int varId, std::vector<double> &values)
+{
+    int rank = 0;
+
+    if (nc_inq_varndims(ncid, varId, &rank) != NC_NOERR || rank != 1)
+    {
+        return false;
+    }
+
+    int dimId = -1;
+    nc_inq_vardimid(ncid, varId, &dimId);
+
+    size_t length = 0;
+    nc_inq_dimlen(ncid, dimId, &length);
+
+    values.assign(length, 0.0);
+
+    return nc_get_var_double(ncid, varId, values.data()) == NC_NOERR;
+}
+
+/*!
+ * \brief Finds interface sigma for \p layers layers.
+ *
+ * A CF \c bounds attribute is the standard answer and is tried first. Failing
+ * that, a rank-1 variable one longer than the layers whose values descend
+ * from 0 to -1 *is* an interface sigma, whatever it happens to be called —
+ * identifying it by that beats matching a name any one writer chose.
+ */
+bool findInterfaceSigma(int ncid, int sigmaVar, size_t layers,
+                        std::vector<double> &interfaces)
+{
+    const std::string bounds = textAttribute(ncid, sigmaVar, "bounds");
+
+    if (!bounds.empty())
+    {
+        int boundsVar = -1;
+
+        if (nc_inq_varid(ncid, bounds.c_str(), &boundsVar) == NC_NOERR)
+        {
+            int rank = 0;
+            nc_inq_varndims(ncid, boundsVar, &rank);
+
+            if (rank == 2)
+            {
+                std::vector<double> raw(layers * 2, 0.0);
+
+                if (nc_get_var_double(ncid, boundsVar, raw.data()) == NC_NOERR)
+                {
+                    // Bounds are (layer, 2); consecutive layers share an edge.
+                    interfaces.assign(layers + 1, 0.0);
+                    interfaces.front() = raw.front();
+
+                    for (size_t layer = 0; layer < layers; ++layer)
+                    {
+                        interfaces[layer + 1] = raw[layer * 2 + 1];
+                    }
+
+                    return true;
+                }
+            }
+        }
+    }
+
+    int variables = 0;
+
+    if (nc_inq_nvars(ncid, &variables) != NC_NOERR)
+    {
+        return false;
+    }
+
+    for (int varId = 0; varId < variables; ++varId)
+    {
+        if (varId == sigmaVar)
+        {
+            continue;
+        }
+
+        std::vector<double> candidate;
+
+        if (!readDoublesById(ncid, varId, candidate) ||
+            candidate.size() != layers + 1)
+        {
+            continue;
+        }
+
+        const bool spansTheColumn = std::abs(candidate.front()) < 1.0e-9 &&
+                                    std::abs(candidate.back() + 1.0) < 1.0e-9;
+
+        if (!spansTheColumn)
+        {
+            continue;
+        }
+
+        bool descends = true;
+
+        for (size_t index = 1; index < candidate.size(); ++index)
+        {
+            descends = descends && candidate[index] < candidate[index - 1];
+        }
+
+        if (descends)
+        {
+            interfaces = std::move(candidate);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//! One time slice of a (time, face) variable, or the whole of a (face) one.
+bool readSurfaceSlice(int ncid, const std::string &name, size_t timeIndex,
+                      std::vector<double> &values, size_t &timeCount,
+                      std::string &message)
+{
+    int varId = -1;
+
+    if (nc_inq_varid(ncid, name.c_str(), &varId) != NC_NOERR)
+    {
+        message = "The vertical coordinate names a surface elevation "
+                  "variable the file does not hold: " + name;
+        return false;
+    }
+
+    int rank = 0;
+    nc_inq_varndims(ncid, varId, &rank);
+
+    if (rank == 1)
+    {
+        timeCount = 0;
+
+        return readDoublesById(ncid, varId, values);
+    }
+
+    if (rank != 2)
+    {
+        message = name + " is neither a per-face nor a per-face-per-time "
+                         "variable.";
+        return false;
+    }
+
+    int dimIds[2] = {-1, -1};
+    nc_inq_vardimid(ncid, varId, dimIds);
+
+    size_t times = 0;
+    size_t faces = 0;
+    nc_inq_dimlen(ncid, dimIds[0], &times);
+    nc_inq_dimlen(ncid, dimIds[1], &faces);
+
+    timeCount = times;
+
+    if (times == 0 || faces == 0)
+    {
+        message = name + " holds no data.";
+        return false;
+    }
+
+    // Clamped rather than refused: a viewer asking for the latest time of a
+    // run still being written should get the latest there is.
+    const size_t slice = timeIndex < times ? timeIndex : times - 1;
+
+    const size_t start[2] = {slice, 0};
+    const size_t count[2] = {1, faces};
+
+    values.assign(faces, 0.0);
+
+    if (nc_get_vara_double(ncid, varId, start, count, values.data()) !=
+        NC_NOERR)
+    {
+        message = "The surface elevations in " + name + " could not be read.";
+        return false;
+    }
+
+    return true;
+}
+
+} // namespace
+
+bool readVerticalCoordinate(const std::filesystem::path &path,
+                            const std::string &meshName, size_t timeIndex,
+                            VerticalCoordinate &vertical,
+                            std::string &message)
+{
+    vertical = {};
+
+    int ncid = -1;
+
+    if (nc_open(path.string().c_str(), NC_NOWRITE, &ncid) != NC_NOERR)
+    {
+        message = "The file could not be opened: " + path.string();
+        return false;
+    }
+
+    const FileHandle handle(ncid);
+
+    // The mesh has to exist before its vertical coordinate means anything.
+    const std::vector<std::pair<int, std::string>> meshes =
+        topologyVariables(ncid);
+
+    if (meshes.empty())
+    {
+        message = "The file holds no UGRID mesh.";
+        return false;
+    }
+
+    if (!meshName.empty())
+    {
+        const bool known =
+            std::any_of(meshes.begin(), meshes.end(),
+                        [&meshName](const std::pair<int, std::string> &entry)
+                        { return entry.second == meshName; });
+
+        if (!known)
+        {
+            message = "The file holds no mesh named " + meshName + ".";
+            return false;
+        }
+    }
+
+    std::string formulaTerms;
+    const int sigmaVar = findSigmaVariable(ncid, formulaTerms);
+
+    if (sigmaVar < 0)
+    {
+        message = "The file has no CF vertical coordinate; its mesh is "
+                  "two-dimensional.";
+        return false;
+    }
+
+    const std::map<std::string, std::string> terms =
+        parseFormulaTerms(formulaTerms);
+
+    const auto sigmaTerm = terms.find("sigma");
+    const auto etaTerm = terms.find("eta");
+    const auto depthTerm = terms.find("depth");
+
+    if (sigmaTerm == terms.end() || etaTerm == terms.end() ||
+        depthTerm == terms.end())
+    {
+        message = "The vertical coordinate's formula_terms is missing one of "
+                  "sigma, eta or depth: " + formulaTerms;
+        return false;
+    }
+
+    if (!readDoubles(ncid, sigmaTerm->second, vertical.layerSigma, message) ||
+        !readDoubles(ncid, depthTerm->second, vertical.depth, message))
+    {
+        return false;
+    }
+
+    if (vertical.layerSigma.empty())
+    {
+        message = "The vertical coordinate has no layers.";
+        return false;
+    }
+
+    vertical.surfaceVariable = etaTerm->second;
+
+    if (!readSurfaceSlice(ncid, etaTerm->second, timeIndex, vertical.surface,
+                          vertical.timeCount, message))
+    {
+        return false;
+    }
+
+    if (vertical.surface.size() != vertical.depth.size())
+    {
+        message = "The vertical coordinate has " +
+                  std::to_string(vertical.depth.size()) + " depths but " +
+                  std::to_string(vertical.surface.size()) +
+                  " surface elevations.";
+        return false;
+    }
+
+    if (!findInterfaceSigma(ncid, sigmaVar, vertical.layerSigma.size(),
+                            vertical.interfaceSigma))
+    {
+        // Midpointing the centres: exact for a uniform distribution, an
+        // approximation for a stretched one, and flagged either way.
+        vertical.interfacesAreDerived = true;
+        vertical.interfaceSigma.assign(vertical.layerSigma.size() + 1, 0.0);
+        vertical.interfaceSigma.front() = 0.0;
+        vertical.interfaceSigma.back() = -1.0;
+
+        for (size_t layer = 1; layer < vertical.layerSigma.size(); ++layer)
+        {
+            vertical.interfaceSigma[layer] =
+                0.5 * (vertical.layerSigma[layer - 1] +
+                       vertical.layerSigma[layer]);
+        }
+    }
+
+    return true;
+}
+
+bool hasVerticalCoordinate(const std::filesystem::path &path,
+                           const std::string &meshName)
+{
+    VerticalCoordinate vertical;
+    std::string message;
+
+    return readVerticalCoordinate(path, meshName, 0, vertical, message);
 }
 
 #endif // HYDROCOUPLESDK_HAVE_NETCDF

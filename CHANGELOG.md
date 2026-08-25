@@ -23,6 +23,20 @@ Composition IO moves into the SDK, and completed runs become reopenable.
 
 ### Added
 
+- **CF vertical coordinates, read and written.** `readVerticalCoordinate()`
+  joins the UGRID reader: a layered file is a 2-D topology with a sigma
+  coordinate over it, and this returns the interfaces, the per-face bed depth
+  and the water surface at a chosen time. Found by convention rather than by
+  any writer's names — the coordinate is the variable whose `standard_name`
+  is an `ocean_sigma_coordinate`, and its `formula_terms` names what it is
+  built from. Interfaces come from a CF `bounds` attribute when present;
+  failing that from a variable one longer than the layers whose values run 0
+  to -1, which is what an interface sigma *is*; failing that they are
+  midpointed from the centres and **flagged as derived**, since midpointing
+  is exact only for a uniform distribution.
+  `NetCDFUGRIDWriter::setVerticalCoordinate()` is the other half — without it
+  the reader could read files the SDK itself could not produce, the same
+  asymmetry the `node_coordinates` fix closed.
 - **Spatial interface adapters** (`spatial/geometryadapters.h`,
   `spatial/meshadapters.h`) — the SDK's spatial value types served through the
   standard's `IGeometry` family. Before these, `EnvelopeAdapter` was the only

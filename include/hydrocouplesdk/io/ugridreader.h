@@ -59,6 +59,90 @@ namespace HydroCouple::SDK::IO {
     MeshDefinition &mesh, std::string &message);
 
 /*!
+ * \brief A CF vertical coordinate attached to a UGRID mesh.
+ *
+ * The layered half of a layered UGRID file: a 2-D topology carries the plan
+ * view, and this carries the water column over it. Everything is in CF's
+ * conventions rather than any one model's, because that is what the file
+ * says — \c sigma runs 0 at the surface to -1 at the bed, and \c depth is
+ * positive **down**. A consumer whose own sigma runs the other way converts
+ * once, on its own side.
+ */
+struct VerticalCoordinate
+{
+    /*!
+     * \brief Sigma at the layer interfaces: \c layerCount() + 1 values,
+     *        0 first (surface) descending to -1 (bed).
+     */
+    std::vector<double> interfaceSigma;
+
+    //! Sigma at the layer centres, as \c formula_terms names it.
+    std::vector<double> layerSigma;
+
+    //! Bed depth per face, positive down.
+    std::vector<double> depth;
+
+    //! Water surface elevation per face at the time read, positive up.
+    std::vector<double> surface;
+
+    //! The variable \c formula_terms named for the surface elevation.
+    std::string surfaceVariable;
+
+    //! Times the surface variable carries; 0 when it is time-independent.
+    size_t timeCount = 0;
+
+    /*!
+     * \brief Whether the interfaces were derived rather than read.
+     *
+     * True when the file carried only layer centres. Midpointing them is
+     * exact for a uniform distribution and an approximation for a stretched
+     * one, so a caller that cares — a volume calculation, as opposed to a
+     * picture — can tell the difference.
+     */
+    bool interfacesAreDerived = false;
+
+    //! Layers implied by the interfaces.
+    [[nodiscard]] int layerCount() const noexcept
+    {
+        return interfaceSigma.size() >= 2
+                   ? static_cast<int>(interfaceSigma.size()) - 1
+                   : 0;
+    }
+};
+
+/*!
+ * \brief Reads the vertical coordinate of a layered UGRID mesh.
+ *
+ * Found through the conventions, not through any writer's variable names:
+ * the coordinate is the variable whose \c standard_name is an
+ * \c ocean_sigma_coordinate, and \c formula_terms names the sigma, surface
+ * and depth variables it is built from. Interfaces come from a CF \c bounds
+ * attribute when there is one; failing that, from a variable dimensioned one
+ * longer than the layers whose values run 0 to -1, which is what an
+ * interface sigma *is*; failing that, from the layer centres.
+ *
+ * \param[in]  path      File to read.
+ * \param[in]  meshName  Mesh to read; empty takes the first.
+ * \param[in]  timeIndex Which time's surface elevation to take.
+ * \param[out] vertical  Receives the coordinate.
+ * \param[out] message   Failure description when returning false; also the
+ *                       reason when the mesh simply has no vertical
+ *                       coordinate, which is not an error in a 2-D file.
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT bool readVerticalCoordinate(
+    const std::filesystem::path &path, const std::string &meshName,
+    size_t timeIndex, VerticalCoordinate &vertical, std::string &message);
+
+/*!
+ * \brief Whether \p path carries a vertical coordinate for \p meshName.
+ *
+ * Separate from reading it, so a viewer can offer the layered treatment only
+ * when it applies instead of attempting it and recovering.
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT bool hasVerticalCoordinate(
+    const std::filesystem::path &path, const std::string &meshName);
+
+/*!
  * \brief True when this build can read UGRID files.
  *
  * NetCDF is optional at build time, so a caller can offer the feature only

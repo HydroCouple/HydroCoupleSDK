@@ -56,6 +56,16 @@ struct NetCDFUGRIDWriter::Impl
     size_t timeLevels = 0;
     bool   open       = false;
 
+    //! CF vertical coordinate, when the file is a layered one.
+    std::vector<double> interfaceSigma;
+    std::vector<double> depth;
+    std::vector<double> surface;
+
+    [[nodiscard]] bool layered() const
+    {
+        return interfaceSigma.size() >= 2 && !depth.empty();
+    }
+
     double firstTime = 0.0; //!< Time axis bounds for catalog().
     double lastTime  = 0.0;
 
@@ -139,6 +149,15 @@ const std::filesystem::path &NetCDFUGRIDWriter::path() const noexcept
 std::string NetCDFUGRIDWriter::errorMessage() const
 {
     return m_impl->error;
+}
+
+void NetCDFUGRIDWriter::setVerticalCoordinate(
+    std::vector<double> interfaceSigma, std::vector<double> depth,
+    std::vector<double> surface)
+{
+    m_impl->interfaceSigma = std::move(interfaceSigma);
+    m_impl->depth = std::move(depth);
+    m_impl->surface = std::move(surface);
 }
 
 // ── initialize ────────────────────────────────────────────────────────────
@@ -307,6 +326,74 @@ int NetCDFUGRIDWriter::initialize()
                     impl.error, 56);
     }
 
+    // ── CF vertical coordinate ────────────────────────────────────────
+    //
+    // The topology stays two-dimensional, as UGRID intends; the water column
+    // is a sigma coordinate over it. formula_terms is what makes the file
+    // self-describing: it names the three variables an elevation is built
+    // from, so a reader needs no agreement with this writer about names.
+    int sigmaVar = -1, interfaceVar = -1, depthVar = -1, surfaceVar = -1;
+
+    if (impl.layered())
+    {
+        const size_t layers = impl.interfaceSigma.size() - 1;
+
+        int layerDim = -1, interfaceDim = -1;
+        HC_NC_CHECK(nc_def_dim(impl.ncid,
+                               (mesh.meshName + "_nLayers").c_str(), layers,
+                               &layerDim),
+                    impl.error, 53);
+        HC_NC_CHECK(nc_def_dim(impl.ncid,
+                               (mesh.meshName + "_nInterfaces").c_str(),
+                               layers + 1, &interfaceDim),
+                    impl.error, 53);
+
+        const std::string sigmaName = mesh.meshName + "_layer_sigma";
+        const std::string interfaceName = mesh.meshName + "_interface_sigma";
+        const std::string depthName = mesh.meshName + "_depth";
+        const std::string surfaceName = mesh.meshName + "_eta";
+
+        HC_NC_CHECK(nc_def_var(impl.ncid, sigmaName.c_str(), NC_DOUBLE, 1,
+                               &layerDim, &sigmaVar),
+                    impl.error, 56);
+        HC_NC_CHECK(nc_def_var(impl.ncid, interfaceName.c_str(), NC_DOUBLE, 1,
+                               &interfaceDim, &interfaceVar),
+                    impl.error, 56);
+        HC_NC_CHECK(nc_def_var(impl.ncid, depthName.c_str(), NC_DOUBLE, 1,
+                               &impl.faceDim, &depthVar),
+                    impl.error, 56);
+
+        const int surfaceDims[2] = {impl.timeDim, impl.faceDim};
+        HC_NC_CHECK(nc_def_var(impl.ncid, surfaceName.c_str(), NC_DOUBLE, 2,
+                               surfaceDims, &surfaceVar),
+                    impl.error, 56);
+
+        HC_NC_CHECK(putVarText(sigmaVar, "standard_name",
+                               "ocean_sigma_coordinate"),
+                    impl.error, 56);
+        HC_NC_CHECK(putVarText(sigmaVar, "formula_terms",
+                               "sigma: " + sigmaName + " eta: " + surfaceName
+                                   + " depth: " + depthName),
+                    impl.error, 56);
+        HC_NC_CHECK(putVarText(sigmaVar, "positive", "up"), impl.error, 56);
+        HC_NC_CHECK(putVarText(sigmaVar, "bounds", interfaceName),
+                    impl.error, 56);
+        HC_NC_CHECK(putVarText(interfaceVar, "long_name",
+                               "sigma at layer interfaces"),
+                    impl.error, 56);
+        HC_NC_CHECK(putVarText(depthVar, "standard_name",
+                               "sea_floor_depth_below_geoid"),
+                    impl.error, 56);
+        HC_NC_CHECK(putVarText(depthVar, "positive", "down"), impl.error, 56);
+        HC_NC_CHECK(putVarText(depthVar, "units", "m"), impl.error, 56);
+        HC_NC_CHECK(putVarText(surfaceVar, "units", "m"), impl.error, 56);
+        HC_NC_CHECK(putVarText(surfaceVar, "positive", "up"), impl.error, 56);
+        HC_NC_CHECK(putVarText(surfaceVar, "mesh", mesh.meshName),
+                    impl.error, 56);
+        HC_NC_CHECK(putVarText(surfaceVar, "location", "face"),
+                    impl.error, 56);
+    }
+
     // Time coordinate.
     HC_NC_CHECK(nc_def_var(impl.ncid, "time", NC_DOUBLE, 1, &impl.timeDim,
                            &impl.timeVar),
@@ -360,6 +447,46 @@ int NetCDFUGRIDWriter::initialize()
     if (nodeZVar >= 0)
         HC_NC_CHECK(nc_put_var_double(impl.ncid, nodeZVar, mesh.nodeZ.data()),
                     impl.error, 59);
+
+    if (impl.layered())
+    {
+        // Layer centres are the midpoints of the interfaces, which is what
+        // the bounds attribute written above says they are.
+        std::vector<double> centres;
+        centres.reserve(impl.interfaceSigma.size() - 1);
+
+        for (size_t layer = 0; layer + 1 < impl.interfaceSigma.size(); ++layer)
+        {
+            centres.push_back(0.5 * (impl.interfaceSigma[layer]
+                                     + impl.interfaceSigma[layer + 1]));
+        }
+
+        HC_NC_CHECK(nc_put_var_double(impl.ncid, sigmaVar, centres.data()),
+                    impl.error, 59);
+        HC_NC_CHECK(nc_put_var_double(impl.ncid, interfaceVar,
+                                      impl.interfaceSigma.data()),
+                    impl.error, 59);
+        HC_NC_CHECK(nc_put_var_double(impl.ncid, depthVar, impl.depth.data()),
+                    impl.error, 59);
+
+        // The surface is on the time axis. Whatever whole number of levels
+        // was handed over is written: one for a steady mesh, several for a
+        // run whose water surface moves — which is what makes sigma layers
+        // real elevations at each step rather than only at the first.
+        const size_t faces = static_cast<size_t>(mesh.faceCount());
+
+        if (faces > 0 && !impl.surface.empty()
+            && impl.surface.size() % faces == 0)
+        {
+            const size_t levels = impl.surface.size() / faces;
+            const size_t start[2] = {0, 0};
+            const size_t count[2] = {levels, faces};
+
+            HC_NC_CHECK(nc_put_vara_double(impl.ncid, surfaceVar, start, count,
+                                           impl.surface.data()),
+                        impl.error, 59);
+        }
+    }
     if (faceNodesVar >= 0)
     {
         const int64_t faces = mesh.faceCount();
