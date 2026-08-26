@@ -84,6 +84,29 @@ public:
     [[nodiscard]] virtual bool readTimes(const ResultEntry &entry,
                                          std::vector<double> &times,
                                          std::string &message);
+
+    /*!
+     * \brief The mesh an entry's values are attached to, when the artifact
+     *        carries one.
+     *
+     * The catalog already names the attachment — \c mesh and \c location —
+     * so that a reader would not have to infer it; this is what reads it
+     * back. Without it a reopened run can be plotted and cannot be mapped,
+     * and every consumer that wants the geometry has to open the artifact a
+     * second time and pair the two halves itself.
+     *
+     * The default reports that this artifact carries no geometry, and says
+     * so with a reason rather than an error: a CSV of values is a complete
+     * and valid recording of values.
+     *
+     * \param[in]  entry   Catalog entry describing the variable.
+     * \param[out] mesh    Receives the mesh when one is read.
+     * \param[out] message Why there is no mesh, or what went wrong.
+     * \return True when \p mesh was filled.
+     */
+    [[nodiscard]] virtual bool readMesh(const ResultEntry &entry,
+                                        MeshDefinition &mesh,
+                                        std::string &message);
 };
 
 /*!

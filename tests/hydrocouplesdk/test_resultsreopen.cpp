@@ -28,6 +28,7 @@
 #endif
 #ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
 #include "hydrocouplesdk/io/geopackagewriter.h"
+#include <sqlite3.h>
 #endif
 
 #include <algorithm>
@@ -118,6 +119,30 @@ private:
  * Runs the producer, writing CSV (and HDF5 when built), and returns the
  * manifest path.
  */
+/*!
+ * The mesh every artifact in the fixture is written against.
+ *
+ * Named here rather than built inside recordRun so a test can compare what a
+ * reader answered with against what was written, instead of against a second
+ * read of the same file — which would agree with itself however wrong it was.
+ */
+MeshDefinition fixtureMesh()
+{
+    MeshDefinition mesh;
+    mesh.meshName = "reaches";
+    // Three nodes, because the producer records one value per node and the
+    // UGRID writers check that the field and the mesh agree.
+    mesh.nodeX = {0.0, 1.0, 1.0};
+    mesh.nodeY = {0.0, 0.0, 1.0};
+
+    // One face over them, so connectivity is something a reader can get
+    // wrong. A node-only mesh would make every face assertion below compare
+    // zero against zero.
+    mesh.faceNodeOffsets = {0, 3};
+    mesh.faceNodes       = {0, 1, 2};
+    return mesh;
+}
+
 std::filesystem::path recordRun(const std::filesystem::path &directory)
 {
     std::filesystem::remove_all(directory);
@@ -136,12 +161,7 @@ std::filesystem::path recordRun(const std::filesystem::path &directory)
 
     // Every format this build can write is recorded, so every reader the
     // build ships is exercised by the tests below.
-#if defined(HYDROCOUPLESDK_HAVE_HDF5) || defined(HYDROCOUPLESDK_HAVE_NETCDF)
-    MeshDefinition mesh;
-    mesh.meshName = "reaches";
-    mesh.nodeX    = {0.0, 1.0, 2.0};
-    mesh.nodeY    = {0.0, 0.0, 0.0};
-#endif
+    const MeshDefinition mesh = fixtureMesh();
 
 #ifdef HYDROCOUPLESDK_HAVE_HDF5
     auto hdf5 = std::make_shared<HDF5UGRIDWriter>(directory / "results.h5",
@@ -163,6 +183,9 @@ std::filesystem::path recordRun(const std::filesystem::path &directory)
 #ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
     auto geopackage = std::make_shared<GeoPackageWriter>(
         directory / "results.gpkg", "reopen-test");
+    // The same mesh the UGRID writers get: a GeoPackage stores the nodes as
+    // point features, which is the geometry its reader can answer with.
+    geopackage->setMesh(mesh);
     geopackage->addField("flow", "m3/s", "routed flow");
     io.addWriter(geopackage);
     recorder.addWriter(geopackage);
@@ -577,3 +600,247 @@ TEST(ResultsReopenTest, EveryRecordedFormatServesHyperslabsAndTimes)
         EXPECT_NE(message.find("out of range"), std::string::npos);
     }
 }
+
+// ── Slice 6a: the readers answer for geometry ────────────────────────────
+//
+// The catalog names what a variable's values are attached to -- mesh and
+// location -- so that a reader would not have to infer it. Until something
+// reads that back, the field is a comment: a run can be plotted and cannot
+// be mapped. Each format is checked against the mesh that was *written*,
+// not against a second read of the same file.
+
+TEST(ResultsReopenTest, EveryRecordedFormatReadsBackItsGeometry)
+{
+    const auto manifestPath = recordRun(reopenDir() / "geometry");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+    ASSERT_FALSE(manifest.results.empty());
+
+    const MeshDefinition written = fixtureMesh();
+    int                  answered = 0;
+
+    for (const ResultEntry &entry : manifest.results)
+    {
+        SCOPED_TRACE("format: " + entry.format);
+
+        std::string reason;
+        auto reader = createResultReader(entry.format, reason);
+        ASSERT_NE(reader, nullptr) << reason;
+        ASSERT_TRUE(reader->open(manifestPath.parent_path() / entry.artifact,
+                                 reason))
+            << reason;
+
+        MeshDefinition read;
+        const bool     got = reader->readMesh(entry, read, reason);
+
+        if (entry.format == "csv")
+        {
+            // A CSV of values is a complete recording of values. It reports
+            // why there is no geometry rather than failing as though
+            // something had gone wrong.
+            EXPECT_FALSE(got) << "a CSV artifact produced geometry";
+            EXPECT_NE(reason.find("csv"), std::string::npos)
+                << "the reason does not name the format: " << reason;
+            continue;
+        }
+
+        ASSERT_TRUE(got) << entry.format << ": " << reason;
+        ++answered;
+
+        ASSERT_EQ(read.nodeCount(), written.nodeCount())
+            << entry.format << " read back a different number of nodes";
+
+        for (int64_t node = 0; node < written.nodeCount(); ++node)
+        {
+            EXPECT_DOUBLE_EQ(read.nodeX[static_cast<size_t>(node)],
+                             written.nodeX[static_cast<size_t>(node)])
+                << entry.format << " node " << node;
+            EXPECT_DOUBLE_EQ(read.nodeY[static_cast<size_t>(node)],
+                             written.nodeY[static_cast<size_t>(node)])
+                << entry.format << " node " << node;
+        }
+
+        if (entry.format == "geopackage")
+        {
+            // The GeoPackage writer stores node points and no connectivity,
+            // so its reader answers with a node-only mesh rather than
+            // inventing faces. That is the format's limit, recorded here so
+            // it reads as a decision rather than as a gap.
+            EXPECT_EQ(read.faceCount(), 0)
+                << "the GeoPackage reader invented connectivity";
+        }
+        else
+        {
+            ASSERT_EQ(read.faceCount(), written.faceCount())
+                << entry.format << " lost the mesh's faces";
+
+            EXPECT_EQ(read.faceNodeOffsets, written.faceNodeOffsets)
+                << entry.format << " changed which nodes belong to which face";
+            EXPECT_EQ(read.faceNodes, written.faceNodes)
+                << entry.format
+                << " read the connectivity back with different indices"
+                   " -- a start_index or a fill-value that was not undone";
+        }
+
+        std::string valid;
+        EXPECT_TRUE(read.validate(valid)) << entry.format << ": " << valid;
+    }
+
+    EXPECT_GT(answered, 0)
+        << "no format in this build answered with geometry at all";
+}
+
+TEST(ResultsReopenTest, AnEntryNamingNoMeshIsNotGivenOne)
+{
+    const auto manifestPath = recordRun(reopenDir() / "geometry-unnamed");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+
+    for (const ResultEntry &entry : manifest.results)
+    {
+        if (entry.format == "csv" || entry.format == "geopackage")
+            continue;
+
+        // A UGRID file may hold several meshes -- a 1-D network and a 2-D
+        // floodplain both. Falling back to "the first one" for an entry that
+        // names none would hand back geometry the values have nothing to do
+        // with, which is worse than answering that there is none.
+        ResultEntry unnamed = entry;
+        unnamed.mesh.clear();
+
+        std::string reason;
+        auto reader = createResultReader(entry.format, reason);
+        ASSERT_NE(reader, nullptr) << reason;
+        ASSERT_TRUE(reader->open(manifestPath.parent_path() / entry.artifact,
+                                 reason))
+            << reason;
+
+        MeshDefinition read;
+        EXPECT_FALSE(reader->readMesh(unnamed, read, reason))
+            << entry.format << " produced a mesh for an entry naming none";
+        EXPECT_EQ(read.nodeCount(), 0);
+    }
+}
+
+#ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
+
+TEST(ResultsReopenTest, AGeoPackagePointWithAnEnvelopeIsStillRead)
+{
+    const auto manifestPath = recordRun(reopenDir() / "geometry-envelope");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+
+    const auto entry = std::find_if(
+        manifest.results.begin(), manifest.results.end(),
+        [](const ResultEntry &candidate)
+        { return candidate.format == "geopackage"; });
+    ASSERT_NE(entry, manifest.results.end());
+
+    const auto artifact = manifestPath.parent_path() / entry->artifact;
+
+    // The SDK's writer stores no envelope, but a GeoPackage is a standard and
+    // an artifact that has been through another tool may carry one. The
+    // header declares its size precisely so a reader can step over it; this
+    // writes such a row and checks that the reader does.
+    constexpr double kX = 41.5;
+    constexpr double kY = -7.25;
+
+    std::vector<uint8_t> blob(8 + 32 + 21, 0);
+    blob[0] = 'G';
+    blob[1] = 'P';
+    blob[2] = 0;
+    blob[3] = 0x03; // little-endian, envelope = xy (four doubles)
+
+    const int32_t srsId = -1;
+    std::memcpy(blob.data() + 4, &srsId, 4);
+
+    const double envelope[4] = {kX, kX, kY, kY};
+    std::memcpy(blob.data() + 8, envelope, sizeof(envelope));
+
+    uint8_t *wkb = blob.data() + 8 + 32;
+    wkb[0] = 0x01;
+    const uint32_t point = 1;
+    std::memcpy(wkb + 1, &point, 4);
+    std::memcpy(wkb + 5, &kX, 8);
+    std::memcpy(wkb + 13, &kY, 8);
+
+    sqlite3 *db = nullptr;
+    ASSERT_EQ(sqlite3_open_v2(artifact.string().c_str(), &db,
+                              SQLITE_OPEN_READWRITE, nullptr),
+              SQLITE_OK);
+
+    sqlite3_stmt *update = nullptr;
+    ASSERT_EQ(sqlite3_prepare_v2(
+                  db, "UPDATE mesh_nodes SET geom=? WHERE node_index=0", -1,
+                  &update, nullptr),
+              SQLITE_OK);
+    sqlite3_bind_blob(update, 1, blob.data(), static_cast<int>(blob.size()),
+                      SQLITE_TRANSIENT);
+    ASSERT_EQ(sqlite3_step(update), SQLITE_DONE);
+    sqlite3_finalize(update);
+    sqlite3_close(db);
+
+    std::string reason;
+    auto        reader = createResultReader("geopackage", reason);
+    ASSERT_NE(reader, nullptr) << reason;
+    ASSERT_TRUE(reader->open(artifact, reason)) << reason;
+
+    MeshDefinition read;
+    ASSERT_TRUE(reader->readMesh(*entry, read, reason)) << reason;
+    ASSERT_GT(read.nodeCount(), 0);
+
+    // A reader that assumed no envelope would take the first eight bytes of
+    // it as the coordinate and answer with a point nowhere near this one.
+    EXPECT_DOUBLE_EQ(read.nodeX.front(), kX);
+    EXPECT_DOUBLE_EQ(read.nodeY.front(), kY);
+}
+
+#endif // HYDROCOUPLESDK_HAVE_GEOPACKAGE
+
+#ifdef HYDROCOUPLESDK_HAVE_GEOPACKAGE
+
+TEST(ResultsReopenTest, AGeoPackageWithNoNodesSaysSoRatherThanAnsweringEmpty)
+{
+    const auto manifestPath = recordRun(reopenDir() / "geometry-nonodes");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+
+    const auto entry = std::find_if(
+        manifest.results.begin(), manifest.results.end(),
+        [](const ResultEntry &candidate)
+        { return candidate.format == "geopackage"; });
+    ASSERT_NE(entry, manifest.results.end());
+
+    const auto artifact = manifestPath.parent_path() / entry->artifact;
+
+    // A GeoPackage written without a mesh has the table and no rows, which is
+    // what a run recorded for its values alone looks like.
+    sqlite3 *db = nullptr;
+    ASSERT_EQ(sqlite3_open_v2(artifact.string().c_str(), &db,
+                              SQLITE_OPEN_READWRITE, nullptr),
+              SQLITE_OK);
+    ASSERT_EQ(sqlite3_exec(db, "DELETE FROM mesh_nodes", nullptr, nullptr,
+                           nullptr),
+              SQLITE_OK);
+    sqlite3_close(db);
+
+    std::string reason;
+    auto        reader = createResultReader("geopackage", reason);
+    ASSERT_NE(reader, nullptr) << reason;
+    ASSERT_TRUE(reader->open(artifact, reason)) << reason;
+
+    MeshDefinition read;
+
+    // An empty mesh returned as a success is the worst of both: a consumer
+    // draws nothing and is told nothing was wrong.
+    EXPECT_FALSE(reader->readMesh(*entry, read, reason))
+        << "an empty mesh_nodes table was reported as a mesh";
+    EXPECT_FALSE(reason.empty()) << "no reason was given";
+    EXPECT_EQ(read.nodeCount(), 0);
+}
+
+#endif // HYDROCOUPLESDK_HAVE_GEOPACKAGE

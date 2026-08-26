@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "hydrocouplesdk/io/resultreader.h"
 #include "hydrocouplesdk/data/bufferio.h"
+#include "hydrocouplesdk/io/ugridreader.h"
 #include "hydrocouplehelpers.h"
 
 #include <algorithm>
@@ -26,6 +27,68 @@
 namespace HydroCouple::SDK::IO {
 
 namespace {
+
+/*!
+ * Reads the UGRID mesh an entry names, out of the artifact it was recorded
+ * in. Shared by the HDF5 and NetCDF readers: both write the same conventions
+ * and the reader that understands them does not care which container it is
+ * reading from.
+ */
+bool readUGRIDMeshFor(const ResultEntry &entry,
+                      const std::filesystem::path &path, MeshDefinition &mesh,
+                      std::string &message)
+{
+    if (entry.mesh.empty())
+    {
+        // No attachment recorded, so there is nothing to look for. Reading
+        // "the first mesh in the file" instead would hand back geometry the
+        // values may have nothing to do with.
+        message = "result \"" + entry.itemId + "\" names no mesh";
+        return false;
+    }
+
+    return readUGRIDMesh(path, entry.mesh, mesh, message);
+}
+
+/*!
+ * Decodes a GeoPackageBinary point blob into \p x and \p y.
+ *
+ * The envelope is skipped by the size its flags declare rather than assumed
+ * absent: the SDK's own writer stores none, but a GeoPackage that has been
+ * through another tool may carry one, and the header field exists so a
+ * reader can step over what it does not need.
+ */
+bool decodeGeoPackagePoint(const void *blob, int bytes, double &x, double &y)
+{
+    const auto *data = static_cast<const uint8_t *>(blob);
+
+    if (!data || bytes < 8 || data[0] != 'G' || data[1] != 'P')
+        return false;
+
+    // Bits 1-3 of the flags select the envelope: none, xy, xyz, xym, xyzm.
+    static constexpr int kEnvelopeDoubles[] = {0, 4, 6, 6, 8};
+    const int envelope = (data[3] >> 1) & 0x07;
+
+    if (envelope > 4)
+        return false;
+
+    const int header = 8 + kEnvelopeDoubles[envelope] * 8;
+
+    // Byte order, geometry type, then the coordinate pair.
+    if (bytes < header + 21)
+        return false;
+
+    const uint8_t *wkb = data + header;
+    uint32_t       type = 0;
+    std::memcpy(&type, wkb + 1, 4);
+
+    if ((type & 0xffff) != 1)
+        return false;
+
+    std::memcpy(&x, wkb + 5, 8);
+    std::memcpy(&y, wkb + 13, 8);
+    return true;
+}
 
 /*!
  * Validates a hyperslab request against an entry and the destination.
@@ -382,6 +445,13 @@ public:
         return true;
     }
 
+
+    [[nodiscard]] bool readMesh(const ResultEntry &entry,
+                                MeshDefinition &mesh,
+                                std::string &message) override
+    {
+        return readUGRIDMeshFor(entry, m_path, mesh, message);
+    }
 private:
     std::filesystem::path m_path;
     hid_t                 m_file = -1;
@@ -476,6 +546,13 @@ public:
         return true;
     }
 
+
+    [[nodiscard]] bool readMesh(const ResultEntry &entry,
+                                MeshDefinition &mesh,
+                                std::string &message) override
+    {
+        return readUGRIDMeshFor(entry, m_path, mesh, message);
+    }
 private:
     std::filesystem::path m_path;
     int                   m_ncid = -1;
@@ -550,6 +627,60 @@ public:
         return scatterDoubles(selected, into, message);
     }
 
+    [[nodiscard]] bool readMesh(const ResultEntry &entry,
+                                MeshDefinition &mesh,
+                                std::string &message) override
+    {
+        static constexpr const char *kSql =
+            "SELECT geom FROM mesh_nodes ORDER BY node_index";
+
+        sqlite3_stmt *statement = nullptr;
+        if (sqlite3_prepare_v2(m_db, kSql, -1, &statement, nullptr) !=
+            SQLITE_OK)
+        {
+            message = "GeoPackage artifact \"" + m_path.string() +
+                      "\" holds no mesh_nodes table";
+            return false;
+        }
+
+        MeshDefinition read;
+        read.meshName = entry.mesh.empty() ? "mesh" : entry.mesh;
+
+        while (sqlite3_step(statement) == SQLITE_ROW)
+        {
+            const void *blob = sqlite3_column_blob(statement, 0);
+            const int   bytes = sqlite3_column_bytes(statement, 0);
+            double      x = 0.0;
+            double      y = 0.0;
+
+            if (!decodeGeoPackagePoint(blob, bytes, x, y))
+            {
+                sqlite3_finalize(statement);
+                message = "GeoPackage artifact \"" + m_path.string() +
+                          "\" holds a mesh_nodes row that is not a point";
+                return false;
+            }
+
+            read.nodeX.push_back(x);
+            read.nodeY.push_back(y);
+        }
+        sqlite3_finalize(statement);
+
+        if (read.nodeX.empty())
+        {
+            message = "GeoPackage artifact \"" + m_path.string() +
+                      "\" records no mesh nodes";
+            return false;
+        }
+
+        // Nodes and no connectivity, because that is what the writer stores.
+        // Faces inferred from a point cloud would be an invention, and a
+        // node-only mesh is already a valid one.
+        mesh = std::move(read);
+        message.clear();
+        return true;
+    }
+
 private:
     [[nodiscard]] bool loadVariable(const ResultEntry &entry,
                                     std::vector<double> &values,
@@ -595,6 +726,7 @@ private:
         return true;
     }
 
+
     std::filesystem::path                     m_path;
     sqlite3                                  *m_db = nullptr;
     std::map<std::string, std::vector<double>> m_cache;
@@ -627,6 +759,19 @@ bool IResultReader::readTimes(const ResultEntry &entry,
     }
     message.clear();
     return true;
+}
+
+bool IResultReader::readMesh(const ResultEntry &entry, MeshDefinition &mesh,
+                             std::string &message)
+{
+    (void)mesh;
+
+    // A reason rather than a failure. An artifact of values only is a
+    // complete recording of values, and a caller that treats "no geometry"
+    // as an error would refuse to open half the runs there are.
+    message = "result format \"" + entry.format +
+              "\" records values without geometry";
+    return false;
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
