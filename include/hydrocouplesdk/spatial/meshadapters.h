@@ -259,6 +259,26 @@ private:
 };
 
 /*!
+ * \brief A PolyhedralSurface over \p mesh: its nodes as vertices, its faces
+ *        as patches.
+ *
+ * The bridge between the SDK's serialization vocabulary and its geometry
+ * one. MeshDefinition is a structure of arrays because that is what a UGRID
+ * file is; IPolyhedralSurface hands out objects because that is what a
+ * consumer draws and picks against. Something has to cross between them, and
+ * doing it here means a reopened run, a mesh read from a file and a mesh a
+ * component published all arrive at a consumer the same way.
+ *
+ * A mesh with no faces converts to a surface with vertices and no patches,
+ * which is what a point cloud or a set of network nodes *is* — not an error
+ * and not a reason to invent connectivity.
+ *
+ * \param[in] mesh The mesh to convert; copied into the result.
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT PolyhedralSurface polyhedralSurfaceFromMesh(
+    const HydroCouple::SDK::IO::MeshDefinition &mesh);
+
+/*!
  * \brief IPolyhedralSurface over an SDK PolyhedralSurface.
  */
 class HYDROCOUPLESDK_EXPORT PolyhedralSurfaceAdapter final

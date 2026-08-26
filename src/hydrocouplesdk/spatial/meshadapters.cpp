@@ -16,6 +16,47 @@ namespace HydroCouple::SDK::Spatial {
 
 using HydroCouple::SDK::IO::MeshDefinition;
 
+// ── MeshDefinition → PolyhedralSurface ───────────────────────────────────
+
+PolyhedralSurface polyhedralSurfaceFromMesh(const MeshDefinition &mesh)
+{
+    PolyhedralSurface surface;
+
+    const bool hasZ = mesh.nodeZ.size() == mesh.nodeX.size();
+
+    const auto nodeAt = [&](int64_t node)
+    {
+        const size_t index = static_cast<size_t>(node);
+
+        return hasZ ? Point(mesh.nodeX[index], mesh.nodeY[index],
+                            mesh.nodeZ[index])
+                    : Point(mesh.nodeX[index], mesh.nodeY[index]);
+    };
+
+    for (int64_t node = 0; node < mesh.nodeCount(); ++node)
+        surface.addVertex(nodeAt(node));
+
+    for (int64_t face = 0; face < mesh.faceCount(); ++face)
+    {
+        const int64_t begin = mesh.faceNodeOffsets[static_cast<size_t>(face)];
+        const int64_t end = mesh.faceNodeOffsets[static_cast<size_t>(face) + 1];
+
+        LineString ring;
+
+        for (int64_t slot = begin; slot < end; ++slot)
+            ring.addPoint(nodeAt(mesh.faceNodes[static_cast<size_t>(slot)]));
+
+        // Closed explicitly: UGRID connectivity lists a face's nodes once,
+        // and a ring whose last point is not its first is not a ring.
+        if (end > begin)
+            ring.addPoint(nodeAt(mesh.faceNodes[static_cast<size_t>(begin)]));
+
+        surface.addPatch(std::make_shared<Polygon>(ring));
+    }
+
+    return surface;
+}
+
 // ── MeshViewAdapter ───────────────────────────────────────────────────────
 
 MeshViewAdapter::MeshViewAdapter(MeshDefinition mesh) : m_mesh(std::move(mesh))

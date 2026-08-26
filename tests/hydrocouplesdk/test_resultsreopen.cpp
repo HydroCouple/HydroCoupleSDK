@@ -15,6 +15,7 @@
 #include "hydrocouplesdk/io/iothread.h"
 #include "hydrocouplesdk/io/runmanifest.h"
 #include "hydrocouplesdk/io/resultreader.h"
+#include "hydrocouplespatiotemporal.h"
 #include "hydrocouplesdk/io/snapshot.h"
 #include "hydrocouplesdk/data/exchangeitems1d.h"
 #include "hydrocouplesdk/core/dimension.h"
@@ -844,3 +845,219 @@ TEST(ResultsReopenTest, AGeoPackageWithNoNodesSaysSoRatherThanAnsweringEmpty)
 }
 
 #endif // HYDROCOUPLESDK_HAVE_GEOPACKAGE
+
+// ── Slice 6b: the item carries the geometry ──────────────────────────────
+//
+// Reading the mesh is only half of it. Until the item itself answers as a
+// spatial one, a consumer has to know which artifact a run was recorded in
+// and open it a second time -- which is exactly the duplication the manifest
+// exists to prevent.
+
+TEST(ResultsReopenTest, AReopenedItemIsSpatialAndCarriesItsMesh)
+{
+    namespace HCS  = HydroCouple::Spatial;
+    namespace HCST = HydroCouple::SpatioTemporal;
+
+    const auto manifestPath = recordRun(reopenDir() / "spatial-item");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+
+    auto component = ResultsModelComponent::open(manifestPath, "producer",
+                                                 message);
+    ASSERT_NE(component, nullptr) << message;
+    component->initialize();
+    ASSERT_NE(component->status(),
+              HydroCouple::IModelComponent::ComponentStatus::Failed);
+
+    const auto items = component->results();
+    ASSERT_FALSE(items.empty());
+
+    const MeshDefinition written = fixtureMesh();
+
+    auto *surfaceItem =
+        dynamic_cast<HCS::IPolyhedralSurfaceComponentDataItem *>(items.front());
+    ASSERT_NE(surfaceItem, nullptr)
+        << "the most capable recorded format produced an item with no "
+           "geometry";
+
+    // Both halves through one item: a consumer should not have to hold a
+    // spatial item and a time series and hope they describe the same thing.
+    EXPECT_NE(dynamic_cast<HCST::ITimeSeriesPolyhedralSurfaceComponentDataItem *>(
+                  items.front()),
+              nullptr);
+
+    const HCS::IPolyhedralSurface *surface = surfaceItem->polyhedralSurface();
+    ASSERT_NE(surface, nullptr);
+
+    EXPECT_EQ(surface->vertexCount(), written.nodeCount());
+    EXPECT_EQ(surface->patchCount(), written.faceCount());
+
+    // The values are recorded per node, so the item says so and the other two
+    // dimension accessors say nothing rather than describing the mesh three
+    // times over.
+    EXPECT_EQ(surfaceItem->meshDataObjectType(),
+              HCS::MeshDataObjectType::Vertex);
+    EXPECT_NE(surfaceItem->vertexDimension(), nullptr);
+    EXPECT_EQ(surfaceItem->patchDimension(), nullptr);
+    EXPECT_EQ(surfaceItem->edgeDimension(), nullptr);
+
+    // The entity dimension is the one the values run along, which is the
+    // second: time is the first, as the interface documents.
+    ASSERT_EQ(items.front()->dimensions().size(), 2u);
+    EXPECT_EQ(surfaceItem->vertexDimension(),
+              items.front()->dimensions().back());
+
+    for (int64_t vertex = 0; vertex < surface->vertexCount(); ++vertex)
+    {
+        const HCS::IVertex *point = surface->vertex(vertex);
+        ASSERT_NE(point, nullptr) << "vertex " << vertex;
+
+        // Vertex order is what ties value i to node i. Right points in the
+        // wrong order pass every count and draw the wrong map.
+        EXPECT_DOUBLE_EQ(point->x(), written.nodeX[static_cast<size_t>(vertex)])
+            << "vertex " << vertex;
+        EXPECT_DOUBLE_EQ(point->y(), written.nodeY[static_cast<size_t>(vertex)])
+            << "vertex " << vertex;
+    }
+
+    component->finish();
+}
+
+TEST(ResultsReopenTest, AnItemWithNoRecordedMeshIsNotSpatial)
+{
+    namespace HCS = HydroCouple::Spatial;
+
+    const auto directory = reopenDir() / "spatial-none";
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory);
+
+    // A run recorded to CSV alone: values, times, and no geometry anywhere.
+    ProducerComponent producer("producer");
+    producer.initialize();
+    producer.prepare();
+
+    RunRecorder recorder("csv-only-run");
+    IOThread    io(16);
+    auto        csv = std::make_shared<CSVWriter>(directory / "results.csv");
+    io.addWriter(csv);
+    recorder.addWriter(csv);
+    recorder.addComponent(&producer);
+    ASSERT_TRUE(io.start());
+
+    for (int step = 0; step < kSteps; ++step)
+    {
+        producer.update();
+        Snapshot    snapshot(1000.0 + step);
+        std::string capture;
+        ASSERT_TRUE(snapshot.capture(*producer.flow, capture)) << capture;
+        ASSERT_TRUE(io.enqueue(std::move(snapshot)));
+    }
+
+    io.finish();
+    ASSERT_EQ(io.errorCode(), 0);
+    producer.finish();
+
+    const auto  manifestPath = directory / "run.json";
+    std::string message;
+    ASSERT_TRUE(recorder.finishToFile(manifestPath, message)) << message;
+
+    auto component = ResultsModelComponent::open(manifestPath, "producer",
+                                                 message);
+    ASSERT_NE(component, nullptr) << message;
+    component->initialize();
+    ASSERT_NE(component->status(),
+              HydroCouple::IModelComponent::ComponentStatus::Failed);
+
+    const auto items = component->results();
+    ASSERT_FALSE(items.empty());
+
+    // Not spatial, rather than spatial with nothing behind it. A consumer
+    // asks the question once and gets an answer it can act on.
+    EXPECT_EQ(dynamic_cast<HCS::IPolyhedralSurfaceComponentDataItem *>(
+                  items.front()),
+              nullptr)
+        << "an item with no recorded mesh claimed to carry geometry";
+
+    // And it is still a perfectly good time series of values.
+    auto *series =
+        dynamic_cast<HydroCouple::Temporal::ITimeSeriesComponentDataItem *>(
+            items.front());
+    ASSERT_NE(series, nullptr);
+    EXPECT_EQ(series->timeCount(), kSteps);
+
+    component->finish();
+}
+
+TEST(ResultsReopenTest, AReopenedPatchIsAClosedRingOfItsFacesNodes)
+{
+    namespace HCS = HydroCouple::Spatial;
+
+    const auto manifestPath = recordRun(reopenDir() / "spatial-patches");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+
+    auto component = ResultsModelComponent::open(manifestPath, "producer",
+                                                 message);
+    ASSERT_NE(component, nullptr) << message;
+    component->initialize();
+
+    const auto items = component->results();
+    ASSERT_FALSE(items.empty());
+
+    auto *surfaceItem =
+        dynamic_cast<HCS::IPolyhedralSurfaceComponentDataItem *>(items.front());
+    ASSERT_NE(surfaceItem, nullptr);
+
+    const HCS::IPolyhedralSurface *surface = surfaceItem->polyhedralSurface();
+    ASSERT_NE(surface, nullptr);
+
+    const MeshDefinition written = fixtureMesh();
+    ASSERT_GT(written.faceCount(), 0);
+    ASSERT_EQ(surface->patchCount(), written.faceCount());
+
+    for (int64_t face = 0; face < written.faceCount(); ++face)
+    {
+        const HCS::IPolygon *patch = surface->patch(face);
+        ASSERT_NE(patch, nullptr) << "face " << face;
+
+        const HCS::ILineString *ring = patch->exteriorRing();
+        ASSERT_NE(ring, nullptr) << "face " << face;
+
+        const int64_t begin = written.faceNodeOffsets[static_cast<size_t>(face)];
+        const int64_t end =
+            written.faceNodeOffsets[static_cast<size_t>(face) + 1];
+        const int corners = static_cast<int>(end - begin);
+
+        // UGRID lists a face's nodes once. A ring repeats the first at the
+        // end, and one that does not is a polyline drawn as an open shape --
+        // which still counts as one patch and still looks like a mesh until
+        // you notice every cell is missing a side.
+        ASSERT_EQ(ring->pointCount(), corners + 1) << "face " << face;
+
+        for (int corner = 0; corner < corners; ++corner)
+        {
+            const HCS::IPoint *point = ring->point(corner);
+            ASSERT_NE(point, nullptr) << "face " << face << " corner "
+                                      << corner;
+
+            const size_t node = static_cast<size_t>(
+                written.faceNodes[static_cast<size_t>(begin + corner)]);
+
+            EXPECT_DOUBLE_EQ(point->x(), written.nodeX[node])
+                << "face " << face << " corner " << corner;
+            EXPECT_DOUBLE_EQ(point->y(), written.nodeY[node])
+                << "face " << face << " corner " << corner;
+        }
+
+        const HCS::IPoint *first = ring->point(0);
+        const HCS::IPoint *last  = ring->point(corners);
+        ASSERT_NE(first, nullptr);
+        ASSERT_NE(last, nullptr);
+        EXPECT_DOUBLE_EQ(last->x(), first->x()) << "face " << face;
+        EXPECT_DOUBLE_EQ(last->y(), first->y()) << "face " << face;
+    }
+
+    component->finish();
+}

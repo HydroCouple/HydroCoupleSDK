@@ -6,8 +6,10 @@
 #include "hydrocouplesdk/data/abstractoutput.h"
 #include "hydrocouplesdk/core/dimension.h"
 #include "hydrocouplesdk/core/valuedefinition.h"
+#include "hydrocouplesdk/spatial/meshadapters.h"
 #include "hydrocouplesdk/temporal/timedata.h"
 #include "hydrocouplehelpers.h"
+#include "hydrocouplespatiotemporal.h"
 #include "hydrocoupletemporal.h"
 
 #include <algorithm>
@@ -30,7 +32,7 @@ using HydroCouple::SDK::IO::IResultReader;
  * quietly accepting writes would invite a UI to believe it had changed
  * something.
  */
-class RecordedItem final
+class RecordedItem
     : public AbstractOutput,
       public virtual HydroCouple::Temporal::ITimeSeriesComponentDataItem
 {
@@ -142,13 +144,116 @@ public:
         return dimensions().empty() ? nullptr : dimensions().front();
     }
 
-private:
+protected:
     ResultEntry    m_entry;
     IResultReader *m_reader;
+
+private:
 
     std::vector<double> m_times;
     std::vector<std::shared_ptr<Temporal::TimeData>> m_timeObjects;
     std::shared_ptr<Temporal::TimeSpan>              m_timeSpan;
+};
+
+/*!
+ * A recorded item whose artifact also carried the mesh its values are
+ * attached to.
+ *
+ * A separate class rather than a nullable surface on RecordedItem, because
+ * the interface is the answer to "can this be mapped?". An item that carried
+ * IPolyhedralSurfaceComponentDataItem with nothing behind it would say yes
+ * and then hand back nothing, which is worse for a consumer than a plain
+ * honest no — it turns a question that can be asked once into one that has
+ * to be asked twice.
+ */
+class SpatialRecordedItem final
+    : public RecordedItem,
+      public virtual HydroCouple::SpatioTemporal::
+          ITimeSeriesPolyhedralSurfaceComponentDataItem
+{
+    using MeshDataObjectType = HydroCouple::Spatial::MeshDataObjectType;
+
+public:
+    SpatialRecordedItem(const ResultEntry &entry, IResultReader *reader,
+                        const std::vector<Dimension *> &dimensions,
+                        ValueDefinition *valueDefinition,
+                        HydroCouple::IModelComponent *component,
+                        const IO::MeshDefinition &mesh)
+        : RecordedItem(entry, reader, dimensions, valueDefinition, component),
+          m_surface(std::make_unique<Spatial::PolyhedralSurfaceAdapter>(
+              Spatial::polyhedralSurfaceFromMesh(mesh)))
+    {
+        switch (entry.location.value_or(IO::MeshLocation::Node))
+        {
+            case IO::MeshLocation::Edge:
+                m_objectType = MeshDataObjectType::Edge;
+                break;
+            case IO::MeshLocation::Face:
+                m_objectType = MeshDataObjectType::Cell;
+                break;
+            default:
+                m_objectType = MeshDataObjectType::Vertex;
+                break;
+        }
+    }
+
+    ~SpatialRecordedItem() override = default;
+
+    // ── IPolyhedralSurfaceComponentDataItem ──────────────────────────────
+
+    [[nodiscard]] MeshDataObjectType meshDataObjectType() const override
+    {
+        return m_objectType;
+    }
+
+    [[nodiscard]] HydroCouple::Spatial::SpatialDataType meshDataType()
+        const override
+    {
+        // One number per entity is what a result catalog records; a vector
+        // field is written as separate items.
+        return HydroCouple::Spatial::SpatialDataType::Scalar;
+    }
+
+    [[nodiscard]] HydroCouple::Spatial::IPolyhedralSurface *polyhedralSurface()
+        const override
+    {
+        return m_surface.get();
+    }
+
+    /*!
+     * \brief The entity dimension, for the entity the values are on.
+     *
+     * The other two answer nullptr, which is what the SDK's own
+     * spatiotemporal items already promise: the accessors report where the
+     * values actually live rather than describing the mesh three times over.
+     */
+    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
+    {
+        return m_objectType == MeshDataObjectType::Cell ? entityDimension()
+                                                        : nullptr;
+    }
+
+    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
+    {
+        return m_objectType == MeshDataObjectType::Edge ? entityDimension()
+                                                        : nullptr;
+    }
+
+    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
+    {
+        return m_objectType == MeshDataObjectType::Vertex ? entityDimension()
+                                                          : nullptr;
+    }
+
+private:
+    //! The dimension the values run along: the last, time being the first.
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const
+    {
+        return dimensions().empty() ? nullptr : dimensions().back();
+    }
+
+    std::unique_ptr<Spatial::PolyhedralSurfaceAdapter> m_surface;
+    MeshDataObjectType m_objectType = MeshDataObjectType::Vertex;
 };
 
 /*!
@@ -331,9 +436,23 @@ void ResultsModelComponent::initialize()
             Quantity::unitLess(entry->units.empty() ? entry->itemId
                                                     : entry->units));
 
-        auto *item = new RecordedItem(
-            *entry, m_impl->readers.at(entry->artifact).get(), dimensions,
-            m_impl->valueDefinitions.back().get(), this);
+        IResultReader *reader = m_impl->readers.at(entry->artifact).get();
+
+        // Geometry when the artifact carried it. Asked for once, here, rather
+        // than on every read: a mesh does not move between time steps, and an
+        // item that re-read it per step would pay for the whole topology to
+        // draw one frame.
+        IO::MeshDefinition mesh;
+        std::string        meshMessage;
+        const bool         spatial = reader->readMesh(*entry, mesh, meshMessage);
+
+        RecordedItem *item =
+            spatial ? new SpatialRecordedItem(
+                          *entry, reader, dimensions,
+                          m_impl->valueDefinitions.back().get(), this, mesh)
+                    : new RecordedItem(*entry, reader, dimensions,
+                                       m_impl->valueDefinitions.back().get(),
+                                       this);
         addOutput(item);
         m_impl->items.push_back(item);
     }
