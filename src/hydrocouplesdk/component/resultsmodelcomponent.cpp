@@ -181,7 +181,7 @@ public:
                         const IO::MeshDefinition &mesh)
         : RecordedItem(entry, reader, dimensions, valueDefinition, component),
           m_surface(std::make_unique<Spatial::PolyhedralSurfaceAdapter>(
-              Spatial::polyhedralSurfaceFromMesh(mesh)))
+              Spatial::polyhedralSurfaceFromMesh(mesh), mesh))
     {
         switch (entry.location.value_or(IO::MeshLocation::Node))
         {

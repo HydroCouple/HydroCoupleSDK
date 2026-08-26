@@ -288,9 +288,36 @@ class HYDROCOUPLESDK_EXPORT PolyhedralSurfaceAdapter final
 public:
     /*!
      * \brief Construct over a copy of \p surface.
+     *
+     * \note The mesh view of a surface built this way carries its nodes and
+     *       no connectivity. A PolyhedralSurface records polygons, not which
+     *       vertex indices each polygon used, so faces and edges cannot be
+     *       recovered from it without matching coordinates back to vertices
+     *       — which guesses, and guesses wrong wherever two vertices
+     *       coincide. A caller that *has* the connectivity should pass it,
+     *       through the constructor below.
      */
     explicit PolyhedralSurfaceAdapter(
         const PolyhedralSurface &surface,
+        HydroCouple::Spatial::ISpatialReferenceSystem *srs = nullptr);
+
+    /*!
+     * \brief Construct over \p surface, with \p mesh as its bulk view.
+     *
+     * For the caller that built the surface from a mesh and still holds it.
+     * The standard calls meshView() "the accessor partitioners,
+     * interpolating adapters, IO writers, and device staging must use", so a
+     * view reporting no faces and no edges for a surface that has both is
+     * not a lesser answer — it is a wrong one, and it is wrong in a way that
+     * looks like an empty mesh rather than like a missing feature.
+     *
+     * \param[in] surface The surface, as patches and vertices.
+     * \param[in] mesh    The connectivity it was built from; moved.
+     * \param[in] srs     Spatial reference, borrowed.
+     */
+    PolyhedralSurfaceAdapter(
+        const PolyhedralSurface &surface,
+        HydroCouple::SDK::IO::MeshDefinition mesh,
         HydroCouple::Spatial::ISpatialReferenceSystem *srs = nullptr);
 
     ~PolyhedralSurfaceAdapter() override = default;

@@ -141,6 +141,11 @@ MeshDefinition fixtureMesh()
     // zero against zero.
     mesh.faceNodeOffsets = {0, 3};
     mesh.faceNodes       = {0, 1, 2};
+
+    // And its three edges. A value can be recorded on an edge as easily as on
+    // a node, and edges are the half of the connectivity that survives no
+    // conversion unless something carries it deliberately.
+    mesh.edgeNodes = {{0, 1}, {1, 2}, {2, 0}};
     return mesh;
 }
 
@@ -684,6 +689,19 @@ TEST(ResultsReopenTest, EveryRecordedFormatReadsBackItsGeometry)
                    " -- a start_index or a fill-value that was not undone";
         }
 
+        if (entry.format == "geopackage")
+        {
+            EXPECT_EQ(read.edgeCount(), 0)
+                << "the GeoPackage reader invented edges";
+        }
+        else
+        {
+            EXPECT_EQ(read.edgeCount(), written.edgeCount())
+                << entry.format << " lost the mesh's edges";
+            EXPECT_EQ(read.edgeNodes, written.edgeNodes)
+                << entry.format << " read the edge endpoints back changed";
+        }
+
         std::string valid;
         EXPECT_TRUE(read.validate(valid)) << entry.format << ": " << valid;
     }
@@ -1057,6 +1075,66 @@ TEST(ResultsReopenTest, AReopenedPatchIsAClosedRingOfItsFacesNodes)
         ASSERT_NE(last, nullptr);
         EXPECT_DOUBLE_EQ(last->x(), first->x()) << "face " << face;
         EXPECT_DOUBLE_EQ(last->y(), first->y()) << "face " << face;
+    }
+
+    component->finish();
+}
+
+TEST(ResultsReopenTest, AReopenedSurfaceReportsItsConnectivityInBulk)
+{
+    namespace HCS = HydroCouple::Spatial;
+
+    const auto manifestPath = recordRun(reopenDir() / "spatial-meshview");
+    RunManifest manifest;
+    std::string message;
+    ASSERT_TRUE(RunManifest::read(manifestPath, manifest, message)) << message;
+
+    auto component = ResultsModelComponent::open(manifestPath, "producer",
+                                                 message);
+    ASSERT_NE(component, nullptr) << message;
+    component->initialize();
+
+    const auto items = component->results();
+    ASSERT_FALSE(items.empty());
+
+    auto *surfaceItem =
+        dynamic_cast<HCS::IPolyhedralSurfaceComponentDataItem *>(items.front());
+    ASSERT_NE(surfaceItem, nullptr);
+
+    const HCS::IPolyhedralSurface *surface = surfaceItem->polyhedralSurface();
+    ASSERT_NE(surface, nullptr);
+
+    // The standard calls this "the accessor partitioners, interpolating
+    // adapters, IO writers, and device staging must use", and promises it is
+    // never null. A view that reports no faces and no edges for a surface
+    // that has both is not a lesser answer -- it is a wrong one, and it is
+    // wrong in the shape of an empty mesh rather than a missing feature.
+    const HCS::IMeshView *view = surface->meshView();
+    ASSERT_NE(view, nullptr);
+
+    const MeshDefinition written = fixtureMesh();
+
+    EXPECT_EQ(view->nodeCount(), written.nodeCount());
+    EXPECT_EQ(view->faceCount(), written.faceCount());
+    EXPECT_EQ(view->edgeCount(), written.edgeCount())
+        << "the surface's bulk view lost the edges it was built from";
+
+    ASSERT_EQ(view->faceNodes().size(), written.faceNodes.size());
+
+    for (size_t slot = 0; slot < written.faceNodes.size(); ++slot)
+        EXPECT_EQ(view->faceNodes()[slot], written.faceNodes[slot])
+            << "face node " << slot;
+
+    // Edges are pairs in the definition and one flat span in the interface,
+    // so this is where the two vocabularies could quietly disagree.
+    ASSERT_EQ(view->edgeNodes().size(), written.edgeNodes.size() * 2);
+
+    for (size_t edge = 0; edge < written.edgeNodes.size(); ++edge)
+    {
+        EXPECT_EQ(view->edgeNodes()[edge * 2], written.edgeNodes[edge][0])
+            << "edge " << edge << " origin";
+        EXPECT_EQ(view->edgeNodes()[edge * 2 + 1], written.edgeNodes[edge][1])
+            << "edge " << edge << " destination";
     }
 
     component->finish();

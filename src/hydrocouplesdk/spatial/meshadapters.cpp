@@ -179,6 +179,13 @@ HydroCouple::Spatial::IVertex *NetworkAdapter::vertex(int64_t index) const
 PolyhedralSurfaceAdapter::PolyhedralSurfaceAdapter(
     const PolyhedralSurface &surface,
     HydroCouple::Spatial::ISpatialReferenceSystem *srs)
+    : PolyhedralSurfaceAdapter(surface, MeshDefinition{}, srs)
+{
+}
+
+PolyhedralSurfaceAdapter::PolyhedralSurfaceAdapter(
+    const PolyhedralSurface &surface, MeshDefinition supplied,
+    HydroCouple::Spatial::ISpatialReferenceSystem *srs)
     : GeometryAdapter("surface", 0, srs)
 {
     setEnvelope(surface.envelope());
@@ -221,7 +228,11 @@ PolyhedralSurfaceAdapter::PolyhedralSurfaceAdapter(
         m_patches.back()->setSurface(this);
     }
 
-    m_meshView = std::make_unique<MeshViewAdapter>(std::move(mesh));
+    // The caller's connectivity when there is any, because it is the only
+    // place faces and edges survive: the vertex walk above rebuilds the
+    // nodes and nothing else.
+    m_meshView = std::make_unique<MeshViewAdapter>(
+        supplied.nodeCount() > 0 ? std::move(supplied) : std::move(mesh));
 }
 
 std::vector<unsigned char> PolyhedralSurfaceAdapter::getWKB() const
