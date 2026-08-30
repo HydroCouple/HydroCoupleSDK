@@ -23,6 +23,24 @@ Composition IO moves into the SDK, and completed runs become reopenable.
 
 ### Added
 
+- **A meshing run can be watched, and stopped.** `Tools::MeshProgress` is an
+  optional callback taken by new overloads of `Triangulator::triangulate()`
+  and `QuadMesher::triToQuadDominant()`: it is told the phase under way and
+  answers whether to carry on. Returning false abandons the run, which then
+  reports itself cancelled and **leaves its output empty** — a cancelled run
+  hands back nothing rather than half a mesh, including when the caller
+  passed in a variable that already held one. Overloads rather than default
+  arguments, so every existing exported symbol is untouched.
+
+  What the callback promises is deliberately modest, and the header says so:
+  the fraction is how far through the *phases* a run is and not a measure of
+  work remaining, and **the CDT insertion phases cannot be interrupted** —
+  they are one call into a library that offers no hook, so a cancellation
+  asked for during one takes effect when it returns. Cancellation is offered
+  where this library's own loops run: densification and extraction in the
+  triangulator, and every phase of the quad merge, which is entirely ours
+  and so stops promptly. A caller must not offer a cancel that lands sooner
+  than it does.
 - **CF vertical coordinates, read and written.** `readVerticalCoordinate()`
   joins the UGRID reader: a layered file is a 2-D topology with a sigma
   coordinate over it, and this returns the interfaces, the per-face bed depth

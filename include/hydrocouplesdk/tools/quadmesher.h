@@ -22,6 +22,7 @@
 
 #include "hydrocouplesdk/export.h"
 #include "hydrocouplesdk/io/meshdefinition.h"
+#include "hydrocouplesdk/tools/meshprogress.h"
 
 #include <string>
 
@@ -54,6 +55,24 @@ public:
     [[nodiscard]] static bool triToQuadDominant(
         const IO::MeshDefinition &triangleMesh, double minQuality,
         IO::MeshDefinition &out, std::string &message);
+
+    /*!
+     * \brief Merges as above, reporting to \p progress as it goes.
+     *
+     * Every phase of the merge is this library's own loop, so unlike the
+     * triangulator a cancellation here lands promptly wherever it is asked
+     * for.
+     *
+     * \param[in]  triangleMesh Triangle mesh (all faces 3-node).
+     * \param[in]  minQuality   Merge threshold in [0, 1].
+     * \param[out] out          Mixed mesh; left empty if cancelled.
+     * \param[out] message      Failure or cancellation description.
+     * \param[in]  progress     Returning false abandons the merge.
+     */
+    [[nodiscard]] static bool triToQuadDominant(
+        const IO::MeshDefinition &triangleMesh, double minQuality,
+        IO::MeshDefinition &out, std::string &message,
+        const MeshProgress &progress);
 };
 
 } // namespace HydroCouple::SDK::Tools

@@ -24,6 +24,7 @@
 
 #include "hydrocouplesdk/export.h"
 #include "hydrocouplesdk/io/meshdefinition.h"
+#include "hydrocouplesdk/tools/meshprogress.h"
 #include "hydrocouplesdk/spatial/point.h"
 
 #include <array>
@@ -82,6 +83,27 @@ public:
     [[nodiscard]] static bool triangulate(const TriangulationInput &input,
                                           IO::MeshDefinition &out,
                                           std::string &message);
+
+    /*!
+     * \brief Triangulates \p input, reporting to \p progress as it goes.
+     *
+     * The same triangulation as the three-argument form, watched. An empty
+     * \p progress is exactly the unwatched call, and a \p progress that
+     * always returns true changes nothing about the mesh — observing a run
+     * must not alter it.
+     *
+     * \param[in]  input    Domain description (boundary required).
+     * \param[out] out      Triangle mesh; left empty if cancelled.
+     * \param[out] message  Failure or cancellation description on false.
+     * \param[in]  progress Called at each phase and through the loops this
+     *                      library runs itself; returning false abandons
+     *                      the run. See MeshProgress for what can and
+     *                      cannot be interrupted.
+     */
+    [[nodiscard]] static bool triangulate(const TriangulationInput &input,
+                                          IO::MeshDefinition &out,
+                                          std::string &message,
+                                          const MeshProgress &progress);
 };
 
 } // namespace HydroCouple::SDK::Tools

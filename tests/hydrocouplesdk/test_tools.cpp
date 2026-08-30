@@ -16,9 +16,12 @@
 #include "hydrocouplesdk/tools/quadmesher.h"
 #include "hydrocouplesdk/tools/terrainsampler.h"
 
+#include <algorithm>
 #include <cmath>
 #include <set>
+#include <string>
 #include <utility>
+#include <vector>
 
 using namespace HydroCouple::SDK;
 using namespace HydroCouple::SDK::Tools;
@@ -434,6 +437,193 @@ TEST(QuadMesherTest, StructuredTrianglePairsMergeToQuads)
     ASSERT_TRUE(QuadMesher::triToQuadDominant(skewed, 0.4, mergedPair,
                                               message)) << message;
     EXPECT_EQ(mergedPair.faceCount(), 1);
+}
+
+// ── Watching a meshing run, and stopping one ──────────────────────────────
+//
+// The tools are static functions that return when they are done, which is
+// all a batch caller needs. A caller driving a window needs to say that work
+// is under way and to abandon it, so both take an optional callback. What
+// these check is that watching a run does not change its answer, that a
+// refusal to carry on leaves nothing behind rather than half a mesh, and
+// that the phases are reported in the order they happen.
+
+namespace {
+
+//! Records what a run reported, and can refuse to carry on at a chosen stage.
+struct ProgressRecorder
+{
+    std::vector<std::pair<double, std::string>> calls;
+
+    //! Stage to stop at; empty carries on to the end.
+    std::string stopAt;
+
+    MeshProgress callback()
+    {
+        return [this](double fraction, const char *stage) {
+            calls.emplace_back(fraction, stage);
+            return stopAt.empty() || stage != stopAt;
+        };
+    }
+
+    [[nodiscard]] bool reported(const std::string &stage) const
+    {
+        return std::any_of(calls.begin(), calls.end(),
+                           [&](const auto &call) {
+                               return call.second == stage;
+                           });
+    }
+};
+
+TriangulationInput squareDomain()
+{
+    TriangulationInput input;
+    input.boundary = {{0.0, 0.0}, {10.0, 0.0}, {10.0, 10.0}, {0.0, 10.0}};
+    input.holes.push_back({{4.0, 4.0}, {6.0, 4.0}, {6.0, 6.0}, {4.0, 6.0}});
+    input.constraintSegments.push_back({Point{1.0, 1.0}, Point{9.0, 1.0}});
+    input.maxEdgeLength = 1.0;
+    return input;
+}
+
+} // namespace
+
+TEST(MeshProgressTest, ATriangulationReportsItsPhasesInOrderAndEndsAtOne)
+{
+    ProgressRecorder recorder;
+    IO::MeshDefinition mesh;
+    std::string        message;
+
+    ASSERT_TRUE(Triangulator::triangulate(squareDomain(), mesh, message,
+                                          recorder.callback()))
+        << message;
+
+    ASSERT_FALSE(recorder.calls.empty());
+
+    // Every phase the caller can be told about, and in the order they
+    // happen: a bar that goes backwards is worse than no bar.
+    EXPECT_TRUE(recorder.reported("densifying"));
+    EXPECT_TRUE(recorder.reported("inserting vertices"));
+    EXPECT_TRUE(recorder.reported("inserting edges"));
+    EXPECT_TRUE(recorder.reported("removing holes"));
+    EXPECT_TRUE(recorder.reported("extracting"));
+
+    for (size_t call = 1; call < recorder.calls.size(); ++call)
+        EXPECT_GE(recorder.calls[call].first, recorder.calls[call - 1].first)
+            << "the fraction went backwards at call " << call;
+
+    EXPECT_DOUBLE_EQ(recorder.calls.front().first, 0.0);
+    EXPECT_DOUBLE_EQ(recorder.calls.back().first, 1.0);
+    EXPECT_EQ(recorder.calls.back().second, "done");
+}
+
+TEST(MeshProgressTest, WatchingATriangulationDoesNotChangeIt)
+{
+    IO::MeshDefinition watched;
+    IO::MeshDefinition unwatched;
+    std::string        message;
+
+    ProgressRecorder recorder;
+    ASSERT_TRUE(Triangulator::triangulate(squareDomain(), watched, message,
+                                          recorder.callback()))
+        << message;
+    ASSERT_TRUE(Triangulator::triangulate(squareDomain(), unwatched, message))
+        << message;
+
+    // Observation is not participation: the same domain gives the same mesh
+    // whether or not anybody was looking.
+    EXPECT_EQ(watched.nodeX, unwatched.nodeX);
+    EXPECT_EQ(watched.nodeY, unwatched.nodeY);
+    EXPECT_EQ(watched.faceNodes, unwatched.faceNodes);
+    EXPECT_EQ(watched.faceNodeOffsets, unwatched.faceNodeOffsets);
+
+    // And an empty callback is exactly the unwatched call.
+    IO::MeshDefinition empty;
+    ASSERT_TRUE(Triangulator::triangulate(squareDomain(), empty, message,
+                                          MeshProgress{}))
+        << message;
+    EXPECT_EQ(empty.faceNodes, unwatched.faceNodes);
+}
+
+TEST(MeshProgressTest, StoppingATriangulationHandsBackNothing)
+{
+    ProgressRecorder recorder;
+    recorder.stopAt = "densifying";
+
+    // Handed an output that already holds a mesh, which is what a caller
+    // meshing twice into one variable does. Given a fresh one, "hands back
+    // nothing" is true before the call and proves nothing about it.
+    IO::MeshDefinition mesh;
+    std::string        message;
+    ASSERT_TRUE(Triangulator::triangulate(squareDomain(), mesh, message))
+        << message;
+    ASSERT_GT(mesh.faceCount(), 0);
+
+    EXPECT_FALSE(Triangulator::triangulate(squareDomain(), mesh, message,
+                                           recorder.callback()));
+    EXPECT_EQ(message, "cancelled");
+    EXPECT_EQ(mesh.nodeCount(), 0);
+    EXPECT_EQ(mesh.faceCount(), 0);
+}
+
+TEST(MeshProgressTest, StoppingAfterTheMeshIsBuiltStillHandsBackNothing)
+{
+    // The last chance to stop comes after CDT has done the expensive part,
+    // and taking it must still leave nothing behind: a caller that abandoned
+    // a run and then read the mesh anyway would get geometry from a run the
+    // user cancelled.
+    ProgressRecorder recorder;
+    recorder.stopAt = "extracting";
+
+    IO::MeshDefinition mesh;
+    std::string        message;
+    ASSERT_TRUE(Triangulator::triangulate(squareDomain(), mesh, message))
+        << message;
+    ASSERT_GT(mesh.faceCount(), 0);
+
+    EXPECT_FALSE(Triangulator::triangulate(squareDomain(), mesh, message,
+                                           recorder.callback()));
+    EXPECT_EQ(message, "cancelled");
+    EXPECT_EQ(mesh.nodeCount(), 0);
+    EXPECT_EQ(mesh.faceCount(), 0);
+}
+
+TEST(MeshProgressTest, TheQuadMergeIsWatchedAndCanBeStopped)
+{
+    IO::MeshDefinition triangles;
+    std::string        message;
+    ASSERT_TRUE(Triangulator::triangulate(squareDomain(), triangles, message))
+        << message;
+
+    ProgressRecorder recorder;
+    IO::MeshDefinition watched;
+    ASSERT_TRUE(QuadMesher::triToQuadDominant(triangles, 0.3, watched,
+                                              message, recorder.callback()))
+        << message;
+
+    EXPECT_TRUE(recorder.reported("indexing edges"));
+    EXPECT_TRUE(recorder.reported("scoring pairs"));
+    EXPECT_TRUE(recorder.reported("merging"));
+    EXPECT_DOUBLE_EQ(recorder.calls.back().first, 1.0);
+
+    IO::MeshDefinition unwatched;
+    ASSERT_TRUE(QuadMesher::triToQuadDominant(triangles, 0.3, unwatched,
+                                              message))
+        << message;
+    EXPECT_EQ(watched.faceNodes, unwatched.faceNodes);
+
+    // Every phase of the merge is this library's own loop, so a stop asked
+    // for anywhere in it is taken there and then.
+    ProgressRecorder stopper;
+    stopper.stopAt = "merging";
+
+    IO::MeshDefinition abandoned = watched;
+    ASSERT_GT(abandoned.faceCount(), 0);
+
+    EXPECT_FALSE(QuadMesher::triToQuadDominant(triangles, 0.3, abandoned,
+                                               message, stopper.callback()));
+    EXPECT_EQ(message, "cancelled");
+    EXPECT_EQ(abandoned.faceCount(), 0);
+    EXPECT_EQ(abandoned.nodeCount(), 0);
 }
 
 // ── Terrain sampling ──────────────────────────────────────────────────────

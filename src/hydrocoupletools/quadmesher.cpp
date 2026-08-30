@@ -27,6 +27,20 @@ uint64_t edgeKey(int64_t a, int64_t b)
     return (hi << 32) | lo;
 }
 
+//! Calls \p progress if there is one and reports whether to carry on.
+bool carryOn(const MeshProgress &progress, double fraction, const char *stage)
+{
+    return !progress || progress(fraction, stage);
+}
+
+//! What a cancelled merge leaves behind: nothing, and a reason.
+bool cancelled(IO::MeshDefinition &out, std::string &message)
+{
+    out     = IO::MeshDefinition{};
+    message = "cancelled";
+    return false;
+}
+
 } // namespace
 
 double QuadMesher::quadQuality(double ax, double ay, double bx, double by,
@@ -67,6 +81,15 @@ bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
                                    double minQuality, IO::MeshDefinition &out,
                                    std::string &message)
 {
+    return triToQuadDominant(triangleMesh, minQuality, out, message,
+                             MeshProgress{});
+}
+
+bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
+                                   double minQuality, IO::MeshDefinition &out,
+                                   std::string &message,
+                                   const MeshProgress &progress)
+{
     if (!triangleMesh.validate(message))
         return false;
     const int64_t faces = triangleMesh.faceCount();
@@ -86,6 +109,9 @@ bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
         }
     }
     minQuality = std::clamp(minQuality, 0.0, 1.0);
+
+    if (!carryOn(progress, 0.0, "indexing edges"))
+        return cancelled(out, message);
 
     // Directed half-edge record per face edge: key → (face, from, to, opposite).
     struct HalfEdge
@@ -115,9 +141,19 @@ bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
         edgeFaces[edgeKey(n2, n0)].push_back({f, n2, n0, n1});
     }
 
+    if (!carryOn(progress, 0.30, "scoring pairs"))
+        return cancelled(out, message);
+
     std::vector<MergeCandidate> candidates;
+    size_t                      scored = 0;
     for (const auto &[key, records] : edgeFaces)
     {
+        if ((++scored & 0xFFFu) == 0
+            && !carryOn(progress,
+                        0.30 + 0.30 * double(scored) / double(edgeFaces.size()),
+                        "scoring pairs"))
+            return cancelled(out, message);
+
         if (records.size() != 2)
             continue; // boundary or non-manifold edge
         const HalfEdge &first  = records[0];
@@ -154,6 +190,9 @@ bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
                   return a.quality > b.quality;
               });
 
+    if (!carryOn(progress, 0.60, "merging"))
+        return cancelled(out, message);
+
     std::vector<bool> merged(static_cast<size_t>(faces), false);
     out          = IO::MeshDefinition{};
     out.meshName = triangleMesh.meshName;
@@ -162,8 +201,16 @@ bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
     out.nodeZ    = triangleMesh.nodeZ;
     out.faceNodeOffsets.push_back(0);
 
+    size_t considered = 0;
     for (const auto &candidate : candidates)
     {
+        if ((++considered & 0xFFFu) == 0
+            && !carryOn(progress,
+                        0.60 + 0.30 * double(considered)
+                                 / double(candidates.size()),
+                        "merging"))
+            return cancelled(out, message);
+
         if (merged[static_cast<size_t>(candidate.face1)] ||
             merged[static_cast<size_t>(candidate.face2)])
             continue;
@@ -175,6 +222,9 @@ bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
             static_cast<int64_t>(out.faceNodes.size()));
     }
 
+    if (!carryOn(progress, 0.90, "copying triangles"))
+        return cancelled(out, message);
+
     for (int64_t f = 0; f < faces; ++f)
     {
         if (merged[static_cast<size_t>(f)])
@@ -185,6 +235,8 @@ bool QuadMesher::triToQuadDominant(const IO::MeshDefinition &triangleMesh,
         out.faceNodeOffsets.push_back(
             static_cast<int64_t>(out.faceNodes.size()));
     }
+
+    carryOn(progress, 1.0, "done");
 
     message.clear();
     return true;
