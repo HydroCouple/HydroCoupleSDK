@@ -27,10 +27,33 @@ using namespace HydroCouple::SDK::IO;
 
 namespace {
 
+/*!
+ * \brief Where a test writes \p name, under a path only that test uses.
+ *
+ * Namespaced by the running case, because ctest registers every gtest case
+ * as a test of its own and `-jN` runs them as concurrent processes over this
+ * one directory. Several cases here ask for the same file name and each
+ * writes it before reading it back, so in parallel they truncated and
+ * removed each other's files mid-read — which is why the parallel failing
+ * set moved from run to run and the suite could only be judged at `-j 1`.
+ *
+ * Still a real path under tests/artifacts, so what a test checked can be
+ * opened afterwards, and now it also says which case produced it.
+ */
 std::filesystem::path artifactPath(const std::string &name)
 {
     const std::filesystem::path dir{TEST_ARTIFACTS_DIR};
     std::filesystem::create_directories(dir);
+
+    // Null outside a running test (a suite-wide fixture, say); the shared
+    // name is then the best available and no worse than before.
+    if (const auto *info =
+            ::testing::UnitTest::GetInstance()->current_test_info())
+    {
+        return dir / (std::string(info->test_suite_name()) + "." + info->name()
+                      + "." + name);
+    }
+
     return dir / name;
 }
 

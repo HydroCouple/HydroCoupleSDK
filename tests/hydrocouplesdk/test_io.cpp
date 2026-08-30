@@ -37,10 +37,26 @@ using namespace HydroCouple::SDK::IO;
 
 namespace {
 
+/*!
+ * \brief Where a test writes \p name, under a path only that test uses.
+ *
+ * Namespaced by the running case: ctest registers every gtest case as a test
+ * of its own and `-jN` runs them as concurrent processes over this one
+ * directory, so cases asking for the same name overwrite and delete each
+ * other's files mid-read.
+ */
 std::filesystem::path artifactPath(const std::string &name)
 {
     const std::filesystem::path dir{TEST_ARTIFACTS_DIR};
     std::filesystem::create_directories(dir);
+
+    if (const auto *info =
+            ::testing::UnitTest::GetInstance()->current_test_info())
+    {
+        return dir / (std::string(info->test_suite_name()) + "." + info->name()
+                      + "." + name);
+    }
+
     return dir / name;
 }
 
@@ -483,7 +499,11 @@ class SidecarTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        m_dir = std::filesystem::path(TEST_ARTIFACTS_DIR) / "sidecars";
+        // Per case, not one "sidecars" for all of them: SetUp() wipes this
+        // directory, so in parallel one case cleared another's files out
+        // from under it in the middle of a run.
+        m_dir = std::filesystem::path(TEST_ARTIFACTS_DIR) / "sidecars"
+                / ::testing::UnitTest::GetInstance()->current_test_info()->name();
         std::filesystem::remove_all(m_dir);
         std::filesystem::create_directories(m_dir);
 

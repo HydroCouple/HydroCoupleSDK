@@ -36,10 +36,33 @@ using namespace HydroCouple::SDK::IO;
 
 namespace {
 
+/*!
+ * \brief Where a test writes \p name, under a path only that test uses.
+ *
+ * Namespaced by the running case, because ctest registers every gtest case
+ * as a test of its own and `-jN` runs them as concurrent processes over this
+ * one directory. Several cases here ask for the same file name and each
+ * writes it before reading it back, so in parallel they truncated and
+ * removed each other's files mid-read — which is why the parallel failing
+ * set moved from run to run and the suite could only be judged at `-j 1`.
+ *
+ * Still a real path under tests/artifacts, so what a test checked can be
+ * opened afterwards, and now it also says which case produced it.
+ */
 std::filesystem::path artifactPath(const std::string &name)
 {
     const std::filesystem::path dir{TEST_ARTIFACTS_DIR};
     std::filesystem::create_directories(dir);
+
+    // Null outside a running test (a suite-wide fixture, say); the shared
+    // name is then the best available and no worse than before.
+    if (const auto *info =
+            ::testing::UnitTest::GetInstance()->current_test_info())
+    {
+        return dir / (std::string(info->test_suite_name()) + "." + info->name()
+                      + "." + name);
+    }
+
     return dir / name;
 }
 
@@ -94,16 +117,23 @@ int openForRead(const std::filesystem::path &path, int &ncid)
         H5Eprint2(H5E_DEFAULT, stderr);
 #endif
 
-        // Same file, same process, same instant -- but opened from inside
-        // libHydroCoupleSDK instead of from this executable. The two are
-        // distinguishable because the test binary links its own copy of
-        // netcdf and hdf5 alongside the copies already inside the shared
-        // library (the macOS linker warns: "ignoring duplicate libraries:
-        // libhdf5.a").
+        // The same file read from inside libHydroCoupleSDK rather than from
+        // here. This suite once failed exactly that way round -- nc_open
+        // returning NC_EHDFERR on a file the SDK's reader opened happily --
+        // because the executable linked its own copy of the static netcdf
+        // and hdf5 archives beside the copies already in the shared library,
+        // and two copies of HDF5 do not share its globals. The test target
+        // now takes those headers without their libraries, so there is one
+        // instance and it is the one that wrote the file.
+        //
+        // The comparison stays because it is what told us that, and it is
+        // the same question any future failure here raises:
         //
         //   SDK read OK  -> the file is fine and the bytes are on disk;
         //                   the failure belongs to *this* executable's
-        //                   library instance, not to the writer.
+        //                   library instance, not to the writer. Check
+        //                   whether a second netcdf/hdf5 has crept back
+        //                   into the link ("ignoring duplicate libraries").
         //   SDK read bad -> the writer really did produce something
         //                   unreadable, and the flush/close path is the
         //                   place to look.
@@ -119,8 +149,10 @@ int openForRead(const std::filesystem::path &path, int &ncid)
         {
             std::fprintf(stderr,
                          "  SDK reader opened the SAME file successfully.\n"
-                         "  => the file is valid; the duplicate netcdf/hdf5\n"
-                         "     instance in this executable is the problem.\n");
+                         "  => the file is valid; a second netcdf/hdf5\n"
+                         "     instance in this executable is the problem.\n"
+                         "     Check the test target's link for a duplicate\n"
+                         "     static netcdf/hdf5.\n");
         }
         else
         {

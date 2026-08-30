@@ -15,6 +15,37 @@ Composition IO moves into the SDK, and completed runs become reopenable.
 
 ### Fixed
 
+- **The test suite no longer carries a second copy of netCDF and HDF5.** Four
+  `NetCDFUGRIDWriter` tests had been failing for some time: `nc_open` returned
+  `NC_EHDFERR` on a file the writer had just produced and the SDK's own reader
+  opened without complaint. The file was never the problem. vcpkg supplies
+  netCDF and HDF5 as static archives, and the test executable linked them as
+  well as the copies already inside `libHydroCoupleSDK`, so one process held
+  two sets of HDF5's globals and a file written through one could not be
+  reopened through the other. The macOS linker had been saying so all along —
+  "ignoring duplicate libraries: libhdf5.a".
+
+  The test target now takes those headers **without** their libraries and
+  resolves `nc_*` and `H5*` from the shared library, which is one instance and
+  the same one that wrote the file. The tests still check written files with
+  the library rather than with our own reader, which is the point of them.
+  The suite is green at 260/260 for the first time; the four failures were
+  never a defect in the writer and are no longer a baseline to be explained
+  away.
+- **The suite can be run in parallel again.** `ctest -jN` had been reporting a
+  different failing set on every run — seven, then nine, with different
+  members — so its verdict was only meaningful at `-j 1`. ctest registers each
+  gtest case as a test of its own and runs them as concurrent processes, and
+  several cases asked for the same artifact file name: `io_ugrid.nc`,
+  `io_ugrid.h5`, `io_results.gpkg`, and a whole `sidecars/` directory that
+  every `SidecarTest` wiped in `SetUp()`. Each case writes its file and then
+  reads it back, so in parallel they truncated and deleted each other's work
+  mid-read.
+
+  Artifact paths are now namespaced by the running case, and the sidecar
+  fixture gets a directory of its own. Files still land under
+  `tests/artifacts/` where they can be opened afterwards, and now say which
+  case produced them. Five consecutive `-j 8` runs: 260/260.
 - **`NetCDFUGRIDWriter` now names every node coordinate variable it writes.**
   `node_coordinates` listed only `_node_x` and `_node_y`, so an elevation
   written as `_node_z` was present in the file but undiscoverable: a

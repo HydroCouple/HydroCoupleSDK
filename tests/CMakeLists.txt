@@ -48,7 +48,20 @@ endif()
 
 if(USE_HDF5)
     target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_hdf5.cpp)
-    target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_HDF5_TARGET})
+
+    # Headers only, for the reason given under USE_NETCDF below: a second
+    # copy of the static HDF5 archive in this executable is a second set of
+    # HDF5's globals. The NetCDF suite is where that surfaced, but nothing
+    # made the HDF5 suite immune -- it happened not to hand a handle across
+    # the two -- so the duplicate goes rather than being left to be found
+    # again by whoever writes the test that does.
+    # A list, not one target: a static HDF5 carries zlib beside it.
+    foreach(_headers_only IN LISTS HYDROCOUPLESDK_HDF5_TARGET)
+        if(TARGET ${_headers_only})
+            target_include_directories(HydroCoupleSDKTests PRIVATE
+                $<TARGET_PROPERTY:${_headers_only},INTERFACE_INCLUDE_DIRECTORIES>)
+        endif()
+    endforeach()
 endif()
 
 if(USE_GEOPACKAGE)
@@ -60,7 +73,26 @@ if(USE_NETCDF)
     target_sources(HydroCoupleSDKTests PRIVATE
         hydrocouplesdk/test_netcdf.cpp
         hydrocouplesdk/test_ugridreader.cpp)
-    target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_NETCDF_TARGET})
+
+    # Headers only, deliberately: the netCDF and HDF5 that vcpkg supplies are
+    # static archives, and linking them here as well as into libHydroCoupleSDK
+    # puts TWO copies of each in one process. The copies do not share HDF5's
+    # global state, so a file this suite wrote through the library could not
+    # be reopened by the executable's own copy -- nc_open returned NC_EHDFERR
+    # on a file the SDK's reader opened happily, and the macOS linker had
+    # already said as much ("ignoring duplicate libraries: libhdf5.a").
+    #
+    # The tests call nc_* to check the file with the library rather than with
+    # our own reader, which is the point of them, so the calls stay and the
+    # symbols are resolved from the shared library instead. That is exactly
+    # one instance, and it is the same one that wrote the file. Every nc_*
+    # the suite uses is among those the library exports.
+    foreach(_headers_only IN LISTS HYDROCOUPLESDK_NETCDF_TARGET)
+        if(TARGET ${_headers_only})
+            target_include_directories(HydroCoupleSDKTests PRIVATE
+                $<TARGET_PROPERTY:${_headers_only},INTERFACE_INCLUDE_DIRECTORIES>)
+        endif()
+    endforeach()
 endif()
 
 hydrocouplesdk_colocate_runtime_dlls(HydroCoupleSDKTests)
