@@ -10,6 +10,7 @@
 #include <sstream>
 
 #include "hydrocoupletemporal.h"
+#include "hydrocouplesdk/io/uriresolver.h"
 
 namespace HydroCouple::SDK::Temporal {
 
@@ -86,6 +87,22 @@ void TimeSeriesArgumentDouble::saveData()
     }
 }
 
+namespace
+{
+    /*!
+     * \brief The extension of what a reference names, query string aside.
+     *
+     * `std::filesystem::path("https://host/flow.csv?token=x").extension()`
+     * is ".csv?token=x", so a served series would be parsed as JSON.
+     */
+    std::string referenceExtension(const std::string &reference)
+    {
+        std::string path = reference.substr(0, reference.find_first_of("?#"));
+
+        return std::filesystem::path(path).extension().string();
+    }
+} // namespace
+
 bool TimeSeriesArgumentDouble::initialize(
     const std::string &value,
     HydroCouple::IArgument::ArgumentInputType argType,
@@ -96,10 +113,20 @@ bool TimeSeriesArgumentDouble::initialize(
     {
         if (argType == AT::File || argType == AT::URL)
         {
-            m_inputFile = value;
-            if (m_inputFile.extension() == ".csv")
+            std::string text;
+            if (!IO::readReference(value, text, message))
+                return false;
+
+            // Only something on disk can be written back to; remembering a
+            // URL here would make saveData() create a file named after a
+            // service.
+            m_inputFile = IO::isWritableReference(value)
+                              ? std::filesystem::path(value)
+                              : std::filesystem::path();
+
+            if (referenceExtension(value) == ".csv")
             {
-                if (!m_timeSeries->loadFromCSV(value, true))
+                if (!m_timeSeries->loadFromCSVText(text, true))
                 {
                     message = "Failed to load CSV file: " + value;
                     return false;
@@ -107,11 +134,8 @@ bool TimeSeriesArgumentDouble::initialize(
                 setCurrentArgumentInputType(argType);
                 return true;
             }
-            std::ifstream f(value);
-            if (!f) { message = "Cannot open file: " + value; return false; }
-            std::ostringstream ss;
-            ss << f.rdbuf();
-            if (!assignFromJson(nlohmann::json::parse(ss.str()), message))
+
+            if (!assignFromJson(nlohmann::json::parse(text), message))
                 return false;
         }
         else

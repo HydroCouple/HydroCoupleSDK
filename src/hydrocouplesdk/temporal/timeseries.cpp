@@ -99,6 +99,15 @@ bool TimeSeries::loadFromCSV(const std::string &filename, bool skipHeader) {
     std::ifstream ifs(filename);
     if (!ifs) return false;
 
+    std::ostringstream buffer;
+    buffer << ifs.rdbuf();
+
+    return loadFromCSVText(buffer.str(), skipHeader);
+}
+
+bool TimeSeries::loadFromCSVText(const std::string &text, bool skipHeader) {
+    std::istringstream ifs(text);
+
     m_times.clear();
     m_values.clear();
 

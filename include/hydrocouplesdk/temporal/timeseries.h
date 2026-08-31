@@ -115,6 +115,15 @@ public:
     bool loadFromCSV(const std::string &filename, bool skipHeader = true);
 
     /*!
+     * \brief Parses CSV text that has already been read.
+     * \details The parse half of loadFromCSV(), split out because a series
+     * fetched from a service arrives as bytes and never as a path.
+     * \param text CSV text, one "time,value" pair per line.
+     * \param skipHeader Whether the first line is a header.
+     */
+    bool loadFromCSVText(const std::string &text, bool skipHeader = true);
+
+    /*!
      * \brief Save to CSV file.
      * \param filename Path to output file
      * \return true on success

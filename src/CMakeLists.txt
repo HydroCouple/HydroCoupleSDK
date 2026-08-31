@@ -62,6 +62,7 @@ PRIVATE
     hydrocouplesdk/io/runmanifest.cpp
     hydrocouplesdk/io/compositionspec.cpp
     hydrocouplesdk/io/modelinitializer.cpp
+    hydrocouplesdk/io/uriresolver.cpp
 
 
     # ── temporal (namespace HydroCouple::Temporal) ────────────────────────

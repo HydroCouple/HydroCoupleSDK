@@ -4,6 +4,7 @@
 add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_bufferio.cpp
     hydrocouplesdk/test_dataitems.cpp
+    hydrocouplesdk/test_uriresolver.cpp
     hydrocouplesdk/test_component.cpp
     hydrocouplesdk/test_temporal.cpp
     hydrocouplesdk/test_io.cpp

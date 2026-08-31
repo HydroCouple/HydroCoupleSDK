@@ -17,6 +17,7 @@
 #define HYDROCOUPLESDK_ARGUMENT1D_H
 
 #include "hydrocouplesdk/data/abstractargument.h"
+#include "hydrocouplesdk/io/uriresolver.h"
 #include "hydrocouplesdk/data/componentdataitem.h"
 
 #include <filesystem>
@@ -117,12 +118,14 @@ public:
             std::string text = value;
             if (argType == AT::File || argType == AT::URL)
             {
-                m_inputFile = value;
-                std::ifstream f(value);
-                if (!f) { message = "Cannot open file: " + value; return false; }
-                std::ostringstream ss;
-                ss << f.rdbuf();
-                text = ss.str();
+                if (!IO::readReference(value, text, message))
+                    return false;
+                // Only something on disk can be written back to; remembering
+                // a URL here would make saveData() create a file named after
+                // a service.
+                m_inputFile = IO::isWritableReference(value)
+                                  ? std::filesystem::path(value)
+                                  : std::filesystem::path();
             }
             auto j = nlohmann::json::parse(text);
             if (j.is_object() && j.contains("values"))
