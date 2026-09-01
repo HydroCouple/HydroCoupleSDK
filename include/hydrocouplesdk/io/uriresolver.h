@@ -34,6 +34,8 @@
 
 #include <string>
 
+#include <nlohmann/json.hpp>
+
 namespace HydroCouple::SDK::IO
 {
 
@@ -110,6 +112,26 @@ HYDROCOUPLESDK_EXPORT void setUriResolver(UriResolver *resolver);
  */
 [[nodiscard]] HYDROCOUPLESDK_EXPORT bool isWritableReference(
     const std::string &reference);
+
+/*!
+ * \brief The key a serialized argument records its source URI under.
+ *
+ * Sibling of the `@ref` sidecar form in sidecar.h: that one points at bulk
+ * bytes beside the document, this one at a resource somewhere else entirely.
+ */
+inline constexpr const char *kUriRefKey = "@uri";
+
+/*!
+ * \brief The URI a payload names, when it names one instead of holding values.
+ *
+ * \param[in]  payload A serialized argument payload, as JSON text.
+ * \param[out] uri     The URI it names.
+ * \returns true when \p payload is an object carrying a non-empty `@uri`.
+ *          Text that is not JSON at all is not an error here -- the caller
+ *          is about to parse it and will say so far better than this can.
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT bool jsonUriReference(
+    const std::string &payload, std::string &uri);
 
 } // namespace HydroCouple::SDK::IO
 

@@ -126,10 +126,24 @@ public:
                     return false;
                 // Only something on disk can be written back to; remembering
                 // a URL here would make saveData() create a file named after
-                // a service.
-                m_inputFile = IO::isWritableReference(value)
-                                  ? std::filesystem::path(value)
-                                  : std::filesystem::path();
+                // a service. By the same split, only a remote reference is
+                // worth recording: a file's values can be inlined, a
+                // service's cannot.
+                const bool local = IO::isWritableReference(value);
+                m_inputFile = local ? std::filesystem::path(value)
+                                    : std::filesystem::path();
+                setSourceUri(local ? std::string() : value);
+            }
+            else if (std::string uri; IO::jsonUriReference(text, uri))
+            {
+                // A payload that names a URI is that URI, read now. This is
+                // what carries a fetched argument across a save and an open.
+                return initialize(uri, AT::URL, message);
+            }
+            else
+            {
+                // Values given outright are their own provenance.
+                setSourceUri({});
             }
             auto j = nlohmann::json::parse(text);
             if (j.is_object() && j.contains("values"))

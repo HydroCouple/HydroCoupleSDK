@@ -153,6 +153,35 @@ bool readReference(const std::string &reference, std::string &contents,
     return resolver->resolve(reference, contents, message);
 }
 
+bool jsonUriReference(const std::string &payload, std::string &uri)
+{
+    const nlohmann::json parsed =
+        nlohmann::json::parse(payload, nullptr, false);
+
+    if (!parsed.is_object() || !parsed.contains(kUriRefKey))
+    {
+        return false;
+    }
+
+    const nlohmann::json &reference = parsed[kUriRefKey];
+
+    if (!reference.is_string())
+    {
+        return false;
+    }
+
+    std::string named = reference.get<std::string>();
+
+    if (named.empty())
+    {
+        return false;
+    }
+
+    uri = std::move(named);
+
+    return true;
+}
+
 bool isWritableReference(const std::string &reference)
 {
     const std::string scheme = uriScheme(reference);

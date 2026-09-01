@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "hydrocouplesdk/data/abstractargument.h"
+#include "hydrocouplesdk/io/uriresolver.h"
 
 namespace HydroCouple::SDK {
 
@@ -85,6 +86,37 @@ bool AbstractArgument::isValidArgType(
     default:
         return false;
     }
+}
+
+const std::string &AbstractArgument::sourceUri() const
+{
+    return m_sourceUri;
+}
+
+void AbstractArgument::setSourceUri(const std::string &uri)
+{
+    m_sourceUri = uri;
+}
+
+void AbstractArgument::readData(const nlohmann::json &j)
+{
+    AbstractComponentDataItem::readData(j);
+
+    m_sourceUri = j.contains(IO::kUriRefKey) && j[IO::kUriRefKey].is_string()
+                      ? j[IO::kUriRefKey].get<std::string>()
+                      : std::string();
+}
+
+nlohmann::json AbstractArgument::writeData() const
+{
+    nlohmann::json j = AbstractComponentDataItem::writeData();
+
+    if (!m_sourceUri.empty())
+    {
+        j[IO::kUriRefKey] = m_sourceUri;
+    }
+
+    return j;
 }
 
 HydroCouple::IArgument::ArgumentInputType

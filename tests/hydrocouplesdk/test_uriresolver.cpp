@@ -389,3 +389,155 @@ TEST_F(UriResolverTest, ASeriesServedAsCsvIsParsedAsCsvDespiteItsQueryString)
         << message;
     EXPECT_DOUBLE_EQ(argument.getInterpolatedValue(0.5), 6.0);
 }
+
+// ── Across a save and an open ─────────────────────────────────────────────
+//
+// The composition document reaches an argument through
+// initialize(payload, JSON, ...) and nothing else, so a fetched argument
+// that recorded only its values would reopen with no memory of where they
+// came from. A payload may name a URI instead.
+
+TEST_F(UriResolverTest, APayloadThatNamesAUriIsThatUriRead)
+{
+    FakeResolver resolver("[7, 8, 9]");
+    InstalledResolver installed(&resolver);
+
+    auto quantity = std::unique_ptr<Quantity>(Quantity::unitLess("Flow"));
+    Argument1DInt argument("flow", &m_dim, 0, quantity.get(), nullptr);
+
+    std::string message;
+    ASSERT_TRUE(argument.initialize(
+        R"({"@uri": "https://example.org/flow.json"})", AT::JSON, message))
+        << message;
+
+    EXPECT_EQ(argument.length(), 3);
+    EXPECT_EQ(argument[2], 9);
+    EXPECT_EQ(resolver.asked, 1);
+}
+
+TEST_F(UriResolverTest, AnArgumentReadFromAServiceRecordsWhereItCameFrom)
+{
+    FakeResolver resolver("[7, 8, 9]");
+    InstalledResolver installed(&resolver);
+
+    auto quantity = std::unique_ptr<Quantity>(Quantity::unitLess("Flow"));
+    Argument1DInt argument("flow", &m_dim, 0, quantity.get(), nullptr);
+
+    std::string message;
+    ASSERT_TRUE(argument.initialize("https://example.org/flow.json", AT::URL,
+                                    message))
+        << message;
+
+    std::string serialized;
+    ASSERT_TRUE(argument.serialize(AT::JSON, serialized, message)) << message;
+
+    const auto json = nlohmann::json::parse(serialized);
+    ASSERT_TRUE(json.contains("@uri"))
+        << "the composition would reopen with no idea where this came from";
+    EXPECT_EQ(json["@uri"], "https://example.org/flow.json");
+}
+
+// The whole point: what one argument wrote, the next one can be opened from.
+TEST_F(UriResolverTest, AFetchedArgumentSurvivesASaveAndAnOpen)
+{
+    FakeResolver resolver("[7, 8, 9]");
+    InstalledResolver installed(&resolver);
+
+    auto quantity = std::unique_ptr<Quantity>(Quantity::unitLess("Flow"));
+
+    std::string saved;
+    {
+        Argument1DInt argument("flow", &m_dim, 0, quantity.get(), nullptr);
+        std::string message;
+        ASSERT_TRUE(argument.initialize("https://example.org/flow.json",
+                                        AT::URL, message))
+            << message;
+        ASSERT_TRUE(argument.serialize(AT::JSON, saved, message)) << message;
+    }
+
+    Argument1DInt reopened("flow", &m_dim, 0, quantity.get(), nullptr);
+    std::string message;
+    ASSERT_TRUE(reopened.initialize(saved, AT::JSON, message)) << message;
+
+    EXPECT_EQ(reopened.length(), 3);
+    EXPECT_EQ(reopened[2], 9);
+    EXPECT_EQ(resolver.asked, 2) << "the reopen did not go back to the service";
+}
+
+// A stale copy of live data, used silently because the gauge was
+// unreachable, is worse than a composition that refuses to open.
+TEST_F(UriResolverTest, AUriThatCannotBeReadFailsRatherThanUsingTheValuesBesideIt)
+{
+    auto quantity = std::unique_ptr<Quantity>(Quantity::unitLess("Flow"));
+    Argument1DInt argument("flow", &m_dim, 0, quantity.get(), nullptr);
+
+    FakeResolver resolver("");
+    resolver.refuse();
+    InstalledResolver installed(&resolver);
+
+    std::string message;
+    EXPECT_FALSE(argument.initialize(
+        R"({"@uri": "https://example.org/flow.json", "values": [1, 2, 3]})",
+        AT::JSON, message));
+    EXPECT_EQ(message, "the service answered 503");
+    EXPECT_EQ(argument.length(), 0) << "it ran on the values beside the URI";
+}
+
+TEST_F(UriResolverTest, ValuesGivenOutrightStopClaimingAUri)
+{
+    FakeResolver resolver("[7, 8, 9]");
+    InstalledResolver installed(&resolver);
+
+    auto quantity = std::unique_ptr<Quantity>(Quantity::unitLess("Flow"));
+    Argument1DInt argument("flow", &m_dim, 0, quantity.get(), nullptr);
+
+    std::string message;
+    ASSERT_TRUE(argument.initialize("https://example.org/flow.json", AT::URL,
+                                    message))
+        << message;
+    ASSERT_TRUE(argument.initialize("[1, 2]", AT::JSON, message)) << message;
+
+    std::string serialized;
+    ASSERT_TRUE(argument.serialize(AT::JSON, serialized, message)) << message;
+    EXPECT_FALSE(nlohmann::json::parse(serialized).contains("@uri"))
+        << "hand-edited values still claim to have come from a service";
+}
+
+// A file has always been inlined, and a document can be moved next to one.
+TEST_F(UriResolverTest, ALocalFileIsInlinedRatherThanRecordedAsAReference)
+{
+    const auto path = artifactPath("uri_not_a_reference.json");
+    {
+        std::ofstream f(path);
+        f << "[1, 2, 3]";
+    }
+
+    auto quantity = std::unique_ptr<Quantity>(Quantity::unitLess("Flow"));
+    Argument1DInt argument("flow", &m_dim, 0, quantity.get(), nullptr);
+
+    std::string message;
+    ASSERT_TRUE(argument.initialize(path.string(), AT::File, message))
+        << message;
+
+    std::string serialized;
+    ASSERT_TRUE(argument.serialize(AT::JSON, serialized, message)) << message;
+
+    const auto json = nlohmann::json::parse(serialized);
+    EXPECT_FALSE(json.contains("@uri"));
+    EXPECT_EQ(json["values"], nlohmann::json::parse("[1,2,3]"));
+}
+
+// Text that is not JSON at all must not be mistaken for a reference; the
+// argument's own parser gives a far better message than this check could.
+TEST_F(UriResolverTest, TextThatIsNotJsonIsNotMistakenForAReference)
+{
+    std::string uri = "untouched";
+    EXPECT_FALSE(jsonUriReference("not json at all", uri));
+    EXPECT_FALSE(jsonUriReference("[1, 2, 3]", uri));
+    EXPECT_FALSE(jsonUriReference(R"({"@uri": ""})", uri));
+    EXPECT_FALSE(jsonUriReference(R"({"@uri": 7})", uri));
+    EXPECT_EQ(uri, "untouched");
+
+    ASSERT_TRUE(jsonUriReference(R"({"@uri": "sensor:flow.json"})", uri));
+    EXPECT_EQ(uri, "sensor:flow.json");
+}

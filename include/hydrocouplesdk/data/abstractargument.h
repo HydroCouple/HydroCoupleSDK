@@ -166,6 +166,27 @@ public:
     bool serialize(HydroCouple::IArgument::ArgumentInputType argType,
                    std::string &value, std::string &message) const override;
 
+    /*!
+     * \brief The URI these values were read from, empty when they were not.
+     */
+    [[nodiscard]] const std::string &sourceUri() const;
+
+    /*!
+     * \brief Reads the base fields, and the source URI beside them.
+     */
+    void readData(const nlohmann::json &j) override;
+
+    /*!
+     * \brief Writes the base fields, and the source URI when there is one.
+     *
+     * IArgument::serialize() asks for exactly this: "the serialized form
+     * should carry an external binary payload reference (URI ...)". A local
+     * file is still inlined as values -- the document can be moved next to
+     * it, and it always has been -- but a resource on a service cannot be
+     * got back from the document, so where it came from is recorded.
+     */
+    [[nodiscard]] nlohmann::json writeData() const override;
+
     // ── Setters (for subclass constructors) ──────────────────────────────
 
     /*!
@@ -201,12 +222,18 @@ protected:
     void setCurrentArgumentInputType(
         HydroCouple::IArgument::ArgumentInputType argType);
 
+    /*!
+     * \brief Records where these values came from; empty forgets it.
+     */
+    void setSourceUri(const std::string &uri);
+
 private:
     bool m_isOptional        = false;
     bool m_isReadOnly        = false;
     HydroCouple::IArgument::ArgumentInputType m_currentArgType =
         HydroCouple::IArgument::ArgumentInputType::String;
 
+    std::string                          m_sourceUri;
     std::vector<std::string>             m_fileFilters;
     std::vector<const std::type_info *>  m_validTypes;
 };
