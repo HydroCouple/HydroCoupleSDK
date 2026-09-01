@@ -65,13 +65,13 @@ The Technical Manager role is a single point of authority, which must be protect
 
 ## 4. Licensing & Intellectual Property
 
-HydroCoupleSDK is released under the **GNU Lesser General Public License v3 (LGPL-3.0)**.
+HydroCoupleSDK is released under the **MIT License**.
 
-By submitting a contribution (code, documentation, tests, data, or any other material), **you agree that your contribution will be made available under the LGPL-3.0** and that you have the right to grant this license. This agreement is implicit upon the submission of any pull request or patch to this repository.
+By submitting a contribution (code, documentation, tests, data, or any other material), **you agree that your contribution will be made available under the MIT License** and that you have the right to grant this license. This agreement is implicit upon the submission of any pull request or patch to this repository.
 
-If your contribution includes third-party code or data, you are responsible for ensuring that the third-party license is compatible with LGPL-3.0 and that proper attribution is included in your submission.
+If your contribution includes third-party code or data, you are responsible for ensuring that the third-party license is compatible with the MIT License and that proper attribution is included in your submission. Third-party components keep their own licences and are not relicensed: the bundled CDT triangulation library, for example, is MPL-2.0 AND BSD-3-Clause.
 
-The full license text is available in [License.md](./License.md).
+The full license text is available in [License](./License).
 
 ---
 
@@ -397,7 +397,7 @@ Adding a third-party dependency increases the maintenance burden and risk surfac
 
 | Criterion                | Requirement                                                                                      |
 |--------------------------|--------------------------------------------------------------------------------------------------|
-| **License compatibility**| The dependency's license must be compatible with LGPL-3.0 (e.g., LGPL, MIT, BSD, Apache 2.0). Permissive licenses are preferred; GPL-only licenses are not permitted. |
+| **License compatibility**| The dependency's license must be compatible with the MIT License (e.g., MIT, BSD, Apache 2.0). Permissive licenses are preferred; copyleft licenses that would impose their terms on users of this SDK are not permitted. |
 | **Maintenance status**   | The dependency must be actively maintained with a responsive upstream community.                 |
 | **Stability**            | The dependency must have a stable, versioned API. Unpinned or volatile dependencies are not acceptable. |
 | **Binary footprint**     | Dependencies that substantially increase compiled binary size must be justified by proportional benefit. |
