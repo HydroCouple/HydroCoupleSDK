@@ -81,6 +81,7 @@ PRIVATE
     hydrocouplesdk/spatial/linestring.cpp
     hydrocouplesdk/spatial/polygon.cpp
     hydrocouplesdk/spatial/polyhedralsurface.cpp
+    hydrocouplesdk/spatial/polyhedralsurfaceargument.cpp
     hydrocouplesdk/spatial/tin.cpp
     hydrocouplesdk/spatial/network.cpp
     hydrocouplesdk/spatial/regulargrid2d.cpp
