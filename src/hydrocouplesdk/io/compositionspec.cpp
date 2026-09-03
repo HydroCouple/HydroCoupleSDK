@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "hydrocouplesdk/io/compositionspec.h"
 
+#include <map>
 #include <set>
 
 namespace HydroCouple::SDK::IO {
@@ -45,6 +46,76 @@ bool optionalObject(const nlohmann::json &object, const char *key,
         return false;
     }
     out = object[key];
+    return true;
+}
+
+/*!
+ * Validates one \c @from payload. \p seen must hold every declared
+ * component id — providers may be declared after their consumers, since
+ * staging orders initialization, not the document.
+ */
+bool validateBinding(const nlohmann::json &payload, const std::string &context,
+                     const std::string &consumerId,
+                     const std::set<std::string> &seen, std::string &message)
+{
+    if (payload.size() != 1)
+    {
+        message = context + " is a binding, so \"@from\" must be its only "
+                            "key — a reference carries no other payload";
+        return false;
+    }
+    const auto &from = payload[kArgumentBindingKey];
+    if (!from.is_object())
+    {
+        message = context + ".@from must be an object with string "
+                            "\"component\" and \"output\"";
+        return false;
+    }
+    for (const auto &[key, value] : from.items())
+    {
+        if (key == "component" || key == "output")
+        {
+            if (!value.is_string() || value.get<std::string>().empty())
+            {
+                message = context + ".@from." + key +
+                          " must be a non-empty string";
+                return false;
+            }
+            continue;
+        }
+        if (key == "selector")
+        {
+            if (!value.is_null())
+            {
+                message = context + ".@from.selector is reserved and not "
+                                    "yet implemented; bind the whole output";
+                return false;
+            }
+            continue;
+        }
+        message = context + ".@from carries unknown key \"" + key + "\"";
+        return false;
+    }
+    if (!from.contains("component") || !from.contains("output"))
+    {
+        message = context + ".@from must name a \"component\" and an "
+                            "\"output\"";
+        return false;
+    }
+
+    const std::string provider = from["component"].get<std::string>();
+    if (!seen.count(provider))
+    {
+        message = context + ".@from.component \"" + provider +
+                  "\" is not declared in components[]";
+        return false;
+    }
+    if (provider == consumerId)
+    {
+        message = context + ".@from binds \"" + consumerId +
+                  "\" to its own output";
+        return false;
+    }
     return true;
 }
 
@@ -130,8 +201,11 @@ bool CompositionSpec::parse(const nlohmann::json &document,
         return false;
     }
 
-    // schema_version: optional for documents predating the specification;
-    // when present the MAJOR component must be one this SDK understands.
+    // schema_version: optional for documents predating the specification —
+    // those are 1.0-era documents, not documents in whatever version this
+    // SDK happens to write. When present the MAJOR component must be one
+    // this SDK understands.
+    spec.schemaVersion = "1.0";
     if (document.contains("schema_version"))
     {
         if (!document["schema_version"].is_string())
@@ -260,6 +334,29 @@ bool CompositionSpec::parse(const nlohmann::json &document,
 
         spec.components.push_back(std::move(component));
         ++index;
+    }
+
+    // ── argument bindings ────────────────────────────────────────────────
+    // Validated after the whole components[] pass because a provider may
+    // legitimately be declared after its consumer — staging orders
+    // initialization, not the document.
+    for (const ComponentSpec &component : spec.components)
+    {
+        for (const auto &[argumentId, payload] : component.arguments.items())
+        {
+            if (!isArgumentBinding(payload))
+                continue;
+            const std::string context = "components[\"" + component.id +
+                                        "\"].arguments." + argumentId;
+            if (!validateBinding(payload, context, component.id, seen,
+                                 message))
+                return false;
+        }
+    }
+    {
+        std::vector<std::vector<std::string>> stages;
+        if (!bindingStages(spec, stages, message))
+            return false;
     }
 
     // ── connections ──────────────────────────────────────────────────────
@@ -493,7 +590,13 @@ bool CompositionSpec::parse(const nlohmann::json &document,
 nlohmann::json CompositionSpec::toJson() const
 {
     nlohmann::json document;
-    document["schema_version"] = schemaVersion;
+    // A binding is 1.1 syntax: a document that carries one must not claim
+    // an earlier version, or a strict 1.0 reader would be told it can read
+    // what it cannot.
+    document["schema_version"] =
+        (schemaVersion == "1.0" && !argumentBindings(*this).empty())
+            ? "1.1"
+            : schemaVersion;
 
     if (!metadata.empty())
     {
@@ -610,6 +713,119 @@ const ComponentSpec *CompositionSpec::component(const std::string &id) const
             return &component;
     }
     return nullptr;
+}
+
+// ── Argument bindings ─────────────────────────────────────────────────────
+
+bool isArgumentBinding(const nlohmann::json &payload)
+{
+    return payload.is_object() && payload.contains(kArgumentBindingKey);
+}
+
+std::vector<ArgumentBindingSpec> argumentBindings(const CompositionSpec &spec)
+{
+    std::vector<ArgumentBindingSpec> bindings;
+    for (const ComponentSpec &component : spec.components)
+    {
+        for (const auto &[argumentId, payload] : component.arguments.items())
+        {
+            if (!isArgumentBinding(payload))
+                continue;
+            const auto &from = payload[kArgumentBindingKey];
+            ArgumentBindingSpec binding;
+            binding.component = component.id;
+            binding.argument  = argumentId;
+            if (from.is_object())
+            {
+                if (from.contains("component") && from["component"].is_string())
+                    binding.provider = from["component"].get<std::string>();
+                if (from.contains("output") && from["output"].is_string())
+                    binding.output = from["output"].get<std::string>();
+            }
+            bindings.push_back(std::move(binding));
+        }
+    }
+    return bindings;
+}
+
+bool bindingStages(const CompositionSpec &spec,
+                   std::vector<std::vector<std::string>> &stages,
+                   std::string &message)
+{
+    stages.clear();
+
+    // provider → consumers, and how many providers each consumer waits on.
+    std::map<std::string, std::vector<std::string>> consumersOf;
+    std::map<std::string, int> waitingOn;
+    for (const ComponentSpec &component : spec.components)
+        waitingOn[component.id] = 0;
+    for (const ArgumentBindingSpec &binding : argumentBindings(spec))
+    {
+        consumersOf[binding.provider].push_back(binding.component);
+        ++waitingOn[binding.component];
+    }
+
+    // Peel zero-dependency components a level at a time, in document order,
+    // so a stage index is the longest provider chain above the component.
+    std::set<std::string> placed;
+    while (placed.size() < spec.components.size())
+    {
+        std::vector<std::string> stage;
+        for (const ComponentSpec &component : spec.components)
+        {
+            if (!placed.count(component.id) && waitingOn[component.id] == 0)
+                stage.push_back(component.id);
+        }
+        if (stage.empty())
+            break; // Everything left waits on something left: a cycle.
+        for (const std::string &id : stage)
+        {
+            placed.insert(id);
+            for (const std::string &consumer : consumersOf[id])
+                --waitingOn[consumer];
+        }
+        stages.push_back(std::move(stage));
+    }
+
+    if (placed.size() == spec.components.size())
+    {
+        message.clear();
+        return true;
+    }
+
+    // Name the cycle: walk consumer → provider among the leftovers until a
+    // component repeats, then print the loop the walk closed.
+    std::map<std::string, ArgumentBindingSpec> providerOf;
+    for (const ArgumentBindingSpec &binding : argumentBindings(spec))
+    {
+        if (!placed.count(binding.component) && !placed.count(binding.provider))
+            providerOf.emplace(binding.component, binding);
+    }
+    std::string current = providerOf.begin()->first;
+    std::vector<std::string> path;
+    std::set<std::string> onPath;
+    while (!onPath.count(current))
+    {
+        path.push_back(current);
+        onPath.insert(current);
+        current = providerOf.at(current).provider;
+    }
+    message = "Argument bindings form a cycle: ";
+    bool inLoop = false;
+    for (const std::string &id : path)
+    {
+        if (id == current)
+            inLoop = true;
+        if (!inLoop)
+            continue;
+        message += "\"" + id + "\" (argument \"" +
+                   providerOf.at(id).argument + "\") needs \"" +
+                   providerOf.at(id).provider + "\"; ";
+    }
+    message.pop_back();
+    message.back() = '.';
+    stages.clear();
+    return false;
 }
 
 } // namespace HydroCouple::SDK::IO

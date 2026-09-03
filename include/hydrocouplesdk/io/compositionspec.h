@@ -22,7 +22,7 @@
  * validation against live components (does this argument exist, can this
  * input consume that output) before applying anything. Formal JSON Schema
  * documents ship alongside for editors and external tooling — see
- * \c share/hydrocouplesdk/schema/composition-1.0.json.
+ * \c share/hydrocouplesdk/schema/composition-1.1.json.
  *
  * \threadsafety Plain value types; no shared state.
  */
@@ -43,7 +43,24 @@ namespace HydroCouple::SDK::IO {
 /*!
  * \brief The composition specification version this SDK reads and writes.
  */
-inline constexpr const char *kCompositionSchemaVersion = "1.0";
+inline constexpr const char *kCompositionSchemaVersion = "1.1";
+
+/*!
+ * \brief Key marking an argument payload as a binding to another
+ *        component's output.
+ *
+ * A payload of the form
+ * \code{.json}
+ * { "@from": { "component": "meshgen", "output": "mesh" } }
+ * \endcode
+ * says the argument's value is produced by that component rather than
+ * authored in the document. The sigil joins \c @uri and \c @ref: a payload
+ * that *refers* instead of *containing*. ModelInitializer resolves it by
+ * running the provider to Finished and handing the named output to
+ * IArgument::initialize(const IComponentDataItem&); the reference — never
+ * the produced value — is what the document round-trips.
+ */
+inline constexpr const char *kArgumentBindingKey = "@from";
 
 /*!
  * \brief What a component should do when the composition is initialized.
@@ -230,6 +247,32 @@ struct HYDROCOUPLESDK_EXPORT WriterSpec
 };
 
 /*!
+ * \brief One argument bound to another component's output.
+ *
+ * The typed form of an \c @from payload, always derived from the
+ * component blocks' \c arguments — the JSON is the single source of
+ * truth, so a spec edited through its arguments cannot drift from a
+ * cached edge list.
+ */
+struct HYDROCOUPLESDK_EXPORT ArgumentBindingSpec
+{
+    std::string component; //!< Consumer component id.
+    std::string argument;  //!< Consumer argument id.
+    std::string provider;  //!< Provider component id.
+    std::string output;    //!< Provider output id.
+};
+
+/*!
+ * \brief Whether an argument payload is an \c @from binding reference.
+ *
+ * True for any object carrying the key — malformed bindings are still
+ * bindings, so a consumer never mistakes one for a literal payload and
+ * feeds it to a component; parse() is where malformation is refused.
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT bool isArgumentBinding(
+    const nlohmann::json &payload);
+
+/*!
  * \brief A parsed composition document.
  */
 struct HYDROCOUPLESDK_EXPORT CompositionSpec
@@ -276,6 +319,34 @@ struct HYDROCOUPLESDK_EXPORT CompositionSpec
      */
     [[nodiscard]] const ComponentSpec *component(const std::string &id) const;
 };
+
+/*!
+ * \brief Every \c @from binding in the composition, in document order.
+ *
+ * Derived from the argument payloads on demand (see ArgumentBindingSpec);
+ * on a spec that parse() accepted, every entry is well-formed.
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT std::vector<ArgumentBindingSpec>
+argumentBindings(const CompositionSpec &spec);
+
+/*!
+ * \brief Component ids grouped into initialization stages.
+ *
+ * Stage N holds the components whose longest chain of \c @from providers
+ * is N deep, so every provider stands in an earlier stage than its
+ * consumers and a binding-free composition is one stage in document
+ * order. Hosts use this to preview and drive staged initialization;
+ * ModelInitializer orders its apply pass by it.
+ *
+ * \param[in]  spec    The composition to stage.
+ * \param[out] stages  The staged component ids on success.
+ * \param[out] message Names an edge of the cycle on failure.
+ * \returns False when the bindings form a cycle.
+ */
+[[nodiscard]] HYDROCOUPLESDK_EXPORT bool bindingStages(
+    const CompositionSpec &spec,
+    std::vector<std::vector<std::string>> &stages,
+    std::string &message);
 
 } // namespace HydroCouple::SDK::IO
 

@@ -315,3 +315,201 @@ TEST(CompositionSpecTest, RejectsMistypedFields)
     EXPECT_NE(parseError(R"({"components": [], "writers": {}})").find("writers"),
               std::string::npos);
 }
+
+// ── Argument bindings (spec v1.1) ─────────────────────────────────────────
+
+namespace {
+
+/*!
+ * A mesh generator whose output initializes a solver's mesh argument, plus
+ * a bystander with no bindings at all.
+ */
+constexpr const char *kBoundDocument = R"({
+  "schema_version": "1.1",
+  "components": [
+    { "id": "solver",
+      "arguments": {
+        "mesh": { "@from": { "component": "meshgen", "output": "mesh",
+                             "selector": null } },
+        "dt":   { "value": 60.0 }
+      } },
+    { "id": "meshgen", "arguments": {} },
+    { "id": "bystander", "arguments": {} }
+  ]
+})";
+
+} // namespace
+
+TEST(CompositionSpecTest, ParsesAnArgumentBindingAndDerivesItsTypedForm)
+{
+    const CompositionSpec spec = parseOrFail(kBoundDocument);
+
+    const ComponentSpec *solver = spec.component("solver");
+    ASSERT_NE(solver, nullptr);
+    EXPECT_TRUE(isArgumentBinding(solver->arguments["mesh"]));
+    EXPECT_FALSE(isArgumentBinding(solver->arguments["dt"]));
+
+    const std::vector<ArgumentBindingSpec> bindings = argumentBindings(spec);
+    ASSERT_EQ(bindings.size(), 1u);
+    EXPECT_EQ(bindings[0].component, "solver");
+    EXPECT_EQ(bindings[0].argument, "mesh");
+    EXPECT_EQ(bindings[0].provider, "meshgen");
+    EXPECT_EQ(bindings[0].output, "mesh");
+}
+
+TEST(CompositionSpecTest, ABindingRoundTripsAsTheReferenceItIs)
+{
+    const CompositionSpec spec     = parseOrFail(kBoundDocument);
+    const nlohmann::json  document = spec.toJson();
+
+    const nlohmann::json &payload =
+        document["components"][0]["arguments"]["mesh"];
+    ASSERT_TRUE(payload.contains("@from"));
+    EXPECT_EQ(payload["@from"]["component"], "meshgen");
+    EXPECT_EQ(payload["@from"]["output"], "mesh");
+}
+
+TEST(CompositionSpecTest, AOneOhDocumentWithoutBindingsKeepsItsVersion)
+{
+    const CompositionSpec spec = parseOrFail(kFullDocument);
+    EXPECT_EQ(spec.toJson()["schema_version"], "1.0");
+}
+
+TEST(CompositionSpecTest, ABindingUpgradesAOneOhDocumentToOneOne)
+{
+    // A 1.0 claim on a document that uses 1.1 syntax parses (same major),
+    // but must not survive the round trip: a strict 1.0 reader would be
+    // told it can read what it cannot.
+    const CompositionSpec spec = parseOrFail(R"({
+      "schema_version": "1.0",
+      "components": [
+        { "id": "a",
+          "arguments": { "x": { "@from": { "component": "b",
+                                           "output": "y" } } } },
+        { "id": "b" }
+      ]
+    })");
+    EXPECT_EQ(spec.toJson()["schema_version"], "1.1");
+}
+
+TEST(CompositionSpecTest, RejectsABindingToAnUndeclaredProvider)
+{
+    const std::string message = parseError(R"({
+      "components": [
+        { "id": "solver",
+          "arguments": { "mesh": { "@from": { "component": "ghost",
+                                              "output": "mesh" } } } }
+      ]
+    })");
+    EXPECT_NE(message.find("ghost"), std::string::npos) << message;
+    EXPECT_NE(message.find("not declared"), std::string::npos) << message;
+}
+
+TEST(CompositionSpecTest, RejectsABindingToItself)
+{
+    const std::string message = parseError(R"({
+      "components": [
+        { "id": "solver",
+          "arguments": { "mesh": { "@from": { "component": "solver",
+                                              "output": "mesh" } } } }
+      ]
+    })");
+    EXPECT_NE(message.find("its own output"), std::string::npos) << message;
+}
+
+TEST(CompositionSpecTest, RejectsASelectorValueAsNotYetImplemented)
+{
+    const std::string message = parseError(R"({
+      "components": [
+        { "id": "solver",
+          "arguments": { "mesh": { "@from": { "component": "meshgen",
+                                              "output": "mesh",
+                                              "selector": "cell[0]" } } } },
+        { "id": "meshgen" }
+      ]
+    })");
+    EXPECT_NE(message.find("selector"), std::string::npos) << message;
+    EXPECT_NE(message.find("not yet implemented"), std::string::npos)
+        << message;
+}
+
+TEST(CompositionSpecTest, RejectsABindingCarryingASecondKey)
+{
+    const std::string message = parseError(R"({
+      "components": [
+        { "id": "solver",
+          "arguments": { "mesh": { "@from": { "component": "meshgen",
+                                              "output": "mesh" },
+                                   "units": "m" } } },
+        { "id": "meshgen" }
+      ]
+    })");
+    EXPECT_NE(message.find("only"), std::string::npos) << message;
+}
+
+TEST(CompositionSpecTest, RejectsABindingThatNamesNoOutput)
+{
+    const std::string message = parseError(R"({
+      "components": [
+        { "id": "solver",
+          "arguments": { "mesh": { "@from": { "component": "meshgen" } } } },
+        { "id": "meshgen" }
+      ]
+    })");
+    EXPECT_NE(message.find("output"), std::string::npos) << message;
+}
+
+TEST(CompositionSpecTest, RejectsABindingCycleNamingItsEdges)
+{
+    const std::string message = parseError(R"({
+      "components": [
+        { "id": "a",
+          "arguments": { "x": { "@from": { "component": "b",
+                                           "output": "out" } } } },
+        { "id": "b",
+          "arguments": { "y": { "@from": { "component": "a",
+                                           "output": "out" } } } }
+      ]
+    })");
+    EXPECT_NE(message.find("cycle"), std::string::npos) << message;
+    EXPECT_NE(message.find("\"a\""), std::string::npos) << message;
+    EXPECT_NE(message.find("\"b\""), std::string::npos) << message;
+}
+
+TEST(CompositionSpecTest, StagesPutEveryProviderBeforeItsConsumers)
+{
+    // Declared consumer-first on purpose: staging orders initialization,
+    // not the document.
+    const CompositionSpec spec = parseOrFail(R"({
+      "components": [
+        { "id": "c",
+          "arguments": { "x": { "@from": { "component": "b",
+                                           "output": "out" } } } },
+        { "id": "b",
+          "arguments": { "x": { "@from": { "component": "a",
+                                           "output": "out" } } } },
+        { "id": "a" },
+        { "id": "d" }
+      ]
+    })");
+
+    std::vector<std::vector<std::string>> stages;
+    std::string message;
+    ASSERT_TRUE(bindingStages(spec, stages, message)) << message;
+    ASSERT_EQ(stages.size(), 3u);
+    EXPECT_EQ(stages[0], (std::vector<std::string>{"a", "d"}));
+    EXPECT_EQ(stages[1], (std::vector<std::string>{"b"}));
+    EXPECT_EQ(stages[2], (std::vector<std::string>{"c"}));
+}
+
+TEST(CompositionSpecTest, ABindingFreeCompositionIsOneStageInDocumentOrder)
+{
+    const CompositionSpec spec = parseOrFail(kFullDocument);
+
+    std::vector<std::vector<std::string>> stages;
+    std::string message;
+    ASSERT_TRUE(bindingStages(spec, stages, message)) << message;
+    ASSERT_EQ(stages.size(), 1u);
+    EXPECT_EQ(stages[0],
+              (std::vector<std::string>{"catchment", "channel"}));
+}
