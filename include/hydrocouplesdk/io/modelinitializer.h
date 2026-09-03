@@ -119,15 +119,39 @@ public:
     /*!
      * \brief Validates and applies an already-parsed composition document.
      *
-     * Order per component: every argument payload feeds
-     * IArgument::initialize(payload, JSON, message); then the component's
-     * initialize() runs and must reach ComponentStatus::Initialized.
-     * Connections are wired afterwards via IInput::setProvider(), with
-     * IMultiInput::addProvider() used when the target is a multi-input.
-     * Validation of the whole document happens before anything is applied.
+     * Components are applied in bindingStages() order — document order
+     * until \c \@from bindings introduce dependencies, and then providers
+     * strictly before their consumers. Per component: every argument
+     * payload feeds IArgument::initialize(payload, JSON, message), except
+     * a binding, which runs its provider to Finished and hands the named
+     * live output to IArgument::initialize(const IComponentDataItem&);
+     * then the component's initialize() runs and must reach
+     * ComponentStatus::Initialized. Connections are wired afterwards via
+     * IInput::setProvider(), with IMultiInput::addProvider() used when the
+     * target is a multi-input. Validation of the whole document happens
+     * before anything is applied.
      */
     [[nodiscard]] bool initialize(const nlohmann::json &document,
                                   std::string &message);
+
+    /*!
+     * \brief Notified as the staged apply advances.
+     *
+     * Called on the initializing thread as each component's apply begins
+     * (\p activity "initializing") and again when a bound provider is run
+     * to completion (\p activity "running provider"). \p stage and
+     * \p stageCount describe the bindingStages() position, so a host can
+     * show providers → consumers progression without re-deriving it.
+     */
+    using ProgressCallback =
+        std::function<void(int stage, int stageCount,
+                           const std::string &componentId,
+                           const std::string &activity)>;
+
+    /*!
+     * \brief Installs (or clears, with nullptr) the progress callback.
+     */
+    void setProgressCallback(ProgressCallback callback);
 
     // ── Persistence (round trip) ─────────────────────────────────────────
 
@@ -259,7 +283,21 @@ private:
     [[nodiscard]] HydroCouple::IModelComponent *openRecordedComponent(
         const ComponentSpec &block, std::string &message);
 
+    /*!
+     * \brief Runs a binding's provider to Finished so its outputs are the
+     *        values they will ever be.
+     *
+     * A provider already Finished — an "open" substitute, or one an
+     * earlier binding ran — is left alone. Otherwise: validate, prepare,
+     * update until Done, finish; anything short of Finished fails with
+     * the provider's own errors appended.
+     */
+    [[nodiscard]] bool ensureProviderFinished(const std::string &providerId,
+                                              const std::string &context,
+                                              std::string &message);
+
     ComponentResolver     m_resolver;
+    ProgressCallback      m_progress;
     CompositionSpec       m_spec;
     std::vector<std::unique_ptr<HydroCouple::IModelComponent>> m_opened;
     std::vector<std::unique_ptr<HydroCouple::IAdaptedOutput>> m_adaptedOutputs;

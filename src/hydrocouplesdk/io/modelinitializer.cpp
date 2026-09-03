@@ -415,12 +415,89 @@ bool ModelInitializer::validateSpec(const CompositionSpec &spec,
 
 // ── Application ───────────────────────────────────────────────────────────
 
+void ModelInitializer::setProgressCallback(ProgressCallback callback)
+{
+    m_progress = std::move(callback);
+}
+
+bool ModelInitializer::ensureProviderFinished(const std::string &providerId,
+                                              const std::string &context,
+                                              std::string &message)
+{
+    using Status = HydroCouple::IModelComponent::ComponentStatus;
+
+    HydroCouple::IModelComponent *provider = component(providerId);
+    if (!provider)
+    {
+        message = context + ": provider \"" + providerId +
+                  "\" has no live instance";
+        return false;
+    }
+    if (provider->status() == Status::Finished)
+        return true;
+
+    const std::vector<std::string> problems = provider->validate();
+    if (!problems.empty())
+    {
+        message = context + ": provider \"" + providerId +
+                  "\" failed validation:";
+        for (const std::string &problem : problems)
+            message += "\n  - " + problem;
+        return false;
+    }
+    provider->prepare();
+
+    // The cap turns a provider that never reports Done into a named error
+    // instead of a hang; a legitimate provider run is bounded by its own
+    // simulation clock.
+    constexpr int kMaximumProviderSteps = 1'000'000;
+    int steps = 0;
+    while (provider->status() != Status::Done &&
+           provider->status() != Status::Finished &&
+           provider->status() != Status::Failed)
+    {
+        if (++steps > kMaximumProviderSteps)
+        {
+            message = context + ": provider \"" + providerId +
+                      "\" did not report Done within " +
+                      std::to_string(kMaximumProviderSteps) + " update steps";
+            return false;
+        }
+        provider->update();
+    }
+    if (provider->status() == Status::Done)
+        provider->finish();
+
+    if (provider->status() != Status::Finished)
+    {
+        message = context + ": provider \"" + providerId +
+                  "\" failed while producing its outputs";
+        for (const auto &entry : provider->errors())
+            message += "\n  - " + entry.message;
+        return false;
+    }
+    return true;
+}
+
 bool ModelInitializer::applyComponents(std::string &message)
 {
-    for (const ComponentSpec &block : m_spec.components)
+    // Providers before consumers: a binding's value is the provider's
+    // output after it has run, so the provider must be applied — and run —
+    // before the consumer's arguments are. A binding-free composition is
+    // one stage in document order, i.e. exactly the old behaviour.
+    std::vector<std::vector<std::string>> stages;
+    if (!bindingStages(m_spec, stages, message))
+        return false;
+    const int stageCount = static_cast<int>(stages.size());
+
+    for (int stageIndex = 0; stageIndex < stageCount; ++stageIndex)
+    for (const std::string &stagedId : stages[stageIndex])
     {
+        const ComponentSpec &block = *m_spec.component(stagedId);
         const std::string id = block.id;
         HydroCouple::IModelComponent *component = m_resolver(id);
+        if (m_progress)
+            m_progress(stageIndex, stageCount, id, "initializing");
 
         // ── execution mode "open": values come from a recorded run ───────
         if (block.mode == ExecutionMode::Open)
@@ -462,7 +539,40 @@ bool ModelInitializer::applyComponents(std::string &message)
                 HydroCouple::IArgument *argument =
                     findById(component->arguments(), argId);
                 std::string argMessage;
-                if (isSidecarRef(payload))
+                if (isArgumentBinding(payload))
+                {
+                    const auto &from = payload[kArgumentBindingKey];
+                    const std::string providerId =
+                        from["component"].get<std::string>();
+                    const std::string outputId =
+                        from["output"].get<std::string>();
+                    const std::string context = "Component \"" + id +
+                                                "\", argument \"" + argId +
+                                                "\"";
+                    if (m_progress)
+                        m_progress(stageIndex, stageCount, providerId,
+                                   "running provider");
+                    if (!ensureProviderFinished(providerId, context, message))
+                        return false;
+                    HydroCouple::IOutput *output = findById(
+                        this->component(providerId)->outputs(), outputId);
+                    if (!output)
+                    {
+                        message = context + ": provider \"" + providerId +
+                                  "\" has no output \"" + outputId + "\"";
+                        return false;
+                    }
+                    if (!argument->initialize(
+                            static_cast<const HydroCouple::IComponentDataItem &>(
+                                *output),
+                            argMessage))
+                    {
+                        message = context + " rejected the bound output \"" +
+                                  outputId + "\": " + argMessage;
+                        return false;
+                    }
+                }
+                else if (isSidecarRef(payload))
                 {
                     SidecarRef ref;
                     if (!parseSidecarRef(payload, ref, argMessage))
@@ -733,7 +843,8 @@ nlohmann::json ModelInitializer::serialize(
 
         nlohmann::json block;
         block["id"]        = id;
-        if (const ComponentSpec *previous = m_spec.component(id))
+        const ComponentSpec *previous = m_spec.component(id);
+        if (previous)
         {
             if (!previous->caption.empty())
                 block["caption"] = previous->caption;
@@ -759,6 +870,16 @@ nlohmann::json ModelInitializer::serialize(
         block["arguments"] = nlohmann::json::object();
         for (HydroCouple::IArgument *argument : component->arguments())
         {
+            // A bound argument round-trips as the reference it is: the
+            // produced value belongs to the provider's next run, and a
+            // document that baked it in would go quietly stale.
+            if (previous && previous->arguments.contains(argument->id()) &&
+                isArgumentBinding(previous->arguments[argument->id()]))
+            {
+                block["arguments"][argument->id()] =
+                    previous->arguments[argument->id()];
+                continue;
+            }
             std::string argMessage;
             const int64_t elementSize =
                 HydroCouple::Helpers::dataKindSize(argument->dataKind());

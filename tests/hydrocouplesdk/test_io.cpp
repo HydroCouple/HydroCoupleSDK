@@ -643,3 +643,228 @@ TEST_F(SidecarTest, TenMillionElementRoundTripAtBulkSpeed)
                 mb, elapsed, mb / elapsed);
     EXPECT_LT(elapsed, 120.0);
 }
+
+// ── Argument bindings (@from) ─────────────────────────────────────────────
+
+namespace {
+
+/*!
+ * A provider: no inputs, one produced output. A real mesh generator in
+ * miniature — it computes its output during its run, not before.
+ */
+class ProviderComponent : public AbstractModelComponent
+{
+public:
+    explicit ProviderComponent(std::string_view id)
+        : AbstractModelComponent(id)
+    {}
+
+    std::vector<std::string> validate() override { return {}; }
+    void prepare() override { ++prepared; }
+    void update(const std::vector<HydroCouple::IOutput *> & = {}) override
+    {
+        using Status = HydroCouple::IModelComponent::ComponentStatus;
+        if (failOnUpdate)
+        {
+            setStatus(Status::Failed, "the mesher broke a tooth");
+            return;
+        }
+        (*produced)[0] = 10.0;
+        (*produced)[1] = 20.0;
+        (*produced)[2] = 30.0;
+        setStatus(Status::Done);
+    }
+    void finish() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finished);
+    }
+
+    Output1DDouble *produced     = nullptr;
+    int             prepared     = 0;
+    bool            failOnUpdate = false;
+
+protected:
+    void createArguments() override {}
+    bool initializeArguments(std::string &message) override
+    {
+        message.clear();
+        return true;
+    }
+    void createInputs() override {}
+    void createOutputs() override
+    {
+        m_quantity.reset(Quantity::unitLess("Produced"));
+        produced =
+            new Output1DDouble("produced", &m_dim, 3, m_quantity.get(), this);
+        addOutput(produced);
+    }
+    void initializeFailureCleanUp() override {}
+
+private:
+    Dimension m_dim{"i", "Index"};
+    std::unique_ptr<Quantity> m_quantity;
+};
+
+} // namespace
+
+class ArgumentBindingTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        m_provider = std::make_unique<ProviderComponent>("prov");
+        m_consumer = std::make_unique<IOTestComponent>("consumer");
+        m_second   = std::make_unique<IOTestComponent>("second");
+        m_resolver = [this](const std::string &id) -> IModelComponent * {
+            if (id == "prov")     return m_provider.get();
+            if (id == "consumer") return m_consumer.get();
+            if (id == "second")   return m_second.get();
+            return nullptr;
+        };
+    }
+
+    // The consumer is declared FIRST on purpose: staging, not the
+    // document, orders initialization.
+    static constexpr const char *kBoundDocument = R"({
+        "components": [
+            { "id": "consumer",
+              "arguments": { "coeffs": { "@from": {
+                  "component": "prov", "output": "produced" } } } },
+            { "id": "prov" }
+        ]
+    })";
+
+    std::unique_ptr<ProviderComponent>  m_provider;
+    std::unique_ptr<IOTestComponent>    m_consumer, m_second;
+    ModelInitializer::ComponentResolver m_resolver;
+};
+
+TEST_F(ArgumentBindingTest, ABoundArgumentReceivesTheProvidersProducedValue)
+{
+    ModelInitializer initializer(m_resolver);
+    std::string message;
+    ASSERT_TRUE(initializer.initializeFromJsonText(kBoundDocument, message))
+        << message;
+
+    using Status = HydroCouple::IModelComponent::ComponentStatus;
+    EXPECT_EQ(m_provider->status(), Status::Finished);
+    ASSERT_NE(m_consumer->coeffs, nullptr);
+    ASSERT_EQ(m_consumer->coeffs->length(), 3);
+    EXPECT_DOUBLE_EQ((*m_consumer->coeffs)[0], 10.0);
+    EXPECT_DOUBLE_EQ((*m_consumer->coeffs)[1], 20.0);
+    EXPECT_DOUBLE_EQ((*m_consumer->coeffs)[2], 30.0);
+}
+
+TEST_F(ArgumentBindingTest, SerializeRoundTripsTheReferenceNotTheValue)
+{
+    ModelInitializer initializer(m_resolver);
+    std::string message;
+    ASSERT_TRUE(initializer.initializeFromJsonText(kBoundDocument, message))
+        << message;
+
+    const nlohmann::json document =
+        initializer.serialize({"consumer", "prov"}, message);
+    ASSERT_FALSE(document.empty()) << message;
+
+    const nlohmann::json &payload =
+        document["components"][0]["arguments"]["coeffs"];
+    ASSERT_TRUE(payload.contains("@from"))
+        << "the produced value was baked into the document: "
+        << payload.dump();
+    EXPECT_EQ(payload["@from"]["component"], "prov");
+    EXPECT_FALSE(payload.contains("values"));
+}
+
+TEST_F(ArgumentBindingTest, ABoundProviderRunsOnceForAllItsConsumers)
+{
+    ModelInitializer initializer(m_resolver);
+    std::string message;
+    ASSERT_TRUE(initializer.initializeFromJsonText(R"({
+        "components": [
+            { "id": "consumer",
+              "arguments": { "coeffs": { "@from": {
+                  "component": "prov", "output": "produced" } } } },
+            { "id": "second",
+              "arguments": { "coeffs": { "@from": {
+                  "component": "prov", "output": "produced" } } } },
+            { "id": "prov" }
+        ]
+    })", message)) << message;
+
+    EXPECT_EQ(m_provider->prepared, 1);
+    ASSERT_NE(m_second->coeffs, nullptr);
+    EXPECT_DOUBLE_EQ((*m_second->coeffs)[2], 30.0);
+}
+
+TEST_F(ArgumentBindingTest, AProviderFailureIsANamedError)
+{
+    m_provider->failOnUpdate = true;
+    ModelInitializer initializer(m_resolver);
+    std::string message;
+    ASSERT_FALSE(initializer.initializeFromJsonText(kBoundDocument, message));
+    EXPECT_NE(message.find("prov"), std::string::npos) << message;
+    EXPECT_NE(message.find("broke a tooth"), std::string::npos) << message;
+}
+
+TEST_F(ArgumentBindingTest, ABindingToAMissingOutputNamesIt)
+{
+    ModelInitializer initializer(m_resolver);
+    std::string message;
+    ASSERT_FALSE(initializer.initializeFromJsonText(R"({
+        "components": [
+            { "id": "consumer",
+              "arguments": { "coeffs": { "@from": {
+                  "component": "prov", "output": "ghost" } } } },
+            { "id": "prov" }
+        ]
+    })", message));
+    EXPECT_NE(message.find("ghost"), std::string::npos) << message;
+    EXPECT_NE(message.find("no output"), std::string::npos) << message;
+}
+
+TEST_F(ArgumentBindingTest, ProgressReportsProvidersBeforeConsumers)
+{
+    ModelInitializer initializer(m_resolver);
+    struct Event
+    {
+        int         stage;
+        int         stageCount;
+        std::string component;
+        std::string activity;
+    };
+    std::vector<Event> events;
+    initializer.setProgressCallback(
+        [&events](int stage, int stageCount, const std::string &component,
+                  const std::string &activity) {
+            events.push_back({stage, stageCount, component, activity});
+        });
+
+    std::string message;
+    ASSERT_TRUE(initializer.initializeFromJsonText(kBoundDocument, message))
+        << message;
+
+    ASSERT_GE(events.size(), 3u);
+    // Stage 0 initializes the provider; stage 1 runs it for the binding
+    // and then initializes the consumer.
+    EXPECT_EQ(events[0].component, "prov");
+    EXPECT_EQ(events[0].activity, "initializing");
+    EXPECT_EQ(events[0].stage, 0);
+    EXPECT_EQ(events[0].stageCount, 2);
+    const auto running = std::find_if(events.begin(), events.end(),
+                                      [](const Event &event) {
+                                          return event.activity ==
+                                                 "running provider";
+                                      });
+    ASSERT_NE(running, events.end());
+    EXPECT_EQ(running->component, "prov");
+    const auto consumer = std::find_if(events.begin(), events.end(),
+                                       [](const Event &event) {
+                                           return event.component ==
+                                                  "consumer";
+                                       });
+    ASSERT_NE(consumer, events.end());
+    EXPECT_EQ(consumer->stage, 1);
+    // The provider run happens INSIDE the consumer's apply — its argument
+    // is what needs the run — so it follows the consumer's begin event.
+    EXPECT_GT(running - events.begin(), consumer - events.begin());
+}
