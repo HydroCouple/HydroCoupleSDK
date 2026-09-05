@@ -155,6 +155,23 @@ bool TimeSteppedWorkflow::performStep(std::string &message)
                               "' failed during update";
                     return false;
                 }
+
+                // The push-driven schedule bypasses
+                // IOutput::updateValues(query), which is where adapted
+                // outputs normally refresh (pull-driven rides it). First
+                // tier only: the IAdaptedOutput contract makes each
+                // adapted output refresh its own children. Inside the
+                // sweep loop, so cyclic groups iterate on refreshed
+                // values.
+                for (HydroCouple::IOutput *output : component->outputs())
+                {
+                    if (!output)
+                        continue;
+                    for (HydroCouple::IAdaptedOutput *adapted :
+                         output->adaptedOutputs())
+                        if (adapted)
+                            adapted->refresh();
+                }
             }
         }
     }

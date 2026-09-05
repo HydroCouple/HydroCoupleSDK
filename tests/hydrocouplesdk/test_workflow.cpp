@@ -502,3 +502,78 @@ TEST_F(TimeSteppedWorkflowTest, RunsToCompositionDone)
     EXPECT_EQ(b->updateCount, 3);
     EXPECT_EQ(c->updateCount, 3);
 }
+
+// ── Adapted-output refresh (CONNECT A6) ───────────────────────────────────
+
+#include "hydrocouplesdk/data/sdkadaptedoutputfactory.h"
+
+namespace {
+
+//! Reads element 0 of a rank-1 Double item.
+double scalarOf(const HydroCouple::IComponentDataItem &item)
+{
+    double value = 0.0;
+    const int64_t one = 1;
+    HydroCouple::BufferDescriptor destination;
+    destination.data  = &value;
+    destination.kind  = HydroCouple::DataKind::Float64;
+    destination.rank  = 1;
+    destination.shape = &one;
+    const int64_t start = 0;
+    std::string message;
+    EXPECT_TRUE(item.getValuesInto(destination,
+                                   std::span<const int64_t>(&start, 1),
+                                   std::span<const int64_t>(&one, 1),
+                                   &message)) << message;
+    return value;
+}
+
+} // namespace
+
+TEST_F(TimeSteppedWorkflowTest, TimeSteppedRunRefreshesAdaptedOutputsAfterEachUpdate)
+{
+    link(*a, *b);
+    validateAndPrepare();
+
+    // Splice a linear x2 adapter onto a's output the way the run pipeline
+    // does. The push-driven schedule never calls
+    // IOutput::updateValues(query) — the pull-driven path's refresh ride —
+    // so without the workflow's own refresh pass this adapter would serve
+    // its initialize-time values forever.
+    SdkAdaptedOutputFactory *factory = SdkAdaptedOutputFactory::instance();
+    HydroCouple::IIdentity *linear = nullptr;
+    for (HydroCouple::IIdentity *offering :
+         factory->getAvailableAdaptedOutputIds(a->out))
+        if (offering &&
+            offering->id() == SdkAdaptedOutputFactory::kLinearTransformId)
+            linear = offering;
+    ASSERT_NE(linear, nullptr);
+
+    std::unique_ptr<HydroCouple::IAdaptedOutput> adapted =
+        factory->createAdaptedOutput(linear, a->out);
+    ASSERT_NE(adapted, nullptr);
+    std::string message;
+    for (HydroCouple::IArgument *argument : adapted->arguments())
+        if (argument && argument->id() == "multiplier")
+            ASSERT_TRUE(argument->initialize(
+                R"({"values": [2.0]})",
+                HydroCouple::IArgument::ArgumentInputType::JSON, message))
+                << message;
+    adapted->initialize();
+    EXPECT_DOUBLE_EQ(scalarOf(*adapted), 0.0); // nothing has stepped yet
+
+    workflow->update(); // a: out = in + 1 = 1
+    EXPECT_DOUBLE_EQ((*a->out)[0], 1.0);
+    EXPECT_DOUBLE_EQ(scalarOf(*adapted), 2.0)
+        << "the step's update did not reach the adapted output";
+
+    // Feed a's unconnected input so the second step actually moves the
+    // output (out recomputes as in + 1, it does not accumulate).
+    (*a->in)[0] = 10.0;
+    workflow->update(); // out = 11
+    EXPECT_DOUBLE_EQ((*a->out)[0], 11.0);
+    EXPECT_DOUBLE_EQ(scalarOf(*adapted), 22.0);
+
+    // The provider registry is non-owning: unregister before destruction.
+    EXPECT_TRUE(a->out->removeAdaptedOutput(adapted.get()));
+}
