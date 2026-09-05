@@ -153,6 +153,25 @@ public:
      */
     void setProgressCallback(ProgressCallback callback);
 
+    /*!
+     * \brief Supplies standalone adapted-output factories — host-owned,
+     *        e.g. realized from IAdaptedOutputFactoryComponentInfo
+     *        libraries, or SdkAdaptedOutputFactory::instance().
+     *
+     * A list, not an id→factory lookup, because a chain step that names no
+     * factory must enumerate every candidate. Consulted by the chain
+     * builder after the provider component's own componentInfo() factories,
+     * so a component may deliberately shadow a standalone factory id.
+     */
+    using AdapterFactoryResolver =
+        std::function<std::vector<HydroCouple::IAdaptedOutputFactory *>()>;
+
+    /*!
+     * \brief Installs (or clears, with nullptr) the standalone-factory
+     *        resolver.
+     */
+    void setAdapterFactoryResolver(AdapterFactoryResolver resolver);
+
     // ── Persistence (round trip) ─────────────────────────────────────────
 
     /*!
@@ -296,8 +315,9 @@ private:
                                               const std::string &context,
                                               std::string &message);
 
-    ComponentResolver     m_resolver;
-    ProgressCallback      m_progress;
+    ComponentResolver      m_resolver;
+    ProgressCallback       m_progress;
+    AdapterFactoryResolver m_adapterFactoryResolver;
     CompositionSpec       m_spec;
     std::vector<std::unique_ptr<HydroCouple::IModelComponent>> m_opened;
     std::vector<std::unique_ptr<HydroCouple::IAdaptedOutput>> m_adaptedOutputs;

@@ -420,6 +420,11 @@ void ModelInitializer::setProgressCallback(ProgressCallback callback)
     m_progress = std::move(callback);
 }
 
+void ModelInitializer::setAdapterFactoryResolver(AdapterFactoryResolver resolver)
+{
+    m_adapterFactoryResolver = std::move(resolver);
+}
+
 bool ModelInitializer::ensureProviderFinished(const std::string &providerId,
                                               const std::string &context,
                                               std::string &message)
@@ -654,17 +659,37 @@ HydroCouple::IOutput *ModelInitializer::buildAdaptedChain(
         HydroCouple::IModelComponent *owner = current->modelComponent();
         HydroCouple::IModelComponentInfo *info =
             owner ? owner->componentInfo() : nullptr;
-        if (!info)
+
+        // Component-info factories first — a component may deliberately
+        // shadow a standalone factory id — then the host's standalone
+        // factories from the resolver seam.
+        std::vector<HydroCouple::IAdaptedOutputFactory *> candidates;
+        size_t infoCount = 0;
+        if (info)
+        {
+            for (HydroCouple::IAdaptedOutputFactory *factory :
+                 info->adaptedOutputFactories())
+                candidates.push_back(factory);
+            infoCount = candidates.size();
+        }
+        if (m_adapterFactoryResolver)
+        {
+            for (HydroCouple::IAdaptedOutputFactory *factory :
+                 m_adapterFactoryResolver())
+                candidates.push_back(factory);
+        }
+
+        if (candidates.empty())
         {
             message = context + ": adapted output \"" + step.id +
                       "\" requested but the provider's component exposes no "
-                      "componentInfo() to find factories on";
+                      "adapter factories and no standalone adapter "
+                      "factories are installed";
             return nullptr;
         }
 
         HydroCouple::IAdaptedOutput *created = nullptr;
-        for (HydroCouple::IAdaptedOutputFactory *factory :
-             info->adaptedOutputFactories())
+        for (HydroCouple::IAdaptedOutputFactory *factory : candidates)
         {
             if (!factory)
                 continue;
@@ -695,12 +720,17 @@ HydroCouple::IOutput *ModelInitializer::buildAdaptedChain(
 
         if (!created)
         {
-            message = context + ": no factory on component \"" +
-                      (owner ? owner->id() : std::string("?")) +
-                      "\" offers adapted output \"" + step.id + "\"" +
+            message = context + ": no adapted output \"" + step.id +
+                      "\" is offered for output \"" + current->id() +
+                      "\" (searched " + std::to_string(infoCount) +
+                      " factories on component \"" +
+                      (owner ? owner->id() : std::string("?")) + "\" and " +
+                      std::to_string(candidates.size() - infoCount) +
+                      " standalone factories" +
                       (step.factory.empty()
                            ? std::string()
-                           : (" from factory \"" + step.factory + "\""));
+                           : (", factory \"" + step.factory + "\" requested")) +
+                      ")";
             return nullptr;
         }
 

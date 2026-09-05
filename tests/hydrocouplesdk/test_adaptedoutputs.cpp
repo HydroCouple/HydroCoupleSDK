@@ -230,7 +230,7 @@ public:
 class ChainTestComponent : public AbstractModelComponent
 {
 public:
-    ChainTestComponent(std::string_view id, ChainTestInfo *info)
+    ChainTestComponent(std::string_view id, AbstractModelComponentInfo *info)
         : AbstractModelComponent(id, info)
     {}
 
@@ -367,7 +367,7 @@ TEST_F(AdaptedChainTest, AppliesChainStepArgumentsBeforeInitialize)
     EXPECT_EQ(readAll(*provider), (std::vector<double>{30.0, 60.0, 90.0}));
 }
 
-TEST_F(AdaptedChainTest, RefusesAnUnknownAdapterByName)
+TEST_F(AdaptedChainTest, RefusesAnUnknownAdapterNamingBothSourcesSearched)
 {
     ModelInitializer initializer(m_resolver);
     std::string message;
@@ -379,6 +379,141 @@ TEST_F(AdaptedChainTest, RefusesAnUnknownAdapterByName)
               "to": { "component": "down", "input": "inflow" } }
         ]})", message));
 
+    // The refusal must say what was searched: the fixer's next move differs
+    // between "the component has no factories" and "no factory offers it".
     EXPECT_NE(message.find("no_such_adapter"), std::string::npos) << message;
     EXPECT_NE(message.find("up"), std::string::npos) << message;
+    EXPECT_NE(message.find("standalone"), std::string::npos) << message;
+}
+
+namespace {
+
+/*!
+ * Offers "linear_transform" too, but bakes a betraying +1000 offset into
+ * every instance, so a gate can tell WHICH factory built a chain link.
+ */
+class ShadowFactory final : public AbstractAdaptedOutputFactory
+{
+public:
+    ShadowFactory()
+        : AbstractAdaptedOutputFactory("shadow.factory"),
+          m_offering(std::make_unique<Identity>(
+              SdkAdaptedOutputFactory::kLinearTransformId, "Shadowed linear"))
+    {}
+
+    std::vector<HydroCouple::IIdentity *> getAvailableAdaptedOutputIds(
+        const HydroCouple::IOutput *provider,
+        const HydroCouple::IInput * = nullptr) override
+    {
+        if (!provider)
+            return {};
+        return {m_offering.get()};
+    }
+
+    std::unique_ptr<HydroCouple::IAdaptedOutput> createAdaptedOutput(
+        HydroCouple::IIdentity *adaptedProviderId,
+        HydroCouple::IOutput *provider,
+        HydroCouple::IInput * = nullptr) override
+    {
+        if (!adaptedProviderId || !provider ||
+            adaptedProviderId->id() != SdkAdaptedOutputFactory::kLinearTransformId)
+            return nullptr;
+
+        auto created = std::make_unique<LinearTransformAdaptedOutput>(
+            "shadowed_linear", provider, this);
+        std::string message;
+        for (HydroCouple::IArgument *argument : created->arguments())
+            if (argument && argument->id() == "offset")
+                (void)argument->initialize(R"({"values": [1000.0]})",
+                                           AT::JSON, message);
+        provider->addAdaptedOutput(created.get());
+        return created;
+    }
+
+private:
+    std::unique_ptr<Identity> m_offering;
+};
+
+//! Info registering only the shadow factory.
+class ShadowInfo final : public AbstractModelComponentInfo
+{
+public:
+    ShadowInfo() : AbstractModelComponentInfo("shadow.info")
+    {
+        addAdaptedOutputFactory(&m_shadow);
+    }
+
+    std::unique_ptr<HydroCouple::IModelComponent>
+    createComponentInstance() override
+    {
+        return nullptr;
+    }
+
+private:
+    ShadowFactory m_shadow;
+};
+
+} // namespace
+
+TEST_F(AdaptedChainTest, StandaloneFactoriesAreSearchedAfterComponentInfoFactories)
+{
+    static constexpr const char *kDocument = R"({
+        "components": [ { "id": "provider" }, { "id": "consumer" } ],
+        "connections": [
+            { "from": { "component": "provider", "output": "flow",
+                        "adapted_outputs": [
+                            { "id": "linear_transform",
+                              "arguments": { "multiplier": { "values": [2.0] } } }
+                        ] },
+              "to": { "component": "consumer", "input": "inflow" } }
+        ]})";
+
+    // (1) Reachability: a provider whose component has no componentInfo()
+    // at all can still adapt when the host installs standalone factories —
+    // the whole point of the seam.
+    {
+        ChainTestComponent bare("provider", nullptr);
+        ChainTestComponent sink("consumer", nullptr);
+        ModelInitializer initializer(
+            [&](const std::string &id) -> HydroCouple::IModelComponent * {
+                if (id == "provider") return &bare;
+                if (id == "consumer") return &sink;
+                return nullptr;
+            });
+        initializer.setAdapterFactoryResolver([] {
+            return std::vector<HydroCouple::IAdaptedOutputFactory *>{
+                SdkAdaptedOutputFactory::instance()};
+        });
+
+        std::string message;
+        ASSERT_TRUE(initializer.initializeFromJsonText(kDocument, message))
+            << message;
+        EXPECT_EQ(readAll(*sink.inflow->provider()),
+                  (std::vector<double>{20.0, 40.0, 60.0}));
+    }
+
+    // (2) Precedence: when the component's own info offers the same id,
+    // the component-info factory wins — its baked +1000 offset survives.
+    {
+        ShadowInfo shadowInfo;
+        ChainTestComponent owned("provider", &shadowInfo);
+        ChainTestComponent sink("consumer", &shadowInfo);
+        ModelInitializer initializer(
+            [&](const std::string &id) -> HydroCouple::IModelComponent * {
+                if (id == "provider") return &owned;
+                if (id == "consumer") return &sink;
+                return nullptr;
+            });
+        initializer.setAdapterFactoryResolver([] {
+            return std::vector<HydroCouple::IAdaptedOutputFactory *>{
+                SdkAdaptedOutputFactory::instance()};
+        });
+
+        std::string message;
+        ASSERT_TRUE(initializer.initializeFromJsonText(kDocument, message))
+            << message;
+        EXPECT_EQ(readAll(*sink.inflow->provider()),
+                  (std::vector<double>{1020.0, 1040.0, 1060.0}))
+            << "the standalone factory shadowed the component's own";
+    }
 }
