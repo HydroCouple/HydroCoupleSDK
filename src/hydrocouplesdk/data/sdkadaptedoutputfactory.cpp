@@ -5,6 +5,9 @@
 #include "hydrocouplesdk/data/sdkadaptedoutputfactory.h"
 #include "hydrocouplesdk/data/lineartransformadaptedoutput.h"
 #include "hydrocouplesdk/data/relaxationadaptedoutput.h"
+#include "hydrocouplesdk/temporal/temporalinterpolationadaptedoutput.h"
+
+#include "hydrocoupletemporal.h"
 
 namespace HydroCouple::SDK {
 
@@ -16,6 +19,18 @@ bool isRankOneDouble(const HydroCouple::IComponentDataItem *item)
            item->shape().size() == 1;
 }
 
+//! A single-column Double time-series: {timeCount, 1} with a time axis.
+bool isSingleColumnTimeSeries(const HydroCouple::IOutput *provider)
+{
+    if (!provider ||
+        provider->dataKind() != HydroCouple::DataKind::Float64 ||
+        !dynamic_cast<const HydroCouple::Temporal::ITimeSeriesComponentDataItem *>(
+            provider))
+        return false;
+    const std::vector<int64_t> shape = provider->shape();
+    return shape.size() == 2 && shape[1] == 1;
+}
+
 } // namespace
 
 SdkAdaptedOutputFactory::SdkAdaptedOutputFactory()
@@ -25,6 +40,8 @@ SdkAdaptedOutputFactory::SdkAdaptedOutputFactory()
         kLinearTransformId, "Linear transform (multiplier, offset)"));
     m_ids.push_back(std::make_unique<Identity>(
         kRelaxationId, "Under-relaxation (relaxation_factor)"));
+    m_ids.push_back(std::make_unique<Identity>(
+        kTemporalInterpolationId, "Temporal interpolation (method)"));
 }
 
 SdkAdaptedOutputFactory *SdkAdaptedOutputFactory::instance()
@@ -37,18 +54,21 @@ std::vector<HydroCouple::IIdentity *>
 SdkAdaptedOutputFactory::getAvailableAdaptedOutputIds(
     const HydroCouple::IOutput *provider, const HydroCouple::IInput *consumer)
 {
-    // Every offering transforms a rank-1 Double slab element-wise, so the
-    // provider gate is the offering gate. A consumer, when named, must be
-    // able to take doubles; its shape is the run pipeline's problem.
-    if (!isRankOneDouble(provider))
-        return {};
+    // A consumer, when named, must be able to take doubles; its shape is
+    // the run pipeline's problem.
     if (consumer && consumer->dataKind() != HydroCouple::DataKind::Float64)
         return {};
 
     std::vector<HydroCouple::IIdentity *> available;
-    available.reserve(m_ids.size());
     for (const std::unique_ptr<Identity> &identity : m_ids)
-        available.push_back(identity.get());
+    {
+        // The element-wise transforms want a rank-1 Double slab; the
+        // temporal interpolation wants a single-column time-series.
+        if (identity->id() == kTemporalInterpolationId
+                ? isSingleColumnTimeSeries(provider)
+                : isRankOneDouble(provider))
+            available.push_back(identity.get());
+    }
     return available;
 }
 
@@ -76,6 +96,11 @@ SdkAdaptedOutputFactory::createAdaptedOutput(
     else if (adaptedProviderId->id() == kRelaxationId)
     {
         created = std::make_unique<RelaxationAdaptedOutput>(
+            instanceId, provider, this);
+    }
+    else if (adaptedProviderId->id() == kTemporalInterpolationId)
+    {
+        created = std::make_unique<Temporal::TemporalInterpolationAdaptedOutput>(
             instanceId, provider, this);
     }
 

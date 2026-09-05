@@ -713,3 +713,79 @@ TEST_F(AdaptedChainTest, SerializeReproducesTheAdaptedChainAndMultiInputRoles)
     EXPECT_FALSE((*plainLink)["from"].contains("adapted_outputs"));
     EXPECT_EQ((*plainLink)["to"]["role"], "secondary");
 }
+
+// ── A7: temporal interpolation ──────────────────────────────────────────────
+
+#include "hydrocouplesdk/temporal/temporalinterpolationadaptedoutput.h"
+#include "hydrocouplesdk/temporal/timeseriesexchangeitems.h"
+
+TEST(AdaptedOutputTest, TemporalInterpolationServesTheValueAtTheQueriedTime)
+{
+    using HydroCouple::SDK::Temporal::TemporalInterpolationAdaptedOutput;
+    using HydroCouple::SDK::Temporal::TimeData;
+    using HydroCouple::SDK::Temporal::TimeSeriesOutputDouble;
+
+    Dimension timeDimension{"time"};
+    std::unique_ptr<Quantity> quantity{Quantity::unitLess("Stage")};
+    TimeSeriesOutputDouble series("stage", {&timeDimension}, quantity.get(),
+                                  nullptr);
+    series.addTimeStep(std::make_shared<TimeData>("Time", 0.0), {10.0});
+    series.addTimeStep(std::make_shared<TimeData>("Time", 1.0), {20.0});
+
+    SdkAdaptedOutputFactory *factory = SdkAdaptedOutputFactory::instance();
+
+    // The temporal offering is for time-series providers only — and it is
+    // the ONLY offering there (the element-wise transforms want rank-1).
+    HydroCouple::IIdentity *offering = nullptr;
+    const std::vector<HydroCouple::IIdentity *> available =
+        factory->getAvailableAdaptedOutputIds(&series);
+    ASSERT_EQ(available.size(), 1u);
+    offering = available[0];
+    EXPECT_EQ(offering->id(), SdkAdaptedOutputFactory::kTemporalInterpolationId);
+
+    ProviderRig plain;
+    for (HydroCouple::IIdentity *identity :
+         factory->getAvailableAdaptedOutputIds(&plain.output))
+        EXPECT_NE(identity->id(),
+                  SdkAdaptedOutputFactory::kTemporalInterpolationId)
+            << "a plain rank-1 output was offered temporal interpolation";
+
+    std::unique_ptr<HydroCouple::IAdaptedOutput> created =
+        factory->createAdaptedOutput(offering, &series);
+    ASSERT_NE(created, nullptr);
+    auto *adapted =
+        dynamic_cast<TemporalInterpolationAdaptedOutput *>(created.get());
+    ASSERT_NE(adapted, nullptr);
+
+    // initialize() seeds the whole history the adaptee already holds.
+    adapted->initialize();
+    EXPECT_EQ(adapted->sampleCount(), 2);
+    adapted->setQueryTime(0.5);
+    EXPECT_EQ(readAll(*adapted), (std::vector<double>{15.0}));
+
+    // refresh() appends the newest sample; a same-time refresh is skipped
+    // (the harmless-double-refresh contract).
+    series.addTimeStep(std::make_shared<TimeData>("Time", 2.0), {40.0});
+    adapted->refresh();
+    EXPECT_EQ(adapted->sampleCount(), 3);
+    adapted->refresh();
+    EXPECT_EQ(adapted->sampleCount(), 3) << "a same-time refresh duplicated";
+    adapted->setQueryTime(1.5);
+    EXPECT_EQ(readAll(*adapted), (std::vector<double>{30.0}));
+
+    // "previous" holds from the left instead of interpolating.
+    std::unique_ptr<HydroCouple::IAdaptedOutput> held =
+        factory->createAdaptedOutput(offering, &series);
+    ASSERT_NE(held, nullptr);
+    ASSERT_NO_FATAL_FAILURE(
+        applyArgument(*held, "method", R"({"values": ["previous"]})"));
+    held->initialize();
+    auto *heldAdapted =
+        dynamic_cast<TemporalInterpolationAdaptedOutput *>(held.get());
+    ASSERT_NE(heldAdapted, nullptr);
+    heldAdapted->setQueryTime(0.5);
+    EXPECT_EQ(readAll(*heldAdapted), (std::vector<double>{10.0}));
+
+    EXPECT_TRUE(series.removeAdaptedOutput(created.get()));
+    EXPECT_TRUE(series.removeAdaptedOutput(held.get()));
+}

@@ -19,8 +19,10 @@
 namespace HydroCouple::SDK {
 
 /*!
- * \brief Factory offering the SDK's built-in adapted outputs over rank-1
- *        Double outputs: linear_transform and relaxation.
+ * \brief Factory offering the SDK's built-in adapted outputs:
+ *        linear_transform and relaxation over rank-1 Double outputs, and
+ *        temporal_interpolation over single-column Double time-series
+ *        outputs.
  *
  * Hosts hand instance() to a run pipeline's standalone-factory resolver, and
  * a component info may opt in via addAdaptedOutputFactory(instance()).
@@ -41,6 +43,8 @@ public:
     static constexpr const char *kId                = "hydrocouple.sdk.adapters";
     static constexpr const char *kLinearTransformId = "linear_transform";
     static constexpr const char *kRelaxationId      = "relaxation";
+    static constexpr const char *kTemporalInterpolationId =
+        "temporal_interpolation";
 
     SdkAdaptedOutputFactory();
     ~SdkAdaptedOutputFactory() override = default;
