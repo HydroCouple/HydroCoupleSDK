@@ -28,6 +28,9 @@ PRIVATE
     hydrocouplesdk/data/idbasedargument.cpp
     hydrocouplesdk/data/abstractadaptedoutputfactory.cpp
     hydrocouplesdk/data/abstractadaptedoutputfactorycomponentinfo.cpp
+    hydrocouplesdk/data/lineartransformadaptedoutput.cpp
+    hydrocouplesdk/data/relaxationadaptedoutput.cpp
+    hydrocouplesdk/data/sdkadaptedoutputfactory.cpp
     hydrocouplesdk/data/idbasedexchangeitems.cpp
     hydrocouplesdk/data/timesliceoutput.cpp
     hydrocouplesdk/component/abstractmodelcomponent.cpp
