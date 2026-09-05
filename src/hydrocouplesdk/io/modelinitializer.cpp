@@ -8,6 +8,7 @@
 #include "hydrocouplesdk/data/abstractcomponentdataitem.h"
 #include "hydrocouplesdk/data/bufferio.h"
 
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 
@@ -944,17 +945,114 @@ nlohmann::json ModelInitializer::serialize(
         }
         document["components"].push_back(std::move(block));
 
-        // Connections reproduced from live wiring of this component's inputs.
+        // Connections reproduced from live wiring of this component's
+        // inputs. A provider may be a chain TAIL (an IAdaptedOutput whose
+        // modelComponent() is null): the authored endpoint is the chain's
+        // root output, and the steps in between must be re-emitted or the
+        // whole adapted connection silently vanishes from the document.
         for (HydroCouple::IInput *input : component->inputs())
         {
-            HydroCouple::IOutput *provider = input->provider();
-            if (!provider || !provider->modelComponent())
-                continue;
-            document["connections"].push_back({
-                {"from", {{"component", provider->modelComponent()->id()},
-                          {"output", provider->id()}}},
-                {"to",   {{"component", id}, {"input", input->id()}}},
-            });
+            std::vector<HydroCouple::IOutput *> providers;
+            if (auto *multi = dynamic_cast<HydroCouple::IMultiInput *>(input))
+                providers = multi->providers();
+            else if (input->provider())
+                providers.push_back(input->provider());
+
+            // Live objects cannot answer everything: offering ids (instance
+            // ids carry disambiguating ordinals) and multi-input roles (the
+            // role→provider map never leaves the input) come from the
+            // authored spec, matched by endpoints and claimed once each so
+            // two same-endpoint links keep distinct roles.
+            std::vector<const ConnectionSpec *> claimed;
+
+            for (HydroCouple::IOutput *provider : providers)
+            {
+                if (!provider)
+                    continue;
+
+                std::vector<HydroCouple::IAdaptedOutput *> chain;
+                HydroCouple::IOutput *root = provider;
+                while (auto *adapted =
+                           dynamic_cast<HydroCouple::IAdaptedOutput *>(root))
+                {
+                    chain.push_back(adapted);
+                    root = adapted->adaptee();
+                }
+                std::reverse(chain.begin(), chain.end());
+
+                if (!root || !root->modelComponent())
+                    continue;
+
+                const ConnectionSpec *authored = nullptr;
+                for (const ConnectionSpec &link : m_spec.connections)
+                {
+                    if (link.fromComponent != root->modelComponent()->id() ||
+                        link.output != root->id() || link.toComponent != id ||
+                        link.input != input->id())
+                        continue;
+                    if (std::find(claimed.begin(), claimed.end(), &link) !=
+                        claimed.end())
+                        continue;
+                    authored = &link;
+                    claimed.push_back(&link);
+                    break;
+                }
+
+                nlohmann::json from{{"component", root->modelComponent()->id()},
+                                    {"output", root->id()}};
+
+                if (!chain.empty())
+                {
+                    nlohmann::json steps = nlohmann::json::array();
+                    for (size_t j = 0; j < chain.size(); ++j)
+                    {
+                        const AdaptedOutputSpec *authoredStep =
+                            (authored &&
+                             authored->adaptedOutputs.size() == chain.size())
+                                ? &authored->adaptedOutputs[j]
+                                : nullptr;
+
+                        nlohmann::json step;
+                        step["id"] =
+                            authoredStep ? authoredStep->id : chain[j]->id();
+
+                        HydroCouple::IAdaptedOutputFactory *factory =
+                            chain[j]->adaptedOutputFactory();
+                        if (factory)
+                            step["factory"] = factory->id();
+                        else if (authoredStep && !authoredStep->factory.empty())
+                            step["factory"] = authoredStep->factory;
+
+                        // Arguments come from the LIVE adapter, so a value
+                        // mutated after the chain was built round-trips.
+                        nlohmann::json arguments = nlohmann::json::object();
+                        for (HydroCouple::IArgument *argument :
+                             chain[j]->arguments())
+                        {
+                            if (!argument)
+                                continue;
+                            std::string value;
+                            std::string argMessage;
+                            if (argument->serialize(AT::JSON, value,
+                                                    argMessage))
+                                arguments[argument->id()] =
+                                    nlohmann::json::parse(value);
+                        }
+                        if (!arguments.empty())
+                            step["arguments"] = std::move(arguments);
+
+                        steps.push_back(std::move(step));
+                    }
+                    from["adapted_outputs"] = std::move(steps);
+                }
+
+                nlohmann::json to{{"component", id}, {"input", input->id()}};
+                if (authored && !authored->role.empty())
+                    to["role"] = authored->role;
+
+                document["connections"].push_back(
+                    {{"from", std::move(from)}, {"to", std::move(to)}});
+            }
         }
     }
 

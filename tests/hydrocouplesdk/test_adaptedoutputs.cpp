@@ -517,3 +517,199 @@ TEST_F(AdaptedChainTest, StandaloneFactoriesAreSearchedAfterComponentInfoFactori
             << "the standalone factory shadowed the component's own";
     }
 }
+
+// ── A5: serialize() reproduces chains and roles ─────────────────────────────
+
+#include "hydrocouplesdk/data/abstractinput.h"
+
+namespace {
+
+/*!
+ * Multi-input with two named provider roles. The role→provider map never
+ * leaves AbstractMultiInput, which is exactly why serialize() must recover
+ * roles from the authored spec.
+ */
+class RoleInput final : public AbstractMultiInput
+{
+public:
+    RoleInput(std::string_view id, Dimension *dimension,
+              ValueDefinition *valueDefinition,
+              HydroCouple::IModelComponent *component)
+        : AbstractMultiInput(id, {dimension}, valueDefinition, component)
+    {
+        m_labels.push_back(std::make_unique<Identity>("primary", "Primary"));
+        m_labels.push_back(
+            std::make_unique<Identity>("secondary", "Secondary"));
+    }
+
+    [[nodiscard]] std::vector<HydroCouple::IIdentity *>
+    providerLabels() const override
+    {
+        std::vector<HydroCouple::IIdentity *> labels;
+        for (const std::unique_ptr<Identity> &label : m_labels)
+            labels.push_back(label.get());
+        return labels;
+    }
+
+    bool canConsume(HydroCouple::IOutput *, std::string &message) const override
+    {
+        message.clear();
+        return true;
+    }
+
+    bool canConsume(HydroCouple::IOutput *, std::string &message,
+                    const HydroCouple::IIdentity *) const override
+    {
+        message.clear();
+        return true;
+    }
+
+    void retrieveValuesFromProvider() override {}
+    void applyData() override {}
+
+    [[nodiscard]] std::vector<int64_t> shape() const override { return {1}; }
+    [[nodiscard]] HydroCouple::DataKind dataKind() const override
+    {
+        return HydroCouple::DataKind::Float64;
+    }
+    [[nodiscard]] bool getValuesInto(const HydroCouple::BufferDescriptor &,
+                                     std::span<const int64_t>,
+                                     std::span<const int64_t>,
+                                     std::string *message) const override
+    {
+        if (message)
+            *message = "RoleInput serves no values";
+        return false;
+    }
+    [[nodiscard]] bool setValuesFrom(const HydroCouple::BufferDescriptor &,
+                                     std::span<const int64_t>,
+                                     std::span<const int64_t>,
+                                     std::string *message) override
+    {
+        if (message)
+            message->clear();
+        return true;
+    }
+
+private:
+    std::vector<std::unique_ptr<Identity>> m_labels;
+};
+
+//! Component whose only input is the two-role multi-input "operands".
+class MultiSinkComponent : public AbstractModelComponent
+{
+public:
+    MultiSinkComponent(std::string_view id, AbstractModelComponentInfo *info)
+        : AbstractModelComponent(id, info)
+    {}
+
+    std::vector<std::string> validate() override { return {}; }
+    void prepare() override {}
+    void update(const std::vector<HydroCouple::IOutput *> & = {}) override {}
+    void finish() override {}
+
+    RoleInput *operands = nullptr;
+
+protected:
+    void createArguments() override {}
+    bool initializeArguments(std::string &message) override
+    {
+        message.clear();
+        return true;
+    }
+    void createInputs() override
+    {
+        operands = new RoleInput("operands", &m_dimension, m_quantity.get(),
+                                 this);
+        addInput(operands);
+    }
+    void createOutputs() override {}
+    void initializeFailureCleanUp() override {}
+
+private:
+    Dimension m_dimension{"i", "Index"};
+    std::unique_ptr<Quantity> m_quantity{Quantity::unitLess("SinkQ")};
+};
+
+//! The connection whose from.component matches, or null.
+const nlohmann::json *linkFrom(const nlohmann::json &document,
+                               const std::string &fromComponent)
+{
+    for (const nlohmann::json &link : document["connections"])
+        if (link["from"]["component"] == fromComponent)
+            return &link;
+    return nullptr;
+}
+
+} // namespace
+
+TEST_F(AdaptedChainTest, SerializeReproducesTheAdaptedChainAndMultiInputRoles)
+{
+    ChainTestComponent a("a", &m_info);
+    ChainTestComponent b("b", &m_info);
+    MultiSinkComponent sink("sink", &m_info);
+
+    ModelInitializer initializer(
+        [&](const std::string &id) -> HydroCouple::IModelComponent * {
+            if (id == "a")    return &a;
+            if (id == "b")    return &b;
+            if (id == "sink") return &sink;
+            return nullptr;
+        });
+
+    std::string message;
+    ASSERT_TRUE(initializer.initializeFromJsonText(R"({
+        "components": [ { "id": "a" }, { "id": "b" }, { "id": "sink" } ],
+        "connections": [
+            { "from": { "component": "a", "output": "flow",
+                        "adapted_outputs": [
+                            { "id": "linear_transform",
+                              "arguments": { "multiplier": { "values": [2.0] } } }
+                        ] },
+              "to": { "component": "sink", "input": "operands",
+                      "role": "primary" } },
+            { "from": { "component": "b", "output": "flow" },
+              "to": { "component": "sink", "input": "operands",
+                      "role": "secondary" } }
+        ]})", message)) << message;
+
+    // Mutate the live adapter after the build: the document must carry the
+    // adapter's CURRENT argument values, not the ones it was born with.
+    HydroCouple::IAdaptedOutput *tail = nullptr;
+    for (HydroCouple::IOutput *provider : sink.operands->providers())
+        if (auto *adapted =
+                dynamic_cast<HydroCouple::IAdaptedOutput *>(provider))
+            tail = adapted;
+    ASSERT_NE(tail, nullptr);
+    for (HydroCouple::IArgument *argument : tail->arguments())
+        if (argument && argument->id() == "multiplier")
+            ASSERT_TRUE(argument->initialize(R"({"values": [7.0]})", AT::JSON,
+                                             message)) << message;
+
+    const nlohmann::json document =
+        initializer.serialize({"a", "b", "sink"}, message);
+    ASSERT_FALSE(document.is_null()) << message;
+
+    // Before this fix the adapted link was SILENTLY DROPPED: the chain tail
+    // has no modelComponent(), and the old walk gave up right there.
+    ASSERT_EQ(document["connections"].size(), 2u) << document.dump(2);
+
+    const nlohmann::json *adaptedLink = linkFrom(document, "a");
+    ASSERT_NE(adaptedLink, nullptr) << document.dump(2);
+    EXPECT_EQ((*adaptedLink)["from"]["output"], "flow");
+    ASSERT_TRUE((*adaptedLink)["from"].contains("adapted_outputs"));
+    const nlohmann::json &steps = (*adaptedLink)["from"]["adapted_outputs"];
+    ASSERT_EQ(steps.size(), 1u);
+    EXPECT_EQ(steps[0]["id"], "linear_transform")
+        << "the OFFERING id, not the instance id with its ordinal";
+    EXPECT_EQ(steps[0]["factory"], "hydrocouple.sdk.adapters");
+    EXPECT_EQ(steps[0]["arguments"]["multiplier"]["values"],
+              nlohmann::json::array({7.0}))
+        << "the live adapter's mutated argument did not round-trip";
+    EXPECT_EQ((*adaptedLink)["to"]["role"], "primary");
+
+    const nlohmann::json *plainLink = linkFrom(document, "b");
+    ASSERT_NE(plainLink, nullptr) << document.dump(2);
+    EXPECT_FALSE((*plainLink)["from"].contains("adapted_outputs"));
+    EXPECT_EQ((*plainLink)["to"]["role"], "secondary");
+}
