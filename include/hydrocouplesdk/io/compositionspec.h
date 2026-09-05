@@ -129,6 +129,8 @@ struct HYDROCOUPLESDK_EXPORT ComponentInfoRef
     std::string componentInfoId;  //!< IComponentInfo id within the library.
 
     [[nodiscard]] bool empty() const noexcept;
+
+    [[nodiscard]] bool operator==(const ComponentInfoRef &) const = default;
 };
 
 /*!
@@ -154,6 +156,13 @@ struct HYDROCOUPLESDK_EXPORT ComponentSpec
      * IArgument::initialize().
      */
     nlohmann::json arguments = nlohmann::json::object();
+
+    /*!
+     * Member-wise, arguments JSON included — this is change detection for
+     * hosts diffing two documents, not identity (a component's identity is
+     * its \c id alone).
+     */
+    [[nodiscard]] bool operator==(const ComponentSpec &) const = default;
 };
 
 /*!
@@ -164,6 +173,8 @@ struct HYDROCOUPLESDK_EXPORT AdaptedOutputSpec
     std::string    factory;   //!< IAdaptedOutputFactory id.
     std::string    id;        //!< Adapted-output id offered by that factory.
     nlohmann::json arguments = nlohmann::json::object(); //!< Its arguments.
+
+    [[nodiscard]] bool operator==(const AdaptedOutputSpec &) const = default;
 };
 
 /*!
@@ -187,6 +198,14 @@ struct HYDROCOUPLESDK_EXPORT ConnectionSpec
      * empty for single inputs or role-agnostic multi-inputs.
      */
     std::string role;
+
+    /*!
+     * Member-wise, the adaptation chain included — change detection, not
+     * identity. A connection's identity is its endpoints plus role: two
+     * chains on the same (output, input, role) would be a double-wire, so
+     * hosts deduplicate by endpoints and treat the chain as content.
+     */
+    [[nodiscard]] bool operator==(const ConnectionSpec &) const = default;
 };
 
 /*!

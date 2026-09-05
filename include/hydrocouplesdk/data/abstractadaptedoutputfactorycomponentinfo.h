@@ -30,8 +30,10 @@ public:
     explicit AbstractAdaptedOutputFactoryComponentInfo(std::string_view id = "");
     ~AbstractAdaptedOutputFactoryComponentInfo() override = default;
 
-    // IAdaptedOutputFactoryComponentInfo — pure virtual
-    HydroCouple::IAdaptedOutputFactoryComponent *createComponentInstance() override = 0;
+    // IAdaptedOutputFactoryComponentInfo — pure virtual. The caller owns the
+    // instance and must destroy it before unloading the producing library.
+    std::unique_ptr<HydroCouple::IAdaptedOutputFactoryComponent>
+    createComponentInstance() override = 0;
 };
 
 } // namespace HydroCouple::SDK

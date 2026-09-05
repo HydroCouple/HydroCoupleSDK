@@ -513,3 +513,32 @@ TEST(CompositionSpecTest, ABindingFreeCompositionIsOneStageInDocumentOrder)
     EXPECT_EQ(stages[0],
               (std::vector<std::string>{"catchment", "channel"}));
 }
+
+TEST(CompositionSpecTest, ConnectionSpecsCompareByValueIncludingAdapterChains)
+{
+    // Change detection for hosts diffing two documents (a canvas deciding
+    // whether to rebuild): identity stays endpoints+role, but equality must
+    // see the adaptation chain and its arguments, or an in-place chain edit
+    // is invisible.
+    const CompositionSpec spec = parseOrFail(kFullDocument);
+    ASSERT_FALSE(spec.connections.empty());
+
+    ConnectionSpec edited = spec.connections[0];
+    EXPECT_TRUE(edited == spec.connections[0]);
+
+    ASSERT_FALSE(edited.adaptedOutputs.empty());
+    edited.adaptedOutputs[0].arguments["method"] = "nearest";
+    EXPECT_FALSE(edited == spec.connections[0])
+        << "a chain-argument edit did not change equality";
+
+    ConnectionSpec shorter = spec.connections[0];
+    shorter.adaptedOutputs.clear();
+    EXPECT_FALSE(shorter == spec.connections[0])
+        << "dropping the chain did not change equality";
+
+    // Components compare the same way: the arguments JSON is content.
+    ComponentSpec component = spec.components[0];
+    EXPECT_TRUE(component == spec.components[0]);
+    component.arguments["coefficients"]["values"] = {9.9};
+    EXPECT_FALSE(component == spec.components[0]);
+}
