@@ -62,6 +62,21 @@ bool TimeSteppedWorkflow::onPrepare(std::string &message)
 
             for (auto *provider : providers)
             {
+                // An adapted connection's provider is the chain TAIL. The
+                // schedule edge belongs to the chain's ROOT output, so walk
+                // adaptee() back to it. SDK-based adapted outputs also
+                // propagate their adaptee's modelComponent(), but the
+                // interface does not require that of third-party adapters —
+                // without this walk, such a chain's edge silently vanishes
+                // and consumers run before their providers.
+                while (auto *adapted =
+                           dynamic_cast<HydroCouple::IAdaptedOutput *>(
+                               provider))
+                    provider = adapted->adaptee();
+
+                if (!provider)
+                    continue;
+
                 auto found = indexOf.find(provider->modelComponent());
                 if (found != indexOf.end() && found->second != consumer)
                     successors[found->second].push_back(consumer);

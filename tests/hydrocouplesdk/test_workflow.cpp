@@ -577,3 +577,57 @@ TEST_F(TimeSteppedWorkflowTest, TimeSteppedRunRefreshesAdaptedOutputsAfterEachUp
     // The provider registry is non-owning: unregister before destruction.
     EXPECT_TRUE(a->out->removeAdaptedOutput(adapted.get()));
 }
+
+TEST_F(TimeSteppedWorkflowTest, TheScheduleFollowsAnAdaptedConnectionToItsRootProvider)
+{
+    // c feeds a THROUGH an adapter. The schedule edge must resolve to the
+    // chain's ROOT — via the scheduler's adaptee() walk, or the SDK base's
+    // modelComponent() propagation; losing BOTH loses the edge. This pair
+    // is chosen because the EDGE-LESS schedule (reverse insertion order:
+    // a, b, c) runs the consumer FIRST, so a lost edge cannot hide behind
+    // a lucky ordering.
+    SdkAdaptedOutputFactory *factory = SdkAdaptedOutputFactory::instance();
+    HydroCouple::IIdentity *linear = nullptr;
+    for (HydroCouple::IIdentity *offering :
+         factory->getAvailableAdaptedOutputIds(c->out))
+        if (offering &&
+            offering->id() == SdkAdaptedOutputFactory::kLinearTransformId)
+            linear = offering;
+    ASSERT_NE(linear, nullptr);
+
+    std::unique_ptr<HydroCouple::IAdaptedOutput> adapted =
+        factory->createAdaptedOutput(linear, c->out);
+    ASSERT_NE(adapted, nullptr);
+    std::string message;
+    for (HydroCouple::IArgument *argument : adapted->arguments())
+        if (argument && argument->id() == "multiplier")
+            ASSERT_TRUE(argument->initialize(
+                R"({"values": [2.0]})",
+                HydroCouple::IArgument::ArgumentInputType::JSON, message))
+                << message;
+    adapted->initialize();
+
+    ASSERT_TRUE(a->in->setProvider(adapted.get()));
+    adapted->addConsumer(a->in);
+
+    validateAndPrepare();
+
+    const auto &schedule = workflow->schedule();
+    size_t providerGroup = schedule.size();
+    size_t consumerGroup = schedule.size();
+    for (size_t group = 0; group < schedule.size(); ++group)
+        for (HydroCouple::IModelComponent *component : schedule[group])
+        {
+            if (component == c.get()) providerGroup = group;
+            if (component == a.get()) consumerGroup = group;
+        }
+    EXPECT_LT(providerGroup, consumerGroup)
+        << "the adapted edge fell out of the schedule";
+
+    // And the values flow proves it: c updates (out=1), the adapter
+    // refreshes (x2), a pulls 2 and adds 1, all within ONE step.
+    workflow->update();
+    EXPECT_DOUBLE_EQ((*a->out)[0], 3.0);
+
+    EXPECT_TRUE(c->out->removeAdaptedOutput(adapted.get()));
+}
