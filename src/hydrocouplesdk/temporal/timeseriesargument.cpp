@@ -30,6 +30,92 @@ TimeSeriesArgumentDouble::TimeSeriesArgumentDouble(
 
 // ── v2 typed hyperslab data plane ─────────────────────────────────────────
 
+// ── ITimeSeriesComponentDataItem ─────────────────────────────────────────
+
+const IDateTime *TimeSeriesArgumentDouble::time(int64_t timeIndex) const
+{
+    const std::vector<double> &julian = m_timeSeries->times();
+
+    if (timeIndex < 0 ||
+        static_cast<size_t>(timeIndex) >= julian.size())
+    {
+        return nullptr;
+    }
+
+    // The cache is validated per slot against the series' own value, and
+    // that validation is exact rather than a heuristic: an IDateTime here
+    // *is* its Julian day, so a slot whose day still matches is still the
+    // right answer no matter what else was reloaded around it. A size
+    // change drops the whole cache.
+    //
+    // Doing it this way rather than rebuilding the cache wherever the
+    // series is loaded is deliberate. There are four such places today —
+    // CSV text, CSV file, JSON, and copying from another data item — and
+    // a fifth would silently hand out stale dates. This cannot go stale
+    // because it never trusts itself.
+    if (m_dateTimes.size() != julian.size())
+    {
+        m_dateTimes.assign(julian.size(), nullptr);
+    }
+
+    const size_t index = static_cast<size_t>(timeIndex);
+    const double julianDay = julian[index];
+
+    std::shared_ptr<TimeData> &slot = m_dateTimes[index];
+
+    if (!slot || slot->julianDay() != julianDay)
+    {
+        slot = std::make_shared<TimeData>(
+            id() + "_t" + std::to_string(timeIndex), julianDay);
+    }
+
+    return slot.get();
+}
+
+int64_t TimeSeriesArgumentDouble::timeCount() const
+{
+    return static_cast<int64_t>(m_timeSeries->times().size());
+}
+
+std::span<const double> TimeSeriesArgumentDouble::times() const
+{
+    // Straight over the series' storage: the Julian days are already
+    // contiguous there, and a second copy would be one more thing that
+    // could disagree with the first.
+    const std::vector<double> &julian = m_timeSeries->times();
+
+    return {julian.data(), julian.size()};
+}
+
+ITimeSpan *TimeSeriesArgumentDouble::timeSpan() const
+{
+    const std::vector<double> &julian = m_timeSeries->times();
+
+    // A zero span rather than nullptr for an empty series: a caller asking
+    // what a series covers before it is loaded should get "nothing", not a
+    // pointer it has to test.
+    const double start = julian.empty() ? 0.0 : julian.front();
+    const double duration =
+        julian.empty() ? 0.0 : julian.back() - julian.front();
+
+    // Validated the same way as the dates, and exactly for the same
+    // reason: a TimeSpan is its start and its duration, so one that
+    // matches both is the right answer however it came to be cached.
+    if (!m_timeSpan || m_timeSpan->startTime() != start ||
+        m_timeSpan->duration() != duration)
+    {
+        m_timeSpan = std::make_shared<TimeSpan>(id() + "_span", start,
+                                                duration);
+    }
+
+    return m_timeSpan.get();
+}
+
+IDimension *TimeSeriesArgumentDouble::timeDimension() const
+{
+    return m_timeDim;
+}
+
 std::vector<int64_t> TimeSeriesArgumentDouble::shape() const
 {
     return {static_cast<int64_t>(m_timeSeries ? m_timeSeries->count() : 0)};

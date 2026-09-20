@@ -12,11 +12,14 @@
 #define HYDROCOUPLESDK_TIMESERIESARGUMENT_H
 
 #include "hydrocouplesdk/data/abstractargument.h"
+#include "timedata.h"
 #include "timeseries.h"
 
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
+#include <vector>
 
 #include "hydrocoupletemporal.h"
 
@@ -37,7 +40,8 @@ using namespace HydroCouple::Temporal;
  * \threadsafety Not thread-safe on its own.
  */
 class HYDROCOUPLESDK_EXPORT TimeSeriesArgumentDouble
-    : public HydroCouple::SDK::AbstractArgument
+    : public HydroCouple::SDK::AbstractArgument,
+      public virtual HydroCouple::Temporal::ITimeSeriesComponentDataItem
 {
 public:
     /*!
@@ -73,6 +77,48 @@ public:
                                      std::span<const int64_t> start,
                                      std::span<const int64_t> count,
                                      std::string *message = nullptr) override;
+
+    // ── ITimeSeriesComponentDataItem ──────────────────────────────────────
+    //
+    // An IArgument *is* an IComponentDataItem, so a time-series argument
+    // can say so directly rather than leaving a consumer to infer it from
+    // a rank-1 shape. A configurator reading this gets a time series; one
+    // reading only the shape gets a column of numbers and has to guess
+    // that the first axis is time.
+    //
+    // Nothing is stored twice for it. The Julian days live in the
+    // TimeSeries already and are handed out as a span over that vector;
+    // the IDateTime and ITimeSpan objects the interface requires are
+    // built on demand and validated against those same values, so no
+    // loader has to remember to keep a parallel cache in step. See
+    // time() in the implementation for why that validation is exact
+    // rather than approximate.
+
+    /*!
+     * \brief The time at \p timeIndex, or nullptr if out of range.
+     */
+    [[nodiscard]] const HydroCouple::Temporal::IDateTime *time(
+        int64_t timeIndex) const override;
+
+    /*!
+     * \brief The number of times in the series.
+     */
+    [[nodiscard]] int64_t timeCount() const override;
+
+    /*!
+     * \brief The Julian days, as a span over the series' own storage.
+     */
+    [[nodiscard]] std::span<const double> times() const override;
+
+    /*!
+     * \brief The span the series covers, or a zero span when it is empty.
+     */
+    [[nodiscard]] HydroCouple::Temporal::ITimeSpan *timeSpan() const override;
+
+    /*!
+     * \brief The dimension the times are indexed by.
+     */
+    [[nodiscard]] HydroCouple::IDimension *timeDimension() const override;
 
     // ── IArgument ─────────────────────────────────────────────────────────
 
@@ -134,6 +180,13 @@ private:
     std::shared_ptr<TimeSeries> m_timeSeries;
     HydroCouple::SDK::Dimension     *m_timeDim;
     std::filesystem::path       m_inputFile;
+
+    //! IDateTime objects the interface must hand out, built on demand.
+    //! Mutable because the interface's accessors are const and the cache
+    //! is an implementation detail of answering them, not state anyone
+    //! outside can observe.
+    mutable std::vector<std::shared_ptr<TimeData>> m_dateTimes;
+    mutable std::shared_ptr<TimeSpan>              m_timeSpan;
 };
 
 } // namespace HydroCouple::SDK::Temporal

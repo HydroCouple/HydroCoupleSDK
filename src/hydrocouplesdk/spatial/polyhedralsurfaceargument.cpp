@@ -141,7 +141,7 @@ bool PolyhedralSurfaceArgument::initialize(const std::string &value,
         if (!HydroCouple::SDK::IO::readUGRIDMesh(value, std::string(), mesh,
                                                  message))
             return false;
-        m_mesh            = std::move(mesh);
+        adoptMesh(std::move(mesh));
         m_sourceReference = value;
         setCurrentArgumentInputType(AT::File);
         setSourceUri(std::string());
@@ -183,7 +183,7 @@ bool PolyhedralSurfaceArgument::initialize(
             dynamic_cast<const PolyhedralSurfaceArgument *>(
                 &componentDataItem))
     {
-        m_mesh = other->mesh();
+        adoptMesh(other->mesh());
         m_sourceReference = other->m_sourceReference;
         message.clear();
         return true;
@@ -230,7 +230,7 @@ bool PolyhedralSurfaceArgument::initialize(
 
     if (!meshIsCoherent(mesh, message))
         return false;
-    m_mesh = std::move(mesh);
+    adoptMesh(std::move(mesh));
     // A live output has no file behind it; the document's job is to keep
     // the binding, not a path that never existed.
     m_sourceReference.clear();
@@ -284,12 +284,86 @@ nlohmann::json PolyhedralSurfaceArgument::writeData() const
     return j;
 }
 
+// ── IPolyhedralSurfaceComponentDataItem ──────────────────────────────────
+
+void PolyhedralSurfaceArgument::adoptMesh(
+    HydroCouple::SDK::IO::MeshDefinition mesh)
+{
+    m_mesh = std::move(mesh);
+
+    // Dropped rather than rebuilt: nothing has asked for the surface yet,
+    // and building one for a mesh that may be replaced again before
+    // anyone reads it would be work done on the chance it is wanted.
+    m_surface.reset();
+}
+
+HydroCouple::Spatial::MeshDataObjectType
+PolyhedralSurfaceArgument::meshDataObjectType() const
+{
+    // The argument's own values are the node coordinates — shape() says
+    // { nodes, 3 } — so what this data item is *about* is vertices. A
+    // consumer reading Cell here would look for one value per face and
+    // find one per node.
+    return HydroCouple::Spatial::MeshDataObjectType::Vertex;
+}
+
+HydroCouple::Spatial::SpatialDataType
+PolyhedralSurfaceArgument::meshDataType() const
+{
+    // Three components per vertex: a position, not a scalar field.
+    return HydroCouple::Spatial::SpatialDataType::Vector;
+}
+
+HydroCouple::Spatial::IPolyhedralSurface *
+PolyhedralSurfaceArgument::polyhedralSurface() const
+{
+    if (m_mesh.nodeX.empty())
+    {
+        // No mesh is not an empty surface. A caller handed one of those
+        // would report zero faces as a fact about the argument rather
+        // than as "nothing loaded yet", and act on it.
+        return nullptr;
+    }
+
+    if (!m_surface)
+    {
+        // The mesh is passed alongside the surface, not only converted
+        // into it. A PolyhedralSurface records polygons and not which
+        // vertices each polygon used, so a surface built without the
+        // connectivity reports no faces and no edges — which looks like
+        // an empty mesh rather than a missing feature (meshadapters.h).
+        m_surface = std::make_unique<PolyhedralSurfaceAdapter>(
+            polyhedralSurfaceFromMesh(m_mesh), m_mesh);
+    }
+
+    return m_surface.get();
+}
+
+HydroCouple::IDimension *PolyhedralSurfaceArgument::patchDimension() const
+{
+    return const_cast<Dimension *>(&m_patchDimension);
+}
+
+HydroCouple::IDimension *PolyhedralSurfaceArgument::edgeDimension() const
+{
+    return const_cast<Dimension *>(&m_edgeDimension);
+}
+
+HydroCouple::IDimension *PolyhedralSurfaceArgument::vertexDimension() const
+{
+    // The argument's own node axis, not a second one meaning the same
+    // thing: shape() is { nodes, 3 } against exactly this dimension, so a
+    // separate vertex dimension would let the two disagree about how many
+    // vertices there are.
+    return const_cast<Dimension *>(&m_nodeDimension);
+}
+
 bool PolyhedralSurfaceArgument::setMesh(
     HydroCouple::SDK::IO::MeshDefinition mesh, std::string &message)
 {
     if (!meshIsCoherent(mesh, message))
         return false;
-    m_mesh = std::move(mesh);
+    adoptMesh(std::move(mesh));
     m_sourceReference.clear();
     message.clear();
     return true;

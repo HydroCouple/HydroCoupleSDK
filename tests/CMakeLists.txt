@@ -18,6 +18,7 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_device.cpp
     hydrocouplesdk/test_spatialadapters.cpp
     hydrocouplesdk/test_spatialarguments.cpp
+    hydrocouplesdk/test_typedarguments.cpp
     hydrocouplesdk/test_spatiotemporal.cpp
     hydrocouplesdk/test_layereddataitem.cpp
     hydrocouplesdk/test_workflow.cpp

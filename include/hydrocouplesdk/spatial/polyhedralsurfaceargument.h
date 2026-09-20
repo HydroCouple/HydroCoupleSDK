@@ -24,10 +24,11 @@
 #ifndef HYDROCOUPLESDK_SPATIAL_POLYHEDRALSURFACEARGUMENT_H
 #define HYDROCOUPLESDK_SPATIAL_POLYHEDRALSURFACEARGUMENT_H
 
-#include "hydrocouplesdk/data/abstractargument.h"
 #include "hydrocouplesdk/core/dimension.h"
 #include "hydrocouplesdk/core/valuedefinition.h"
+#include "hydrocouplesdk/data/abstractargument.h"
 #include "hydrocouplesdk/io/meshdefinition.h"
+#include "meshadapters.h"
 
 #include <memory>
 #include <string>
@@ -48,7 +49,8 @@ namespace HydroCouple::SDK::Spatial {
  * \threadsafety Not thread-safe; mutate before component initialization.
  */
 class HYDROCOUPLESDK_EXPORT PolyhedralSurfaceArgument
-    : public HydroCouple::SDK::AbstractArgument
+    : public HydroCouple::SDK::AbstractArgument,
+      public virtual HydroCouple::Spatial::IPolyhedralSurfaceComponentDataItem
 {
 public:
     /*!
@@ -120,6 +122,39 @@ public:
 
     [[nodiscard]] nlohmann::json writeData() const override;
 
+    // ── IPolyhedralSurfaceComponentDataItem ───────────────────────────────
+    //
+    // An IArgument *is* an IComponentDataItem, so a mesh argument can say
+    // it holds a surface instead of leaving a consumer to infer it from a
+    // shape of { nodes, 3 } — which reads as a coordinate table and loses
+    // every face.
+    //
+    // The surface is built from the mesh on demand and dropped whenever
+    // the mesh changes. Every assignment goes through adoptMesh() for
+    // that reason: a cache invalidated at four call sites is a cache that
+    // will be stale at the fifth.
+
+    [[nodiscard]] HydroCouple::Spatial::MeshDataObjectType meshDataObjectType()
+        const override;
+
+    [[nodiscard]] HydroCouple::Spatial::SpatialDataType meshDataType()
+        const override;
+
+    /*!
+     * \brief The surface, or nullptr while no mesh has been loaded.
+     *
+     * Carries the connectivity as well as the patches: the adapter is
+     * given the MeshDefinition it was built from, because a surface
+     * reporting no faces for a mesh that has them is not a lesser answer
+     * but a wrong one (meshadapters.h).
+     */
+    [[nodiscard]] HydroCouple::Spatial::IPolyhedralSurface *polyhedralSurface()
+        const override;
+
+    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override;
+    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override;
+    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override;
+
     // ── Mesh access ───────────────────────────────────────────────────────
 
     /*!
@@ -155,8 +190,29 @@ private:
                               HydroCouple::IModelComponent *modelComponent,
                               Quantity *quantity);
 
+    /*!
+     * \brief Takes \p mesh as the argument's own and drops the surface
+     *        built from the last one.
+     *
+     * The single door. Assigning m_mesh directly anywhere would leave the
+     * cached adapter describing a mesh that is no longer there, and the
+     * symptom would be a stale surface rather than a crash — which is the
+     * kind of bug that survives a long time.
+     */
+    void adoptMesh(HydroCouple::SDK::IO::MeshDefinition mesh);
+
     HydroCouple::SDK::IO::MeshDefinition m_mesh;
     std::string m_sourceReference; //!< File/URI the mesh was read from.
+
+    //! Built on demand from m_mesh; dropped by adoptMesh().
+    mutable std::unique_ptr<PolyhedralSurfaceAdapter> m_surface;
+
+    //! The two axes a surface has that the argument's own shape does not.
+    //! The vertex axis is m_nodeDimension below — the one the argument is
+    //! already indexed by — because a second dimension object meaning the
+    //! same thing is a second thing that can disagree.
+    Dimension m_patchDimension{"patch", "Mesh face"};
+    Dimension m_edgeDimension{"edge", "Mesh edge"};
 
     Dimension m_nodeDimension{"node", "Mesh node"};
     Dimension m_coordinateDimension{"coordinate", "x, y, z"};
