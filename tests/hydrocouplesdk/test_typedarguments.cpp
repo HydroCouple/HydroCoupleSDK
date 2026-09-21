@@ -226,6 +226,45 @@ TEST(TypedArgumentTest, AMeshArgumentReportsItsSurface)
               HydroCouple::Spatial::SpatialDataType::Vector);
 }
 
+TEST(TypedArgumentTest, TheSurfaceCarriesTheConnectivityItWasBuiltFrom)
+{
+    // What the adapter's second constructor buys, and the only thing that
+    // distinguishes it from the first. A PolyhedralSurface records
+    // polygons and not which vertices each polygon used, so a surface
+    // built without the MeshDefinition reports a mesh view with no faces
+    // and no edges -- and meshadapters.h is explicit that this "is not a
+    // lesser answer, it is a wrong one", because it looks like an empty
+    // mesh rather than a missing feature.
+    //
+    // The patch and vertex counts do not notice: those come from the
+    // surface itself, which is built either way. Only the view does, and
+    // nothing asserted it, so dropping the mesh from the constructor
+    // survived every gate here.
+    PolyhedralSurfaceArgument argument("mesh", nullptr);
+
+    std::string message;
+    ASSERT_TRUE(argument.setMesh(smallMesh(), message)) << message;
+
+    auto *item = dynamic_cast<
+        HydroCouple::Spatial::IPolyhedralSurfaceComponentDataItem *>(
+        &argument);
+    ASSERT_NE(item, nullptr);
+
+    HydroCouple::Spatial::IPolyhedralSurface *surface =
+        item->polyhedralSurface();
+    ASSERT_NE(surface, nullptr);
+
+    const HydroCouple::Spatial::IMeshView *view = surface->meshView();
+    ASSERT_NE(view, nullptr) << "the surface has no bulk view at all";
+
+    // The accessor the standard calls the one partitioners, interpolating
+    // adapters, IO writers and device staging must use.
+    EXPECT_EQ(view->nodeCount(), 4);
+    EXPECT_EQ(view->faceCount(), 2)
+        << "the surface was built without its connectivity, so its faces "
+           "are gone and it reads as an empty mesh";
+}
+
 TEST(TypedArgumentTest, NoMeshIsNotAnEmptySurface)
 {
     PolyhedralSurfaceArgument argument("mesh", nullptr);
