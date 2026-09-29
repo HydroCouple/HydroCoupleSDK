@@ -33,8 +33,16 @@ BACKUP="$(mktemp -d)"
 MUTATED=""   # the file currently carrying a planted fault, if any
 caught=0; failures=0
 
-# shellcheck disable=SC2086
-rebuild() { cmake --build "$BUILD" --target $TARGETS -j 8 >"$BACKUP/build.log" 2>&1; }
+# One target per invocation: under the Unix Makefiles generator (the macos
+# presets), `--target A B -j 8` is one parallel make whose two sub-makes
+# rebuild the shared libraries concurrently. That race read as a spurious
+# "does not build" (T3) and a stale binary (T7 SURVIVED) on macOS.
+rebuild() {
+  : >"$BACKUP/build.log"
+  for target in $TARGETS; do
+    cmake --build "$BUILD" --target "$target" -j 8 >>"$BACKUP/build.log" 2>&1 || return 1
+  done
+}
 
 matched() { "$TESTS" --gtest_list_tests --gtest_filter="$1" 2>/dev/null | grep -c '^  '; }
 
