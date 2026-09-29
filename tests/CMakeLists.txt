@@ -51,6 +51,15 @@ if(BUILD_TOOLS)
     target_link_libraries(HydroCoupleSDKTests PRIVATE HydroCoupleTools)
 endif()
 
+# Only a static archive carries the second-copy hazard described under
+# USE_NETCDF below; a shared library is linked like any other.
+function(hydrocouplesdk_link_if_shared consumer target)
+    get_target_property(_type ${target} TYPE)
+    if(_type STREQUAL "SHARED_LIBRARY")
+        target_link_libraries(${consumer} PRIVATE ${target})
+    endif()
+endfunction()
+
 if(USE_HDF5)
     target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_hdf5.cpp)
 
@@ -65,6 +74,7 @@ if(USE_HDF5)
         if(TARGET ${_headers_only})
             target_include_directories(HydroCoupleSDKTests PRIVATE
                 $<TARGET_PROPERTY:${_headers_only},INTERFACE_INCLUDE_DIRECTORIES>)
+            hydrocouplesdk_link_if_shared(HydroCoupleSDKTests ${_headers_only})
         endif()
     endforeach()
 endif()
@@ -92,10 +102,16 @@ if(USE_NETCDF)
     # symbols are resolved from the shared library instead. That is exactly
     # one instance, and it is the same one that wrote the file. Every nc_*
     # the suite uses is among those the library exports.
+    #
+    # A dynamic triplet (the macos presets' arm64-osx-dynamic) is the
+    # opposite case: the SDK exports none of netCDF's or HDF5's symbols, and
+    # a shared library is one instance however many images link it, so there
+    # the targets are linked. See hydrocouplesdk_link_if_shared above.
     foreach(_headers_only IN LISTS HYDROCOUPLESDK_NETCDF_TARGET)
         if(TARGET ${_headers_only})
             target_include_directories(HydroCoupleSDKTests PRIVATE
                 $<TARGET_PROPERTY:${_headers_only},INTERFACE_INCLUDE_DIRECTORIES>)
+            hydrocouplesdk_link_if_shared(HydroCoupleSDKTests ${_headers_only})
         endif()
     endforeach()
 endif()
