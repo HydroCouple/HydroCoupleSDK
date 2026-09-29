@@ -37,6 +37,16 @@
  * component that finished before the others, which would change what a
  * step meant.
  *
+ * Memory (G2.2). With CheckpointPolicy::EveryStep a run of N steps holds N
+ * composition checkpoints and replays N - 1 steps. With
+ * CheckpointPolicy::Logarithmic the forward run keeps a dyadic ladder of
+ * checkpoints -- those whose distance d from the newest is a multiple of the
+ * largest power of two not above d, so at most two per power of two -- and
+ * backward() reverses each gap between ladder rungs by recursive bisection,
+ * holding one temporary checkpoint per level. Held checkpoints then grow as
+ * O(log N) and replays as O(N log N); the gradients are identical, because
+ * every step is still differentiated at exactly its own linearization point.
+ *
  * Float64 items only in G2.1. Nothing here depends on LibTorch: this is the
  * Torch-free floor; the optional Torch layer (G2.3) sits on top of it.
  */
@@ -123,6 +133,15 @@ private:
 using SeedFunction = std::function<void(int step, Seeds &seeds)>;
 
 /*!
+ * \brief How many composition checkpoints a recorded run keeps.
+ */
+enum class CheckpointPolicy
+{
+    EveryStep,   //!< One per step: O(N) memory, N - 1 replays (fastest backward)
+    Logarithmic  //!< A dyadic ladder: O(log N) memory, O(N log N) replays
+};
+
+/*!
  * \brief A TimeSteppedWorkflow that records its steps and differentiates
  *        them in reverse.
  */
@@ -146,6 +165,22 @@ public:
     //! Steps the most recent backward() had to replay.
     [[nodiscard]] int replays() const noexcept;
 
+    //! The checkpointing policy (default EveryStep). A change applies to
+    //! steps recorded after it; switching to Logarithmic thins at once.
+    void setCheckpointPolicy(CheckpointPolicy policy);
+    [[nodiscard]] CheckpointPolicy checkpointPolicy() const noexcept;
+
+    //! Composition checkpoints held now (one per checkpointed step).
+    [[nodiscard]] int storedCheckpoints() const noexcept;
+
+    //! The most composition checkpoints held at once during the last
+    //! backward(): the recorded ones, the final state it returns to, and the
+    //! temporaries its bisection makes.
+    [[nodiscard]] int peakCheckpoints() const noexcept;
+
+    //! The steps k (state after k steps) whose checkpoint is held, ascending.
+    [[nodiscard]] std::vector<int> checkpointedSteps() const;
+
     //! Forgets the recorded steps; the next step starts a new record.
     void clearRecording();
 
@@ -167,21 +202,30 @@ protected:
 private:
     struct Record
     {
-        //! Checkpoint of each component just before the step; empty token
-        //! for a component without Capability::Checkpointing.
-        std::vector<std::string> tokens;
         //! Components the step actually updated.
         std::vector<bool> updated;
     };
+    struct Pass;   //!< the working state of one backward(), in the .cpp
 
     [[nodiscard]] std::vector<HydroCouple::IModelComponent *> scheduleOrder() const;
     bool saveAll(std::vector<std::string> &tokens, std::string &message);
     bool restoreAll(const std::vector<std::string> &tokens, std::string &message);
-    bool linearizeAt(int step, std::string &message);
+    void thinLadder();
+    void notePeak(int extra);
+    bool replayStep(int step, std::string &message);
+    bool advance(int from, int to, std::string &message);
+    bool reverseRange(int lo, int hi, Pass &pass, std::string &message);
+    bool sweepStep(int step, Pass &pass, std::string &message);
 
     std::vector<Record> m_records;
+    //! Composition checkpoints: key k is the state after k recorded steps
+    //! (before step k + 1); one token per component in schedule order, empty
+    //! for a component without Capability::Checkpointing.
+    std::map<int, std::vector<std::string>> m_checkpoints;
+    CheckpointPolicy m_policy = CheckpointPolicy::EveryStep;
     int m_linearizedAt = -1;   //!< 1-based step whose update() is the latest
     int m_replays = 0;
+    int m_peak = 0;
 };
 
 } // namespace HydroCouple::SDK::Differentiation

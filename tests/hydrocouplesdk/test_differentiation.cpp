@@ -38,6 +38,7 @@
 #include "hydrocouplesdk/differentiation/differentials.h"
 
 #include <cmath>
+#include <iostream>
 #include <memory>
 #include <random>
 #include <sstream>
@@ -812,4 +813,168 @@ TEST(DifferentiationTest, ASeedOfTheWrongLengthIsRefused)
     Seeds s;
     EXPECT_FALSE(s.add(rig.B->out, std::vector<double>(kCells + 1, 1.0)));
     EXPECT_TRUE(s.add(rig.B->out, std::vector<double>(kCells, 1.0)));
+}
+
+// ============================================================================
+// G2.2: logarithmic checkpointing
+// ============================================================================
+
+namespace {
+
+//! Every gradient of a Gradients, flattened in a fixed order.
+std::vector<double> flatten(const Gradients &g)
+{
+    std::vector<double> all;
+    for (const ArgumentGradient &a : g.arguments)
+        all.insert(all.end(), a.values.begin(), a.values.end());
+    for (const StateGradient &s : g.initialStates)
+        all.insert(all.end(), s.values.begin(), s.values.end());
+    return all;
+}
+
+struct ChainRun
+{
+    int stored = 0, peak = 0, replays = 0;
+    std::vector<int> rungs;
+    std::vector<double> gradients;
+};
+
+//! A -> B, both stateful, N steps, loss = sum of B's outflow over all steps.
+ChainRun runChain(int steps, CheckpointPolicy policy)
+{
+    Reservoir a("a", true, true, /*forced=*/true), b("b");
+    DifferentiableWorkflow workflow("chain");
+    workflow.setCheckpointPolicy(policy);
+    std::string msg;
+    EXPECT_TRUE(workflow.addModelComponent(&a, nullptr, &msg));
+    EXPECT_TRUE(workflow.addModelComponent(&b, nullptr, &msg));
+    workflow.initialize();
+    connect(a.out, b.in);
+    EXPECT_TRUE(workflow.validate().empty());
+    workflow.prepare();
+    for (int n = 0; n < steps; ++n)
+        workflow.update();
+
+    ChainRun run;
+    run.stored = workflow.storedCheckpoints();
+    run.rungs = workflow.checkpointedSteps();
+    Gradients g;
+    auto seeds = [&](int, Seeds &s) {
+        EXPECT_TRUE(s.add(b.out, std::vector<double>(kCells, 1.0)));
+    };
+    EXPECT_TRUE(workflow.backward(seeds, g, msg)) << msg;
+    run.peak = workflow.peakCheckpoints();
+    run.replays = workflow.replays();
+    run.gradients = flatten(g);
+    // backward() must not leave its temporaries behind.
+    EXPECT_EQ(workflow.checkpointedSteps(), run.rungs);
+    return run;
+}
+
+int ceilLog2(int n)
+{
+    int k = 0;
+    while ((1 << k) < n)
+        ++k;
+    return k;
+}
+
+} // namespace
+
+TEST(DifferentiationTest, TheLadderGivesExactlyTheSameGradients)
+{
+    // Every step is still differentiated at its own linearization point, so
+    // the order of recomputation cannot change a single bit.
+    Params p;
+    Differentiated reference(p);
+    Rig rig(p);
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    rig.run();
+    Gradients g;
+    std::string message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    ASSERT_EQ(g.arguments.size(), reference.gradients.arguments.size());
+    for (size_t i = 0; i < g.arguments.size(); ++i)
+        EXPECT_EQ(g.arguments[i].values, reference.gradients.arguments[i].values) << i;
+    ASSERT_EQ(g.initialStates.size(), reference.gradients.initialStates.size());
+    for (size_t i = 0; i < g.initialStates.size(); ++i)
+        EXPECT_EQ(g.initialStates[i].values, reference.gradients.initialStates[i].values);
+    EXPECT_LT(rig.workflow->storedCheckpoints(), kSteps);
+}
+
+TEST(DifferentiationTest, CheckpointsGrowAsTheLogarithmOfTheSteps)
+{
+    std::ostringstream table;
+    table << "N stored peak replays (EveryStep: stored=N, replays=N-1)\n";
+    for (int steps : {10, 100, 1000})
+    {
+        const ChainRun ladder = runChain(steps, CheckpointPolicy::Logarithmic);
+        const int lg = ceilLog2(steps);
+        table << steps << ' ' << ladder.stored << ' ' << ladder.peak << ' '
+              << ladder.replays << '\n';
+        // At most two rungs per power of two, plus the first and the newest.
+        EXPECT_LE(ladder.stored, 2 * lg + 2) << "N=" << steps;
+        // + one temporary per bisection level + the final state -- and the
+        // metric must not under-report: the final state is always held, and
+        // a long run's bisection always holds temporaries.
+        EXPECT_LE(ladder.peak, ladder.stored + lg + 1) << "N=" << steps;
+        EXPECT_GE(ladder.peak, ladder.stored + 1) << "N=" << steps;
+        if (steps >= 100)
+            EXPECT_GT(ladder.peak, ladder.stored + 1) << "N=" << steps;
+        EXPECT_LE(ladder.replays, steps * lg) << "N=" << steps;
+        // The first and newest rungs are always there.
+        ASSERT_FALSE(ladder.rungs.empty());
+        EXPECT_EQ(ladder.rungs.front(), 0);
+        EXPECT_EQ(ladder.rungs.back(), steps - 1);
+    }
+    std::cout << table.str();
+
+    // And every step keeps one checkpoint under EveryStep, as in G2.1.
+    const ChainRun every = runChain(100, CheckpointPolicy::EveryStep);
+    EXPECT_EQ(every.stored, 100);
+    EXPECT_EQ(every.peak, 101);   // every step + the final state; no temporaries
+    EXPECT_EQ(every.replays, 99);
+}
+
+TEST(DifferentiationTest, TheLadderAndEveryStepAgreeOverALongRun)
+{
+    const ChainRun ladder = runChain(300, CheckpointPolicy::Logarithmic);
+    const ChainRun every = runChain(300, CheckpointPolicy::EveryStep);
+    ASSERT_FALSE(every.gradients.empty());
+    EXPECT_EQ(ladder.gradients, every.gradients);
+    EXPECT_LT(ladder.stored * 10, every.stored);
+}
+
+TEST(DifferentiationTest, SwitchingToTheLadderMidRunThinsAtOnce)
+{
+    Params p;
+    Differentiated reference(p);
+    Rig rig(p);
+    rig.run();
+    ASSERT_EQ(rig.workflow->storedCheckpoints(), kSteps);
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    EXPECT_LT(rig.workflow->storedCheckpoints(), kSteps);
+    Gradients g;
+    std::string message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    EXPECT_EQ(flatten(g), flatten(reference.gradients));
+}
+
+TEST(DifferentiationTest, ASecondBackwardUnderTheLadderAgreesAndRestores)
+{
+    Rig rig(Params{});
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    rig.run();
+    const std::vector<int> rungs = rig.workflow->checkpointedSteps();
+    Gradients first, second;
+    std::string message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), first, message)) << message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), second, message)) << message;
+    EXPECT_EQ(flatten(first), flatten(second));
+    EXPECT_EQ(rig.workflow->checkpointedSteps(), rungs);
+
+    Rig reference(Params{});
+    reference.run();
+    for (int i = 0; i < kCells; ++i)
+        EXPECT_DOUBLE_EQ((*rig.B->out)[i], (*reference.B->out)[i]);
 }

@@ -78,23 +78,19 @@ mutation "E1 fan-out overwrites instead of adding" $E \
 mutation "E2 state cotangent not carried to the previous step" $E \
   'stateCarry = std::move(nextCarry);' 'stateCarry.clear();' "$G"
 mutation "E3 superseded steps never replayed" $E \
-  '    if (m_linearizedAt == step)
-        return true;' '    if (true)
-        return true;' "$G"
+  '    if (m_linearizedAt == to)
+        return true;   // already the latest update(): nothing to recompute' \
+  '    if (true)
+        return true;   // already the latest update(): nothing to recompute' "$G"
 mutation "E4 adapter bypassed on the way back" $E \
   'cotangent = aResults.values(adapteeAt);' '(void)adapteeAt;' "$G"
 mutation "E5 adapter arguments not summed" $E \
-  'argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),' \
-  'if (false) argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),' \
+  'pass.argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),' \
+  'if (false) pass.argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),' \
   'DifferentiationTest.ZeroIsNotAGradient'
 mutation "E6 composition not restored after backward" $E \
-  '        if (!restoreAll(finalTokens, message))
-            return false;
-        m_linearizedAt = -1;
-    }
-    message.clear();' '        m_linearizedAt = -1;
-    }
-    message.clear();' 'DifferentiationTest.BackwardLeavesTheCompositionWhereItFoundIt'
+  'if (!restoreAll(finalTokens, restoreWhy) && ok)' 'if (false && ok)' \
+  'DifferentiationTest.BackwardLeavesTheCompositionWhereItFoundIt'
 mutation "E7 feedback loops not refused" $E \
   '        if (group.size() < 2)
             continue;' '        if (true)
@@ -129,6 +125,36 @@ mutation "L3 jvp drops the offset" $L \
   'ydot[i] = m_m * xdot[i] + mdot[0] * m_source[i] + bdot[0];' \
   'ydot[i] = m_m * xdot[i] + mdot[0] * m_source[i];' \
   'DifferentiationTest.TheLinearTransformAdjointMatchesFiniteDifferences'
+
+echo "== G2.2: the checkpoint ladder and bisection"
+C='DifferentiationTest.CheckpointsGrowAsTheLogarithmOfTheSteps'
+X='DifferentiationTest.TheLadderGivesExactlyTheSameGradients'
+mutation "R1 ladder never thinned" $E \
+  'if (m_policy != CheckpointPolicy::Logarithmic || m_checkpoints.empty())' \
+  'if (true)' "$C"
+mutation "R2 ladder over-thinned (drops the newest rung)" $E \
+  'it = (k % power) == 0 ? std::next(it) : m_checkpoints.erase(it);' \
+  'it = (k % (2 * power)) == 0 ? std::next(it) : m_checkpoints.erase(it);' "$C"
+mutation "R3 bisection temporaries never dropped" $E \
+  '    m_checkpoints.erase(mid);
+' '' "$C"
+mutation "R4 linear recompute instead of bisection" $E \
+  'const int mid = lo + (hi - lo) / 2;' 'const int mid = hi - 1;' "$C"
+mutation "R5 peak metric forgets the temporaries" $E \
+  '    notePeak(1);   // + the final state backward() will return to
+' '' "$C"
+mutation "R6 lower half reversed before the upper" $E \
+  '    const bool upper = reverseRange(mid, hi, pass, message);
+    m_checkpoints.erase(mid);
+    return upper && reverseRange(lo, mid, pass, message);' \
+  '    const bool lower = reverseRange(lo, mid, pass, message);
+    m_checkpoints.erase(mid);
+    return lower && reverseRange(mid, hi, pass, message);' "$X"
+mutation "R7 recompute skipped (stale linearization)" $E \
+  '    if (m_linearizedAt == to)
+        return true;   // already the latest update(): nothing to recompute' \
+  '    if (true)
+        return true;   // already the latest update(): nothing to recompute' "$X"
 
 echo
 echo "caught=$caught failures=$failures"

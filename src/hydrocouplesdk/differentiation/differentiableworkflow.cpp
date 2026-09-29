@@ -189,7 +189,64 @@ int DifferentiableWorkflow::replays() const noexcept
 void DifferentiableWorkflow::clearRecording()
 {
     m_records.clear();
+    m_checkpoints.clear();
     m_linearizedAt = -1;
+}
+
+void DifferentiableWorkflow::setCheckpointPolicy(CheckpointPolicy policy)
+{
+    m_policy = policy;
+    thinLadder();
+}
+
+CheckpointPolicy DifferentiableWorkflow::checkpointPolicy() const noexcept
+{
+    return m_policy;
+}
+
+int DifferentiableWorkflow::storedCheckpoints() const noexcept
+{
+    return static_cast<int>(m_checkpoints.size());
+}
+
+int DifferentiableWorkflow::peakCheckpoints() const noexcept
+{
+    return m_peak;
+}
+
+std::vector<int> DifferentiableWorkflow::checkpointedSteps() const
+{
+    std::vector<int> steps;
+    for (const auto &entry : m_checkpoints)
+        steps.push_back(entry.first);
+    return steps;
+}
+
+void DifferentiableWorkflow::thinLadder()
+{
+    if (m_policy != CheckpointPolicy::Logarithmic || m_checkpoints.empty())
+        return;
+    // Keep k when k is a multiple of the largest power of two not above its
+    // distance d from the newest checkpoint (1 when d is 0). At most two
+    // rungs per power of two survive, and a rung dropped now would never be
+    // kept later: d only grows, and so does the alignment it needs. The
+    // first rung (k = 0, a multiple of everything) and the newest (d = 0,
+    // alignment 1) always survive -- which backward() relies on.
+    const int newest = m_checkpoints.rbegin()->first;
+    for (auto it = m_checkpoints.begin(); it != m_checkpoints.end();)
+    {
+        const int k = it->first;
+        const int d = newest - k;
+        int power = 1;
+        while (power * 2 <= d)
+            power *= 2;
+        it = (k % power) == 0 ? std::next(it) : m_checkpoints.erase(it);
+    }
+}
+
+void DifferentiableWorkflow::notePeak(int extra)
+{
+    m_peak = std::max(m_peak, static_cast<int>(m_checkpoints.size()) + extra);
 }
 
 std::vector<HydroCouple::IModelComponent *>
@@ -259,22 +316,39 @@ bool DifferentiableWorkflow::performStep(std::string &message)
     record.updated.resize(order.size());
     for (size_t i = 0; i < order.size(); ++i)
         record.updated[i] = !finishedStatus(order[i]->status());
-    if (!saveAll(record.tokens, message))
+    std::vector<std::string> tokens;
+    if (!saveAll(tokens, message))
         return false;
     if (!TimeSteppedWorkflow::performStep(message))
         return false;
+    m_checkpoints[static_cast<int>(m_records.size())] = std::move(tokens);
     m_records.push_back(std::move(record));
     m_linearizedAt = static_cast<int>(m_records.size());
+    thinLadder();
     return true;
 }
 
-bool DifferentiableWorkflow::linearizeAt(int step, std::string &message)
+bool DifferentiableWorkflow::advance(int from, int to, std::string &message)
 {
-    if (m_linearizedAt == step)
-        return true;
-    const Record &record = m_records[static_cast<size_t>(step - 1)];
-    if (!restoreAll(record.tokens, message))
+    if (m_linearizedAt == to)
+        return true;   // already the latest update(): nothing to recompute
+    auto found = m_checkpoints.find(from);
+    if (found == m_checkpoints.end())
+    {
+        message = "no checkpoint of the state after step " + std::to_string(from);
         return false;
+    }
+    if (!restoreAll(found->second, message))
+        return false;
+    for (int step = from + 1; step <= to; ++step)
+        if (!replayStep(step, message))
+            return false;
+    return true;
+}
+
+bool DifferentiableWorkflow::replayStep(int step, std::string &message)
+{
+    const Record &record = m_records[static_cast<size_t>(step - 1)];
     const auto order = scheduleOrder();
     for (size_t i = 0; i < order.size(); ++i)
     {
@@ -376,11 +450,178 @@ std::vector<std::string> DifferentiableWorkflow::differentiabilityProblems() con
     return problems;
 }
 
+// ── backward() ─────────────────────────────────────────────────────────────
+
+//! The working state of one reverse pass.
+struct DifferentiableWorkflow::Pass
+{
+    const SeedFunction *seedFunction = nullptr;
+    std::vector<HydroCouple::IModelComponent *> order;
+    ArgumentSums argumentSums;
+    //! State cotangents carried from the step after the one being swept.
+    std::map<HydroCouple::IModelComponent *,
+             std::map<HydroCouple::IComponentDataItem *, std::vector<double>>>
+        stateCarry;
+    //! The next step that must be swept: steps are visited strictly
+    //! last-first, and sweepStep() checks it.
+    int nextStep = 0;
+};
+
+bool DifferentiableWorkflow::sweepStep(int step, Pass &pass, std::string &message)
+{
+    // Precondition: the composition is linearized at `step`.
+    if (step != pass.nextStep || m_linearizedAt != step)
+    {
+        message = "internal: step " + std::to_string(step) +
+                  " swept out of order or away from its linearization point";
+        return false;
+    }
+    --pass.nextStep;
+
+    Seeds seeds;
+    if (*pass.seedFunction)
+        (*pass.seedFunction)(step, seeds);
+    std::map<const HydroCouple::IOutput *, std::vector<double>> outBar =
+        std::move(seeds.m_values);
+
+    std::map<HydroCouple::IModelComponent *,
+             std::map<HydroCouple::IComponentDataItem *, std::vector<double>>>
+        nextCarry;
+
+    const auto &order = pass.order;
+    for (auto it = order.rbegin(); it != order.rend(); ++it)
+    {
+        HydroCouple::IModelComponent *component = *it;
+        auto *d = differentiable(component);
+
+        // Seeds: output cotangents reached so far, state from step+1.
+        EntryBatch seedBatch;
+        for (HydroCouple::IOutput *output : d->differentiableOutputs())
+        {
+            auto found = outBar.find(output);
+            if (found != outBar.end())
+                seedBatch.seed(itemOf(output), DifferentialRole::Output,
+                               output->shape(), found->second);
+        }
+        const auto states = d->differentiableStates();
+        for (HydroCouple::IComponentDataItem *state : states)
+        {
+            auto &carried = pass.stateCarry[component];
+            auto found = carried.find(state);
+            if (found != carried.end())
+                seedBatch.seed(state, DifferentialRole::StateAfter,
+                               state->shape(), found->second);
+        }
+        if (seedBatch.empty())
+            continue;   // nothing downstream depends on this component
+
+        // Results: every input, argument and state it differentiates.
+        EntryBatch results;
+        const auto inputs = d->differentiableInputs();
+        const auto arguments = d->differentiableArguments();
+        std::vector<size_t> inputAt, argumentAt, stateAt;
+        for (auto *input : inputs)
+            inputAt.push_back(results.result(itemOf(input), DifferentialRole::Input,
+                                             input->shape()));
+        for (auto *argument : arguments)
+            argumentAt.push_back(results.result(itemOf(argument),
+                                                DifferentialRole::Argument,
+                                                argument->shape()));
+        for (auto *state : states)
+            stateAt.push_back(results.result(state, DifferentialRole::StateBefore,
+                                             state->shape()));
+
+        std::string vjpMessage;
+        if (!d->vjp(seedBatch.set(), results.set(), &vjpMessage))
+        {
+            message = "'" + component->id() + "'.vjp at step " +
+                      std::to_string(step) + " refused: " + vjpMessage;
+            return false;
+        }
+
+        for (size_t k = 0; k < arguments.size(); ++k)
+            pass.argumentSums.add(component, arguments[k], arguments[k]->shape(),
+                                  results.values(argumentAt[k]));
+        for (size_t k = 0; k < states.size(); ++k)
+            nextCarry[component][states[k]] = results.values(stateAt[k]);
+
+        // Route each input's cotangent back along its connection.
+        for (size_t k = 0; k < inputs.size(); ++k)
+        {
+            std::vector<double> cotangent = results.values(inputAt[k]);
+            HydroCouple::IOutput *provider = inputs[k]->provider();
+            while (auto *adapted =
+                       dynamic_cast<HydroCouple::IDifferentiableAdaptedOutput *>(provider))
+            {
+                HydroCouple::IOutput *adaptee = adapted->adaptee();
+                EntryBatch aSeeds, aResults;
+                aSeeds.seed(itemOf<HydroCouple::IComponentDataItem>(adapted),
+                            DifferentialRole::Output, adapted->shape(), cotangent);
+                const size_t adapteeAt = aResults.result(
+                    itemOf(adaptee), DifferentialRole::Input, adaptee->shape());
+                const auto aArguments = adapted->differentiableArguments();
+                std::vector<size_t> aArgumentAt;
+                for (auto *argument : aArguments)
+                    aArgumentAt.push_back(aResults.result(
+                        itemOf(argument), DifferentialRole::Argument,
+                        argument->shape()));
+                std::string aMessage;
+                if (!adapted->vjp(aSeeds.set(), aResults.set(), &aMessage))
+                {
+                    message = "adapted output '" + adapted->id() +
+                              "'.vjp at step " + std::to_string(step) +
+                              " refused: " + aMessage;
+                    return false;
+                }
+                for (size_t a = 0; a < aArguments.size(); ++a)
+                    pass.argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),
+                                          aResults.values(aArgumentAt[a]));
+                cotangent = aResults.values(adapteeAt);
+                provider = adaptee;
+            }
+            if (!provider)
+                continue;
+            auto *owner = provider->modelComponent();
+            if (!owner ||
+                std::find(order.begin(), order.end(), owner) == order.end())
+                continue;   // unmanaged provider: a constant
+            accumulate(outBar[provider], cotangent);
+        }
+    }
+    pass.stateCarry = std::move(nextCarry);
+    return true;
+}
+
+bool DifferentiableWorkflow::reverseRange(int lo, int hi, Pass &pass,
+                                          std::string &message)
+{
+    // Sweeps steps hi, hi-1, ..., lo+1, given the checkpoint after step lo.
+    if (hi <= lo)
+        return true;
+    if (hi - lo == 1)
+        return advance(lo, hi, message) && sweepStep(hi, pass, message);
+
+    // Recursive bisection: recompute forward to the midpoint, keep it as a
+    // temporary checkpoint while the upper half is reversed, then drop it.
+    const int mid = lo + (hi - lo) / 2;
+    if (!advance(lo, mid, message))
+        return false;
+    std::vector<std::string> tokens;
+    if (!saveAll(tokens, message))
+        return false;
+    m_checkpoints[mid] = std::move(tokens);
+    notePeak(1);   // + the final state backward() will return to
+    const bool upper = reverseRange(mid, hi, pass, message);
+    m_checkpoints.erase(mid);
+    return upper && reverseRange(lo, mid, pass, message);
+}
+
 bool DifferentiableWorkflow::backward(const SeedFunction &seedFunction,
                                       Gradients &gradients, std::string &message)
 {
     gradients = Gradients{};
     m_replays = 0;
+    m_peak = 0;
     if (m_records.empty())
     {
         message = "nothing to differentiate: no step has been recorded";
@@ -395,7 +636,6 @@ bool DifferentiableWorkflow::backward(const SeedFunction &seedFunction,
         return false;
     }
 
-    const auto order = scheduleOrder();
     const int steps = static_cast<int>(m_records.size());
 
     // Where to come back to. Needed whenever a replay will happen.
@@ -403,152 +643,64 @@ bool DifferentiableWorkflow::backward(const SeedFunction &seedFunction,
     std::vector<std::string> finalTokens;
     if (willReplay && !saveAll(finalTokens, message))
         return false;
+    notePeak(willReplay ? 1 : 0);
 
-    ArgumentSums argumentSums;
-    std::map<HydroCouple::IModelComponent *,
-             std::map<HydroCouple::IComponentDataItem *, std::vector<double>>>
-        stateCarry;
+    Pass pass;
+    pass.seedFunction = &seedFunction;
+    pass.order = scheduleOrder();
+    pass.nextStep = steps;
 
-    auto fail = [&](const std::string &why) {
-        message = why;
+    // The rungs held before this pass. reverseRange() drops each temporary
+    // it makes before returning, success or failure.
+    const std::vector<int> rungs = checkpointedSteps();
+
+    auto finish = [&](bool ok, const std::string &why) {
+        if (!ok)
+            message = why;
         if (willReplay)
         {
-            std::string ignored;
-            restoreAll(finalTokens, ignored);
+            std::string restoreWhy;
+            if (!restoreAll(finalTokens, restoreWhy) && ok)
+            {
+                ok = false;
+                message = restoreWhy;   // the pass succeeded; coming back did not
+            }
             m_linearizedAt = -1;
         }
-        return false;
+        return ok;
     };
 
-    for (int step = steps; step >= 1; --step)
+    std::string why;
+    // The last step first: it needs no replay if nothing has moved since.
+    if (!advance(steps - 1, steps, why) || !sweepStep(steps, pass, why))
+        return finish(false, why);
+
+    // Then each gap between rungs, newest first. The newest rung is always
+    // the state after step steps-1, so the first gap ends there.
+    int hi = steps - 1;
+    for (auto rung = rungs.rbegin(); rung != rungs.rend() && hi > 0; ++rung)
     {
-        std::string why;
-        if (!linearizeAt(step, why))
-            return fail(why);
-
-        Seeds seeds;
-        if (seedFunction)
-            seedFunction(step, seeds);
-        std::map<const HydroCouple::IOutput *, std::vector<double>> outBar =
-            std::move(seeds.m_values);
-
-        std::map<HydroCouple::IModelComponent *,
-                 std::map<HydroCouple::IComponentDataItem *, std::vector<double>>>
-            nextCarry;
-
-        for (auto it = order.rbegin(); it != order.rend(); ++it)
-        {
-            HydroCouple::IModelComponent *component = *it;
-            auto *d = differentiable(component);
-
-            // Seeds: output cotangents reached so far, state from step+1.
-            EntryBatch seedBatch;
-            for (HydroCouple::IOutput *output : d->differentiableOutputs())
-            {
-                auto found = outBar.find(output);
-                if (found != outBar.end())
-                    seedBatch.seed(itemOf(output), DifferentialRole::Output,
-                                   output->shape(), found->second);
-            }
-            const auto states = d->differentiableStates();
-            for (HydroCouple::IComponentDataItem *state : states)
-            {
-                auto &carried = stateCarry[component];
-                auto found = carried.find(state);
-                if (found != carried.end())
-                    seedBatch.seed(state, DifferentialRole::StateAfter,
-                                   state->shape(), found->second);
-            }
-            if (seedBatch.empty())
-                continue;   // nothing downstream depends on this component
-
-            // Results: every input, argument and state it differentiates.
-            EntryBatch results;
-            const auto inputs = d->differentiableInputs();
-            const auto arguments = d->differentiableArguments();
-            std::vector<size_t> inputAt, argumentAt, stateAt;
-            for (auto *input : inputs)
-                inputAt.push_back(results.result(itemOf(input), DifferentialRole::Input,
-                                                 input->shape()));
-            for (auto *argument : arguments)
-                argumentAt.push_back(results.result(itemOf(argument),
-                                                    DifferentialRole::Argument,
-                                                    argument->shape()));
-            for (auto *state : states)
-                stateAt.push_back(results.result(state, DifferentialRole::StateBefore,
-                                                 state->shape()));
-
-            std::string vjpMessage;
-            if (!d->vjp(seedBatch.set(), results.set(), &vjpMessage))
-                return fail("'" + component->id() + "'.vjp at step " +
-                            std::to_string(step) + " refused: " + vjpMessage);
-
-            for (size_t k = 0; k < arguments.size(); ++k)
-                argumentSums.add(component, arguments[k], arguments[k]->shape(),
-                                 results.values(argumentAt[k]));
-            for (size_t k = 0; k < states.size(); ++k)
-                nextCarry[component][states[k]] = results.values(stateAt[k]);
-
-            // Route each input's cotangent back along its connection.
-            for (size_t k = 0; k < inputs.size(); ++k)
-            {
-                std::vector<double> cotangent = results.values(inputAt[k]);
-                HydroCouple::IOutput *provider = inputs[k]->provider();
-                while (auto *adapted =
-                           dynamic_cast<HydroCouple::IDifferentiableAdaptedOutput *>(provider))
-                {
-                    HydroCouple::IOutput *adaptee = adapted->adaptee();
-                    EntryBatch aSeeds, aResults;
-                    aSeeds.seed(itemOf<HydroCouple::IComponentDataItem>(adapted),
-                                DifferentialRole::Output, adapted->shape(), cotangent);
-                    const size_t adapteeAt = aResults.result(
-                        itemOf(adaptee), DifferentialRole::Input, adaptee->shape());
-                    const auto aArguments = adapted->differentiableArguments();
-                    std::vector<size_t> aArgumentAt;
-                    for (auto *argument : aArguments)
-                        aArgumentAt.push_back(aResults.result(
-                            itemOf(argument), DifferentialRole::Argument,
-                            argument->shape()));
-                    std::string aMessage;
-                    if (!adapted->vjp(aSeeds.set(), aResults.set(), &aMessage))
-                        return fail("adapted output '" + adapted->id() +
-                                    "'.vjp at step " + std::to_string(step) +
-                                    " refused: " + aMessage);
-                    for (size_t a = 0; a < aArguments.size(); ++a)
-                        argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),
-                                         aResults.values(aArgumentAt[a]));
-                    cotangent = aResults.values(adapteeAt);
-                    provider = adaptee;
-                }
-                if (!provider)
-                    continue;
-                auto *owner = provider->modelComponent();
-                if (!owner ||
-                    std::find(order.begin(), order.end(), owner) == order.end())
-                    continue;   // unmanaged provider: a constant
-                accumulate(outBar[provider], cotangent);
-            }
-        }
-        stateCarry = std::move(nextCarry);
+        if (!reverseRange(*rung, hi, pass, why))   // empty when *rung >= hi
+            return finish(false, why);
+        hi = *rung;
     }
+    if (pass.nextStep != 0)
+        return finish(false, "internal: steps 1.." + std::to_string(pass.nextStep) +
+                                 " were never swept (no checkpoint after step 0)");
 
-    for (auto *component : order)
+    for (auto *component : pass.order)
     {
-        auto carried = stateCarry.find(component);
-        if (carried == stateCarry.end())
+        auto carried = pass.stateCarry.find(component);
+        if (carried == pass.stateCarry.end())
             continue;
         for (auto &[state, values] : carried->second)
             gradients.initialStates.push_back(
                 StateGradient{component, state, state->shape(), values});
     }
-    gradients.arguments = argumentSums.take();
+    gradients.arguments = pass.argumentSums.take();
 
-    if (willReplay)
-    {
-        if (!restoreAll(finalTokens, message))
-            return false;
-        m_linearizedAt = -1;
-    }
+    if (!finish(true, std::string()))
+        return false;
     message.clear();
     return true;
 }
