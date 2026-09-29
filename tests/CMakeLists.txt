@@ -155,3 +155,28 @@ if(USE_MPI)
                 ${MPIEXEC_POSTFLAGS}
     )
 endif()
+
+# The LibTorch layer's suite (Phase G2.3): its own executable, so the main
+# suite never links LibTorch.
+if(HYDROCOUPLESDK_WITH_TORCH)
+    add_executable(HydroCoupleSDKTorchTests
+        hydrocouplesdk/test_torchdifferentiation.cpp
+    )
+    target_link_libraries(HydroCoupleSDKTorchTests
+        PRIVATE
+            HydroCoupleSDKTorch
+            GTest::gtest
+            GTest::gtest_main
+    )
+    target_include_directories(HydroCoupleSDKTorchTests
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${HYDROCOUPLE_INCLUDE_DIR}
+    )
+    if(HYDROCOUPLESDK_TORCH_RPATH)
+        set_target_properties(HydroCoupleSDKTorchTests PROPERTIES
+            BUILD_RPATH "${HYDROCOUPLESDK_TORCH_RPATH}")
+    endif()
+    gtest_discover_tests(HydroCoupleSDKTorchTests)
+    hydrocouplesdk_colocate_runtime_dlls(HydroCoupleSDKTorchTests)
+endif()

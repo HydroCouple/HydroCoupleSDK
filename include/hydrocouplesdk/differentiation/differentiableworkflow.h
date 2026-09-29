@@ -193,6 +193,17 @@ public:
     //! the next step starts a new record.
     void clearRecording();
 
+    /*!
+     * \brief Returns every component to the state before the first recorded
+     *        step and forgets the record (releasing its checkpoints), so the
+     *        same run can be repeated -- with new argument values, say, in a
+     *        training loop -- without preparing again, which the workflow
+     *        lifecycle does not allow once it has stepped.
+     * \returns false (with a message) when nothing is recorded or a
+     *          component cannot restore.
+     */
+    bool rewind(std::string &message);
+
     //! Releases the record, then finishes as a TimeSteppedWorkflow does.
     void finish() override;
 

@@ -195,6 +195,21 @@ void DifferentiableWorkflow::clearRecording()
     m_linearizedAt = -1;
 }
 
+bool DifferentiableWorkflow::rewind(std::string &message)
+{
+    auto first = m_checkpoints.find(0);
+    if (m_records.empty() || first == m_checkpoints.end())
+    {
+        message = "nothing to rewind: no step has been recorded";
+        return false;
+    }
+    if (!restoreAll(first->second, message))
+        return false;
+    clearRecording();
+    message.clear();
+    return true;
+}
+
 void DifferentiableWorkflow::finish()
 {
     clearRecording();   // while the components are still unfinished
@@ -362,7 +377,11 @@ bool DifferentiableWorkflow::performStep(std::string &message)
     if (!saveAll(tokens, message))
         return false;
     if (!TimeSteppedWorkflow::performStep(message))
+    {
+        // The step never happened, so nothing will restore to before it.
+        releaseAll(tokens);
         return false;
+    }
     m_checkpoints[static_cast<int>(m_records.size())] = std::move(tokens);
     m_records.push_back(std::move(record));
     m_linearizedAt = static_cast<int>(m_records.size());

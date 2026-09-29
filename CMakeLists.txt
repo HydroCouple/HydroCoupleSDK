@@ -62,6 +62,7 @@ option(USE_OPENMP   "Build with OpenMP support"             OFF)
 option(USE_MPI      "Build with MPI support"                OFF)
 option(USE_KOKKOS   "Build the Kokkos device backend"       OFF)
 option(BUILD_TOOLS  "Build HydroCouple Tools library"       OFF)
+option(HYDROCOUPLESDK_WITH_TORCH "Build the optional LibTorch differentiation layer (HydroCoupleSDKTorch)" OFF)
 option(BUILD_TESTS  "Build unit tests"                      ON)
 option(BUILD_EXAMPLES "Build runnable examples"             OFF)
 option(BUILD_DOCS   "Build Doxygen documentation"           OFF)
@@ -474,6 +475,69 @@ if(BUILD_TOOLS)
 endif()
 
 
+# ── Torch differentiation layer (optional, Phase G2.3) ────────────────────
+# A separate library, so the core SDK never includes or links LibTorch.
+# LibTorch comes from find_package(Torch) -- by default the one inside the
+# Python `torch` wheel, so the SDK and Python torch share one LibTorch in a
+# process (plan §5.1). HYDROCOUPLESDK_TORCH_ROOT (a directory holding
+# include/ and lib/ of a LibTorch, e.g. site-packages/torch) bypasses
+# TorchConfig for installs whose config cannot load -- a CUDA wheel on a
+# machine without the CUDA toolkit, for one -- and links the CPU libraries
+# directly. Build-tree only for now: not in the install/export set.
+if(HYDROCOUPLESDK_WITH_TORCH)
+    set(HYDROCOUPLESDK_TORCH_ROOT "" CACHE PATH
+        "LibTorch root (include/, lib/) to use without TorchConfig.cmake")
+    if(HYDROCOUPLESDK_TORCH_ROOT)
+        find_library(HYDROCOUPLESDK_TORCH_CPU torch_cpu
+            PATHS "${HYDROCOUPLESDK_TORCH_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+        find_library(HYDROCOUPLESDK_C10 c10
+            PATHS "${HYDROCOUPLESDK_TORCH_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+        add_library(hydrocouplesdk_torch INTERFACE)
+        target_include_directories(hydrocouplesdk_torch SYSTEM INTERFACE
+            "${HYDROCOUPLESDK_TORCH_ROOT}/include"
+            "${HYDROCOUPLESDK_TORCH_ROOT}/include/torch/csrc/api/include")
+        target_link_libraries(hydrocouplesdk_torch INTERFACE
+            ${HYDROCOUPLESDK_TORCH_CPU} ${HYDROCOUPLESDK_C10})
+        set(HYDROCOUPLESDK_TORCH_TARGET hydrocouplesdk_torch)
+        set(HYDROCOUPLESDK_TORCH_RPATH "${HYDROCOUPLESDK_TORCH_ROOT}/lib")
+    else()
+        if(NOT Torch_DIR)
+            find_package(Python3 COMPONENTS Interpreter QUIET)
+            if(Python3_Interpreter_FOUND)
+                execute_process(
+                    COMMAND ${Python3_EXECUTABLE} -c
+                            "import torch.utils; print(torch.utils.cmake_prefix_path)"
+                    OUTPUT_VARIABLE _torch_prefix
+                    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+                if(_torch_prefix)
+                    list(APPEND CMAKE_PREFIX_PATH "${_torch_prefix}")
+                endif()
+            endif()
+        endif()
+        find_package(Torch REQUIRED)
+        set(HYDROCOUPLESDK_TORCH_TARGET ${TORCH_LIBRARIES})
+        if(TARGET torch)
+            get_target_property(_torch_loc torch IMPORTED_LOCATION)
+            if(_torch_loc)
+                get_filename_component(HYDROCOUPLESDK_TORCH_RPATH "${_torch_loc}" DIRECTORY)
+            endif()
+        endif()
+    endif()
+    message(STATUS "LibTorch: ${HYDROCOUPLESDK_TORCH_TARGET}")
+
+    add_library(HydroCoupleSDKTorch SHARED
+        src/hydrocouplesdk/differentiation/torch/atenmodelcomponent.cpp
+        src/hydrocouplesdk/differentiation/torch/torchcomposition.cpp
+    )
+    target_compile_definitions(HydroCoupleSDKTorch PRIVATE HYDROCOUPLESDKTORCH_LIBRARY)
+    target_compile_features(HydroCoupleSDKTorch PUBLIC cxx_std_20)
+    target_link_libraries(HydroCoupleSDKTorch PUBLIC HydroCoupleSDK ${HYDROCOUPLESDK_TORCH_TARGET})
+    if(HYDROCOUPLESDK_TORCH_RPATH)
+        set_target_properties(HydroCoupleSDKTorch PROPERTIES
+            BUILD_RPATH "${HYDROCOUPLESDK_TORCH_RPATH}")
+    endif()
+endif()
+
 # ── Windows runtime co-location ───────────────────────────────────────────
 # Windows has no rpath: an executable finds a sibling shared library only if
 # the DLL sits next to it (or on PATH). Tests and examples live in their own
@@ -564,6 +628,8 @@ install(
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
         PATTERN "hydrocouplesdk/version.h" EXCLUDE
+        # The Torch layer is build-tree only (see HYDROCOUPLESDK_WITH_TORCH).
+        PATTERN "torch" EXCLUDE
         PATTERN "*.h"
 )
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Phase G2.1 falsifiers: the SDK reverse engine (DifferentiableWorkflow) and
-# the linear-transform adapter's adjoint.
+# Phase G2 falsifiers: the SDK reverse engine (DifferentiableWorkflow), the
+# linear-transform adapter's adjoint, and -- when the build has
+# HYDROCOUPLESDK_WITH_TORCH -- the LibTorch layer (rows T*; skipped, and
+# reported as skipped, in a build without it).
 #
 # Each row plants one fault and requires the named gtest gate to FAIL.
 # SURVIVED = the gate is too weak or the code has nothing to say.
@@ -22,11 +24,17 @@ cd "$ROOT"
 BUILD="${BUILD:-build}"
 PY="${PYTHON:-python3}"
 TESTS="$BUILD/tests/HydroCoupleSDKTests"
+TORCH_TESTS="$BUILD/tests/HydroCoupleSDKTorchTests"
+TARGETS="HydroCoupleSDKTests"
+if grep -q '^HYDROCOUPLESDK_WITH_TORCH:BOOL=ON' "$BUILD/CMakeCache.txt" 2>/dev/null; then
+  TARGETS="$TARGETS HydroCoupleSDKTorchTests"
+fi
 BACKUP="$(mktemp -d)"
 MUTATED=""   # the file currently carrying a planted fault, if any
 caught=0; failures=0
 
-rebuild() { cmake --build "$BUILD" --target HydroCoupleSDKTests -j 8 >"$BACKUP/build.log" 2>&1; }
+# shellcheck disable=SC2086
+rebuild() { cmake --build "$BUILD" --target $TARGETS -j 8 >"$BACKUP/build.log" 2>&1; }
 
 matched() { "$TESTS" --gtest_list_tests --gtest_filter="$1" 2>/dev/null | grep -c '^  '; }
 
@@ -181,6 +189,100 @@ mutation "X6 a temporary released twice" $E \
 ' '    releaseAll(m_checkpoints[mid]);
     releaseAll(m_checkpoints[mid]);
 ' 'DifferentiationTest.NoTokenIsEverReleasedTwice'
+
+mutation "X7 a failed step's checkpoint is not released" $E \
+  '        releaseAll(tokens);
+        return false;' '        return false;' \
+  'DifferentiationTest.AFailedStepReleasesTheCheckpointItTook'
+
+echo "== rewind()"
+mutation "W1 rewind forgets without restoring" $E \
+  '    if (!restoreAll(first->second, message))
+        return false;
+    clearRecording();' '    clearRecording();' \
+  'DifferentiationTest.RewindRepeatsTheRunExactly'
+mutation "W2 rewind restores but keeps the record" $E \
+  '    if (!restoreAll(first->second, message))
+        return false;
+    clearRecording();' '    if (!restoreAll(first->second, message))
+        return false;' \
+  'DifferentiationTest.RewindRepeatsTheRunExactly'
+
+if [ "${TARGETS#*Torch}" != "$TARGETS" ]; then
+  TESTS="$TORCH_TESTS"
+  # Rows restore their file but do not rebuild: the binaries still hold the
+  # last mutant until the clean tree is built again.
+  rebuild || { echo "BROKEN      baseline no longer builds"; exit 2; }
+  "$TESTS" >/dev/null 2>&1 || { echo "baseline Torch gates are not green"; exit 1; }
+  A=src/hydrocouplesdk/differentiation/torch/atenmodelcomponent.cpp
+  T=src/hydrocouplesdk/differentiation/torch/torchcomposition.cpp
+
+  echo "== G2.3: AtenModelComponent (autograd in place of an adjoint)"
+  mutation "T1 linearized after the step, not before" $A \
+    '    m_point = std::move(point);' '    point.states = result.states;
+    m_point = std::move(point);' \
+    'TorchDifferentiationTest.AnAtenVjpIsTheHandWrittenAdjoint'
+  mutation "T2 argument results read from the input leaf" $A \
+    'return i < 0 ? -1 : static_cast<int>(nStates + nInputs) + i;' \
+    'return i < 0 ? -1 : static_cast<int>(nStates) + i;' \
+    'TorchDifferentiationTest.AnAtenVjpIsTheHandWrittenAdjoint'
+  mutation "T3 jvp ignores the state tangent" $A \
+    'if (g[l].defined() && g[l].requires_grad() && tangents[l].defined())' \
+    'if (l > 0 && g[l].defined() && g[l].requires_grad() && tangents[l].defined())' \
+    'TorchDifferentiationTest.AnAtenJvpIsTheTransposeOfItsVjp'
+  mutation "T4 an unreached result is left, not zeroed" $A \
+    'if (!writeEntry(e, shapeOf(leaves[l]), grads[l], message))' \
+    'if (grads[l].defined() && !writeEntry(e, shapeOf(leaves[l]), grads[l], message))' \
+    'TorchDifferentiationTest.WithNoSeedsEveryResultIsWrittenAsZero'
+  mutation "T5 restore forgets the step count" $A \
+    '    m_steps = static_cast<int>(steps);' '    (void)steps;' \
+    'TorchDifferentiationTest.AnAtenCheckpointRestoresExactly'
+  mutation "T6 restore keeps the stale linearization" $A \
+    '    m_haveStep = false;
+    m_point = Point{};
+    setStatus(CStatus::Updated);' '    setStatus(CStatus::Updated);' \
+    'TorchDifferentiationTest.AnAtenCheckpointRestoresExactly'
+  mutation "T7 a bad token half-applied" $A \
+        '        writes.emplace_back(item, std::move(t));' \
+        '        writeItem(item, t, nullptr);
+        writes.emplace_back(item, std::move(t));' \
+    'TorchDifferentiationTest.ABadTokenChangesNothing'
+  mutation "T8 step() result count unchecked" $A \
+    'if (result.states.size() != states.size())' 'if (false)' \
+    'TorchDifferentiationTest.AStepThatReturnsTheWrongStatesFailsTheComponent'
+  mutation "T9 foreign seed ignored" $A \
+    '        if (r < 0)
+            return fail(message, "vjp(): " + entryName(e) +' \
+    '        if (r < 0) continue;
+        if (r < 0)
+            return fail(message, "vjp(): " + entryName(e) +' \
+    'TorchDifferentiationTest.AnEntryThatIsNotTheComponentsIsRefused'
+
+  echo "== G2.3: TorchComposition (the composition as one autograd node)"
+  mutation "T10 seeds taken from the mirrored step" $T \
+    'torch::Tensor row = cotangents[o][step - 1].contiguous();' \
+    'torch::Tensor row = cotangents[o][m_steps - step].contiguous();' \
+    'TorchDifferentiationTest.TorchCompositionGradientsAreTheEngines'
+  mutation "T11 adapters do not re-latch their arguments" $T \
+    '                adapted->initialize();   // adapters latch their arguments here' \
+    '                (void)adapted;' \
+    'TorchDifferentiationTest.TorchCompositionRunsAreRepeatable'
+  mutation "T12 a stale graph is not refused" $T \
+    'TORCH_CHECK(generation == m_generation,' 'TORCH_CHECK(true || generation == m_generation,' \
+    'TorchDifferentiationTest.OnlyTheMostRecentRunCanBeDifferentiated'
+  mutation "T13 initial-state gradient read as zero" $T \
+    '        else if (const StateGradient *g = gradients.findState(b.component, b.state))
+            values = &g->values;' '' \
+    'TorchDifferentiationTest.TorchCompositionGradientsAreTheEngines'
+  A2=src/hydrocouplesdk/differentiation/torch/atenmodelcomponent.cpp
+  mutation "T14 a wrong-shaped parameter accepted" $A2 \
+    '    if (shapeOf(c) != shape)
+        return fail(message, "a tensor of shape "' '    if (false)
+        return fail(message, "a tensor of shape "' \
+    'TorchDifferentiationTest.AParameterOfTheWrongShapeIsRefusedByName'
+else
+  echo "== G2.3 Torch rows SKIPPED: this build does not have HYDROCOUPLESDK_WITH_TORCH=ON"
+fi
 
 echo
 echo "caught=$caught failures=$failures"
