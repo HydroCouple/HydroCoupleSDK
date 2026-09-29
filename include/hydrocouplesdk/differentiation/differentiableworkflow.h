@@ -3,7 +3,7 @@
 /*!
  * \file   differentiableworkflow.h
  * \brief  Reverse-mode differentiation of a time-stepped composition
- *         (Phase G2.1 of HydroCouple/plans/DIFFERENTIABLE_INTERFACE_ALTERNATIVES_2026-09-28.md).
+ *         (Phase G2.1 of HydroCouple/plans/hydrocouple/DIFFERENTIABLE_INTERFACE_ALTERNATIVES_2026-09-28.md).
  *
  * A DifferentiableWorkflow is a TimeSteppedWorkflow that can run backwards.
  * Forward, it behaves exactly like its base, except that before every step
