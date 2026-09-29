@@ -10,6 +10,10 @@
 # A mutant that does not build counts as CAUGHT only if the clean tree
 # still builds; otherwise the script stops with BROKEN.
 #
+# Interrupting it (Ctrl-C, SIGTERM) puts the planted fault back before the
+# final rebuild. SIGKILL cannot be caught: after a `kill -9`, run
+# `git status` and `git checkout -- src` before trusting the tree.
+#
 # Usage: BUILD=<cmake build dir> verification/g2/falsify.sh   (default: build)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -19,6 +23,7 @@ BUILD="${BUILD:-build}"
 PY="${PYTHON:-python3}"
 TESTS="$BUILD/tests/HydroCoupleSDKTests"
 BACKUP="$(mktemp -d)"
+MUTATED=""   # the file currently carrying a planted fault, if any
 caught=0; failures=0
 
 rebuild() { cmake --build "$BUILD" --target HydroCoupleSDKTests -j 8 >"$BACKUP/build.log" 2>&1; }
@@ -31,11 +36,13 @@ mutation() {  # LABEL FILE OLD NEW FILTER
     echo "NO SUCH GATE $label ($filter)"; failures=$((failures + 1)); return
   fi
   cp "$file" "$BACKUP/orig"
+  MUTATED="$file"
   if ! $PY "$HERE/mutate.py" "$file" "$old" "$new"; then
+    MUTATED=""
     echo "NOT APPLIED $label"; failures=$((failures + 1)); return
   fi
   if ! rebuild; then
-    cp "$BACKUP/orig" "$file"
+    cp "$BACKUP/orig" "$file"; MUTATED=""
     if ! rebuild; then echo "BROKEN      baseline no longer builds"; exit 2; fi
     echo "CAUGHT      $label (does not build)"; caught=$((caught + 1)); return
   fi
@@ -44,9 +51,19 @@ mutation() {  # LABEL FILE OLD NEW FILTER
   else
     echo "CAUGHT      $label"; caught=$((caught + 1))
   fi
-  cp "$BACKUP/orig" "$file"
+  cp "$BACKUP/orig" "$file"; MUTATED=""
 }
-trap 'rebuild' EXIT
+
+# On any exit -- including Ctrl-C mid-row -- put the planted fault back
+# before rebuilding, so an interrupted run cannot leave a bug in src/.
+restore() {
+  if [ -n "$MUTATED" ] && [ -f "$BACKUP/orig" ]; then
+    cp "$BACKUP/orig" "$MUTATED"
+    echo "restored $MUTATED after an interrupted row" >&2
+  fi
+}
+trap 'restore; rebuild' EXIT
+trap 'exit 130' INT TERM
 
 rebuild || { echo "baseline does not build"; exit 1; }
 "$TESTS" --gtest_filter='Differentiation*' >/dev/null 2>&1 || { echo "baseline gates are not green"; exit 1; }
