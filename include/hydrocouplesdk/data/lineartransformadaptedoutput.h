@@ -30,9 +30,16 @@ namespace HydroCouple::SDK {
  * constructor, so a chain builder that applies step arguments before
  * initialize() lands on them; initialize() latches the coefficients and
  * computes the first values.
+ *
+ * Differentiable (IDifferentiableAdaptedOutput, Phase G2.1): with x the
+ * adaptee's values at the most recent refresh() and ȳ the cotangent of this
+ * output, the adjoint is x̄ = m·ȳ, m̄ = Σ ȳ·x, b̄ = Σ ȳ — so a gradient
+ * crosses a unit conversion, and the conversion's own coefficients can be
+ * calibrated. The coefficients are those latched by initialize().
  */
 class HYDROCOUPLESDK_EXPORT LinearTransformAdaptedOutput
-    : public AbstractAdaptedOutput
+    : public AbstractAdaptedOutput,
+      public virtual HydroCouple::IDifferentiableAdaptedOutput
 {
 public:
     /*!
@@ -74,6 +81,19 @@ public:
                                      std::span<const int64_t> count,
                                      std::string *message = nullptr) override;
 
+    // ── IDifferentiableAdaptedOutput ──────────────────────────────────────
+    //! The multiplier and the offset.
+    [[nodiscard]] std::vector<HydroCouple::IArgument *>
+    differentiableArguments() const override;
+    //! Seed: this (Output). Results: adaptee (Input), multiplier/offset (Argument).
+    [[nodiscard]] bool vjp(HydroCouple::DifferentialSet seeds,
+                           HydroCouple::DifferentialSet results,
+                           std::string *message = nullptr) override;
+    //! Seeds: adaptee (Input), multiplier/offset (Argument). Result: this (Output).
+    [[nodiscard]] bool jvp(HydroCouple::DifferentialSet seeds,
+                           HydroCouple::DifferentialSet results,
+                           std::string *message = nullptr) override;
+
 private:
     //! Pulls the adaptee's rank-1 slab; false (untouched values) on failure.
     bool pullAdaptee(std::vector<double> &into) const;
@@ -89,6 +109,9 @@ private:
     double m_m = 1.0;
     double m_b = 0.0;
     std::vector<double> m_values;
+    //! The adaptee's values at the most recent refresh(): the
+    //! linearization point of vjp()/jvp().
+    std::vector<double> m_source;
 };
 
 } // namespace HydroCouple::SDK

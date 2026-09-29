@@ -22,6 +22,7 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_spatiotemporal.cpp
     hydrocouplesdk/test_layereddataitem.cpp
     hydrocouplesdk/test_workflow.cpp
+    hydrocouplesdk/test_differentiation.cpp
 )
 
 target_link_libraries(HydroCoupleSDKTests

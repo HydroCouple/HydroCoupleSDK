@@ -41,6 +41,9 @@ PRIVATE
     hydrocouplesdk/component/timesteppedworkflow.cpp
     hydrocouplesdk/component/resultsmodelcomponent.cpp
 
+    # ── differentiation (namespace HydroCouple::SDK::Differentiation) ─────
+    hydrocouplesdk/differentiation/differentiableworkflow.cpp
+
     # ── distributed (namespace HydroCouple::SDK::Distributed) ────────────
     hydrocouplesdk/distributed/valuepacker.cpp
     hydrocouplesdk/distributed/inproctransport.cpp
