@@ -41,6 +41,7 @@
 #include <iostream>
 #include <memory>
 #include <random>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -140,11 +141,16 @@ public:
     }
 
     // -- ICheckpointableModelComponent: the token is the state itself ------
+    // Each token carries a serial, so a test can see every checkpoint that
+    // was saved and not yet released (liveCheckpoints) and every restore or
+    // release of a dead token (deadTokenUses).
     bool saveState(std::string &token, std::string &) override
     {
+        const long serial = m_nextSerial++;
+        m_live.insert(serial);
         std::ostringstream o;
         o.precision(17);
-        o << steps;
+        o << serial << ' ' << steps;
         for (int i = 0; i < kCells; ++i)
             o << ' ' << (*storage)[i] << ' ' << (*out)[i] << ' ' << (*spill)[i];
         token = o.str();
@@ -154,6 +160,14 @@ public:
     bool restoreState(const std::string &token, std::string &message) override
     {
         std::istringstream in(token);
+        long serial = 0;
+        in >> serial;
+        if (!m_live.count(serial))
+        {
+            ++deadTokenUses;
+            message = "restore of a released token";
+            return false;
+        }
         in >> steps;
         for (int i = 0; i < kCells; ++i)
             in >> (*storage)[i] >> (*out)[i] >> (*spill)[i];
@@ -168,6 +182,22 @@ public:
             setStatus(CStatus::Updated);
         return true;
     }
+
+    bool releaseState(const std::string &token, std::string &message) override
+    {
+        std::istringstream in(token);
+        long serial = 0;
+        in >> serial;
+        if (m_live.erase(serial) != 1)
+        {
+            ++deadTokenUses;
+            message = "release of a released token";
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] int liveCheckpoints() const { return static_cast<int>(m_live.size()); }
 
     // -- IDifferentiableModelComponent -------------------------------------
     std::vector<IInput *> differentiableInputs() const override { return {in}; }
@@ -237,6 +267,7 @@ public:
     int steps = 0;
     int restores = 0;
     int vjpCalls = 0;
+    int deadTokenUses = 0;             //!< restores/releases of a released token
     int doneAfter = 0;                 //!< report Done after this many steps (0: never)
     bool restoreResetsStatus = true;   //!< a well-behaved restore resumes as Updated
 
@@ -287,6 +318,8 @@ private:
     bool m_forced;
     bool m_haveStep = false;
     std::vector<double> m_sBefore, m_inflow, m_k;
+    long m_nextSerial = 1;
+    std::set<long> m_live;
 };
 
 void connect(IOutput *provider, Input1DDouble *consumer)
@@ -977,4 +1010,93 @@ TEST(DifferentiationTest, ASecondBackwardUnderTheLadderAgreesAndRestores)
     reference.run();
     for (int i = 0; i < kCells; ++i)
         EXPECT_DOUBLE_EQ((*rig.B->out)[i], (*reference.B->out)[i]);
+}
+
+// ============================================================================
+// Releasing checkpoints (ICheckpointableModelComponent::releaseState)
+// ============================================================================
+
+namespace {
+
+int liveIn(const Rig &rig)
+{
+    return rig.A->liveCheckpoints() + rig.B->liveCheckpoints() +
+           rig.C->liveCheckpoints();
+}
+
+int deadUsesIn(const Rig &rig)
+{
+    return rig.A->deadTokenUses + rig.B->deadTokenUses + rig.C->deadTokenUses;
+}
+
+} // namespace
+
+TEST(DifferentiationTest, EveryCheckpointTheLadderDropsIsReleased)
+{
+    // Each composition checkpoint is one token per component, so the tokens
+    // a component holds must always equal the rungs the workflow holds.
+    Rig rig(Params{});
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    for (int n = 1; n <= kSteps; ++n)
+    {
+        rig.step(n);
+        EXPECT_EQ(rig.A->liveCheckpoints(), rig.workflow->storedCheckpoints())
+            << "after step " << n;
+    }
+    EXPECT_LT(rig.A->liveCheckpoints(), kSteps);
+    EXPECT_EQ(deadUsesIn(rig), 0);
+}
+
+TEST(DifferentiationTest, BackwardReleasesItsTemporariesAndTheFinalState)
+{
+    Rig rig(Params{});
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    rig.run();
+    const int before = liveIn(rig);
+    Gradients g;
+    std::string message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    // Temporaries and the final state were saved during the pass, and all
+    // of them -- and only them -- were released by its end.
+    EXPECT_GT(rig.workflow->peakCheckpoints(), rig.workflow->storedCheckpoints());
+    EXPECT_EQ(liveIn(rig), before);
+    EXPECT_EQ(deadUsesIn(rig), 0);
+}
+
+TEST(DifferentiationTest, ClearingOrFinishingReleasesTheRecord)
+{
+    {
+        Rig rig(Params{});
+        rig.run();
+        ASSERT_EQ(liveIn(rig), 3 * kSteps);   // EveryStep: one per step each
+        rig.workflow->clearRecording();
+        EXPECT_EQ(liveIn(rig), 0);
+    }
+    {
+        Rig rig(Params{});
+        rig.run();
+        rig.workflow->finish();
+        EXPECT_EQ(liveIn(rig), 0);
+        EXPECT_EQ(rig.workflow->refusedReleases(), 0);
+        EXPECT_EQ(rig.workflow->releasedTokens(), 3 * kSteps);
+    }
+    // (prepare() again is not a way out: the workflow lifecycle refuses to
+    // prepare once it has stepped, so there is no record for it to drop.)
+}
+
+TEST(DifferentiationTest, NoTokenIsEverReleasedTwice)
+{
+    // Across forward, two backward passes and a finish, every token is
+    // released exactly once: the fixture counts any use of a dead one.
+    Rig rig(Params{});
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    rig.run();
+    Gradients g;
+    std::string message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    rig.workflow->finish();
+    EXPECT_EQ(liveIn(rig), 0);
+    EXPECT_EQ(deadUsesIn(rig), 0);
+    EXPECT_EQ(rig.workflow->refusedReleases(), 0);
 }

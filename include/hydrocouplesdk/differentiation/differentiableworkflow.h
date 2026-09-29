@@ -47,6 +47,14 @@
  * O(log N) and replays as O(N log N); the gradients are identical, because
  * every step is still differentiated at exactly its own linearization point.
  *
+ * Releasing (ICheckpointableModelComponent::releaseState). Every checkpoint
+ * this workflow saves is released exactly once, as soon as nothing can
+ * restore it: a rung the ladder drops, a bisection temporary when its half
+ * is done, the final state backward() returns to once it is back, and every
+ * remaining rung on clearRecording(), prepare() and finish(). The workflow's
+ * destructor does NOT release (the components may already be gone): finish
+ * the workflow, or call clearRecording(), before destroying it.
+ *
  * Float64 items only in G2.1. Nothing here depends on LibTorch: this is the
  * Torch-free floor; the optional Torch layer (G2.3) sits on top of it.
  */
@@ -181,8 +189,17 @@ public:
     //! The steps k (state after k steps) whose checkpoint is held, ascending.
     [[nodiscard]] std::vector<int> checkpointedSteps() const;
 
-    //! Forgets the recorded steps; the next step starts a new record.
+    //! Forgets the recorded steps, releasing every checkpoint still held;
+    //! the next step starts a new record.
     void clearRecording();
+
+    //! Releases the record, then finishes as a TimeSteppedWorkflow does.
+    void finish() override;
+
+    //! Checkpoint tokens released so far (one per component per checkpoint),
+    //! and how many of those releases a component refused.
+    [[nodiscard]] int releasedTokens() const noexcept;
+    [[nodiscard]] int refusedReleases() const noexcept;
 
     /*!
      * \brief Reverse pass over every recorded step.
@@ -210,6 +227,7 @@ private:
     [[nodiscard]] std::vector<HydroCouple::IModelComponent *> scheduleOrder() const;
     bool saveAll(std::vector<std::string> &tokens, std::string &message);
     bool restoreAll(const std::vector<std::string> &tokens, std::string &message);
+    void releaseAll(const std::vector<std::string> &tokens);
     void thinLadder();
     void notePeak(int extra);
     bool replayStep(int step, std::string &message);
@@ -226,6 +244,8 @@ private:
     int m_linearizedAt = -1;   //!< 1-based step whose update() is the latest
     int m_replays = 0;
     int m_peak = 0;
+    int m_released = 0;
+    int m_refusedReleases = 0;
 };
 
 } // namespace HydroCouple::SDK::Differentiation

@@ -188,9 +188,45 @@ int DifferentiableWorkflow::replays() const noexcept
 
 void DifferentiableWorkflow::clearRecording()
 {
+    for (auto &entry : m_checkpoints)
+        releaseAll(entry.second);
     m_records.clear();
     m_checkpoints.clear();
     m_linearizedAt = -1;
+}
+
+void DifferentiableWorkflow::finish()
+{
+    clearRecording();   // while the components are still unfinished
+    TimeSteppedWorkflow::finish();
+}
+
+int DifferentiableWorkflow::releasedTokens() const noexcept
+{
+    return m_released;
+}
+
+int DifferentiableWorkflow::refusedReleases() const noexcept
+{
+    return m_refusedReleases;
+}
+
+void DifferentiableWorkflow::releaseAll(const std::vector<std::string> &tokens)
+{
+    const auto order = scheduleOrder();
+    for (size_t i = 0; i < order.size() && i < tokens.size(); ++i)
+    {
+        if (tokens[i].empty())
+            continue;   // a component without Capability::Checkpointing
+        auto *cp = checkpointable(order[i]);
+        if (!cp)
+            continue;
+        std::string why;
+        if (cp->releaseState(tokens[i], why))
+            ++m_released;
+        else
+            ++m_refusedReleases;
+    }
 }
 
 void DifferentiableWorkflow::setCheckpointPolicy(CheckpointPolicy policy)
@@ -240,7 +276,13 @@ void DifferentiableWorkflow::thinLadder()
         int power = 1;
         while (power * 2 <= d)
             power *= 2;
-        it = (k % power) == 0 ? std::next(it) : m_checkpoints.erase(it);
+        if ((k % power) == 0)
+        {
+            ++it;
+            continue;
+        }
+        releaseAll(it->second);
+        it = m_checkpoints.erase(it);
     }
 }
 
@@ -612,6 +654,7 @@ bool DifferentiableWorkflow::reverseRange(int lo, int hi, Pass &pass,
     m_checkpoints[mid] = std::move(tokens);
     notePeak(1);   // + the final state backward() will return to
     const bool upper = reverseRange(mid, hi, pass, message);
+    releaseAll(m_checkpoints[mid]);
     m_checkpoints.erase(mid);
     return upper && reverseRange(lo, mid, pass, message);
 }
@@ -665,6 +708,7 @@ bool DifferentiableWorkflow::backward(const SeedFunction &seedFunction,
                 ok = false;
                 message = restoreWhy;   // the pass succeeded; coming back did not
             }
+            releaseAll(finalTokens);    // back (or not): it cannot be used again
             m_linearizedAt = -1;
         }
         return ok;

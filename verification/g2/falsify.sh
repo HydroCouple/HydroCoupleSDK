@@ -133,8 +133,7 @@ mutation "R1 ladder never thinned" $E \
   'if (m_policy != CheckpointPolicy::Logarithmic || m_checkpoints.empty())' \
   'if (true)' "$C"
 mutation "R2 ladder over-thinned (drops the newest rung)" $E \
-  'it = (k % power) == 0 ? std::next(it) : m_checkpoints.erase(it);' \
-  'it = (k % (2 * power)) == 0 ? std::next(it) : m_checkpoints.erase(it);' "$C"
+  'if ((k % power) == 0)' 'if ((k % (2 * power)) == 0)' "$C"
 mutation "R3 bisection temporaries never dropped" $E \
   '    m_checkpoints.erase(mid);
 ' '' "$C"
@@ -145,9 +144,11 @@ mutation "R5 peak metric forgets the temporaries" $E \
 ' '' "$C"
 mutation "R6 lower half reversed before the upper" $E \
   '    const bool upper = reverseRange(mid, hi, pass, message);
+    releaseAll(m_checkpoints[mid]);
     m_checkpoints.erase(mid);
     return upper && reverseRange(lo, mid, pass, message);' \
   '    const bool lower = reverseRange(lo, mid, pass, message);
+    releaseAll(m_checkpoints[mid]);
     m_checkpoints.erase(mid);
     return lower && reverseRange(mid, hi, pass, message);' "$X"
 mutation "R7 recompute skipped (stale linearization)" $E \
@@ -155,6 +156,31 @@ mutation "R7 recompute skipped (stale linearization)" $E \
         return true;   // already the latest update(): nothing to recompute' \
   '    if (true)
         return true;   // already the latest update(): nothing to recompute' "$X"
+
+echo "== releaseState: every dropped checkpoint is released exactly once"
+mutation "X1 a dropped rung is not released" $E \
+  '        releaseAll(it->second);
+        it = m_checkpoints.erase(it);' '        it = m_checkpoints.erase(it);' \
+  'DifferentiationTest.EveryCheckpointTheLadderDropsIsReleased'
+mutation "X2 a bisection temporary is not released" $E \
+  '    releaseAll(m_checkpoints[mid]);
+' '' 'DifferentiationTest.BackwardReleasesItsTemporariesAndTheFinalState'
+mutation "X3 the final state is not released" $E \
+  '            releaseAll(finalTokens);    // back (or not): it cannot be used again
+' '' 'DifferentiationTest.BackwardReleasesItsTemporariesAndTheFinalState'
+mutation "X4 clearRecording forgets without releasing" $E \
+  '    for (auto &entry : m_checkpoints)
+        releaseAll(entry.second);
+    m_records.clear();' '    m_records.clear();' \
+  'DifferentiationTest.ClearingOrFinishingReleasesTheRecord'
+mutation "X5 finish() does not release the record" $E \
+  '    clearRecording();   // while the components are still unfinished
+' '' 'DifferentiationTest.ClearingOrFinishingReleasesTheRecord'
+mutation "X6 a temporary released twice" $E \
+  '    releaseAll(m_checkpoints[mid]);
+' '    releaseAll(m_checkpoints[mid]);
+    releaseAll(m_checkpoints[mid]);
+' 'DifferentiationTest.NoTokenIsEverReleasedTwice'
 
 echo
 echo "caught=$caught failures=$failures"
