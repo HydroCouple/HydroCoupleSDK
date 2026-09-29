@@ -51,3 +51,25 @@ in `c3fa4cd` was not exercised, because the run was not interrupted.
 component whose token names a file, every rung the ladder drops leaves a
 file on disk: O(N) disk behind an O(log N) ladder. Adding it is an
 additive interface change and the review's decision.
+
+*Since answered:* `releaseState` landed in the interface as ABI 3
+(HydroCouple `7e6d142`) and in the engine (`b74cdbf`). It has its own
+hand-off (`plans/hydrocouple/RELEASE_STATE_HANDOFF_2026-09-29.md`).
+
+## Re-verified at `5003ec2` (2026-09-29)
+
+The G2.2 engine code changed after the run above. `b74cdbf` releases
+every checkpoint the engine drops, and `5003ec2` (G2.3) moves the
+reservoir fixture into a shared header. The G2.2 claims were therefore
+re-run at the tip, again on `build-macos-full` with
+`HYDROCOUPLESDK_WITH_TORCH=OFF`.
+
+| Check | Result |
+|---|---|
+| The five G2.2 gates, by name | **5 passed** |
+| `Differentiation*` (G2.2's 21 + 8 from `releaseState`) | **29 passed** |
+| Full `HydroCoupleSDKTests` | **358 passed, 1 skipped, 0 failed** |
+| Ladder table | unchanged: 5/8/15, 8/15/344, 11/21/5028 |
+| `falsify.sh` | **32/32 CAUGHT**, none by build failure. That is G2.2's 23, plus 7 `releaseState` rows (X1–X7) and 2 `rewind()` rows (W1–W2). The G2.3 Torch rows skip in this build. |
+
+The tree was clean after the run.
