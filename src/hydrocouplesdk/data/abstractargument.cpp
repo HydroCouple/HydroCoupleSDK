@@ -26,6 +26,16 @@ AbstractArgument::AbstractArgument(
 {
 }
 
+HydroCouple::IArgument::ArgumentRole AbstractArgument::role() const
+{
+    return m_role;
+}
+
+void AbstractArgument::setRole(HydroCouple::IArgument::ArgumentRole role)
+{
+    m_role = role;
+}
+
 bool AbstractArgument::isOptional() const
 {
     return m_isOptional;

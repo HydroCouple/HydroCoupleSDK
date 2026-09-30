@@ -89,6 +89,12 @@ public:
 
     // ── IPartitionedComponentDataItem ────────────────────────────────────
 
+    //! This item has a single (entity) dimension, so axis 0 is the decomposed one.
+    [[nodiscard]] int32_t partitionedDimension() const override
+    {
+        return 0;
+    }
+
     [[nodiscard]] int64_t globalCount() const override
     {
         return m_globalCount;
@@ -154,6 +160,9 @@ public:
                     m_failure = message;
                 m_complete = true;
             }
+            // Cancellation is not supported by this request: report whether the
+            // operation has already completed (true) or is still pending (false).
+            [[nodiscard]] bool cancel() override { return test(); }
             bool failed(std::string &message) const override
             {
                 message = m_failure;

@@ -87,6 +87,11 @@ std::vector<HydroCouple::IComponentDataItem *> AbstractModelComponent::results()
     return {};
 }
 
+std::vector<HydroCouple::IComponentDataItem *> AbstractModelComponent::states() const
+{
+    return {};
+}
+
 void AbstractModelComponent::initialize()
 {
     auto prevStatus = m_status;

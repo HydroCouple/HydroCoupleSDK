@@ -4,8 +4,23 @@
 #include "stdafx.h"
 #include "hydrocouplesdk/data/abstractadaptedoutput.h"
 #include "hydrocouplesdk/data/abstractargument.h"
+#include "hydrocouplesdk/component/abstractmodelcomponent.h"
+
+#include <stdexcept>
 
 namespace HydroCouple::SDK {
+
+AbstractAdaptedOutput::~AbstractAdaptedOutput()
+{
+    // An adapter is itself an adaptee when it heads a chain: detach the
+    // adapters built on it, as ~AbstractOutput() does, so that whichever end
+    // of a chain is destroyed first, no survivor calls back into it.
+    for (auto &[key, adapted] : m_adaptedOutputs)
+        if (auto *sdk = dynamic_cast<AbstractAdaptedOutput *>(adapted))
+            sdk->detachFromAdaptee();
+    if (m_adaptee)
+        (void)m_adaptee->removeAdaptedOutput(this);
+}
 
 AbstractAdaptedOutput::AbstractAdaptedOutput(
     std::string_view id,
@@ -33,7 +48,23 @@ std::vector<HydroCouple::IInput *> AbstractAdaptedOutput::consumers() const
 
 void AbstractAdaptedOutput::addConsumer(HydroCouple::IInput *consumer)
 {
+    // The single wiring entry point, exactly as AbstractOutput::addConsumer():
+    // an adapted output is an IOutput, and ModelInitializer wires a chain's
+    // tail through this call alone, so it must set the consumer's provider.
     if (!consumer) return;
+
+    std::string why;
+    if (!consumer->canConsume(this, why) || !consumer->setProvider(this))
+    {
+        const std::string message = "Adapted output \"" + id() +
+                                    "\" cannot be consumed by input \"" +
+                                    consumer->id() + "\"" +
+                                    (why.empty() ? "" : ": " + why);
+        if (auto *owner = dynamic_cast<AbstractModelComponent *>(modelComponent()))
+            owner->queueError(HydroCouple::ErrorEntry::Severity::Error, 0, message);
+        throw std::invalid_argument(message);
+    }
+
     m_consumers[consumer->id()] = consumer;
     emitPropertyChanged("Consumers");
 }
@@ -44,6 +75,7 @@ bool AbstractAdaptedOutput::removeConsumer(HydroCouple::IInput *consumer)
     auto it = m_consumers.find(consumer->id());
     if (it != m_consumers.end() && it->second == consumer) {
         m_consumers.erase(it);
+        (void)consumer->setProvider(nullptr);
         emitPropertyChanged("Consumers");
         return true;
     }

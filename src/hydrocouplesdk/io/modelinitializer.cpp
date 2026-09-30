@@ -823,7 +823,18 @@ bool ModelInitializer::applyConnections(std::string &message)
         }
         else
         {
-            wired = input->setProvider(effective);
+            // IOutput::addConsumer() is the single wiring entry point: it
+            // checks canConsume(), records the consumer and sets its provider.
+            try
+            {
+                effective->addConsumer(input);
+                wired = true;
+            }
+            catch (const std::exception &e)
+            {
+                message = context + ": " + e.what();
+                return false;
+            }
         }
 
         if (!wired)
@@ -835,9 +846,6 @@ bool ModelInitializer::applyConnections(std::string &message)
                       (why.empty() ? "" : (": " + why));
             return false;
         }
-
-        // Keep the provider's consumer list symmetric with the wiring.
-        effective->addConsumer(input);
         ++index;
     }
     message.clear();

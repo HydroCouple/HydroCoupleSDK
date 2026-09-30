@@ -116,6 +116,45 @@ IDimension *TimeSeriesArgumentDouble::timeDimension() const
     return m_timeDim;
 }
 
+HydroCouple::Temporal::TimeKind TimeSeriesArgumentDouble::timeKind() const
+{
+    return m_timeKind;
+}
+
+double TimeSeriesArgumentDouble::intervalLength() const
+{
+    return m_intervalLength;
+}
+
+HydroCouple::Temporal::TimeInterpolation TimeSeriesArgumentDouble::timeInterpolation() const
+{
+    // getInterpolatedValue() interpolates linearly and holds the ends, so
+    // these defaults describe what the argument actually does.
+    return m_timeInterpolation;
+}
+
+HydroCouple::Temporal::TimeExtrapolation TimeSeriesArgumentDouble::timeExtrapolation() const
+{
+    return m_timeExtrapolation;
+}
+
+void TimeSeriesArgumentDouble::setTimeKind(HydroCouple::Temporal::TimeKind kind,
+                                           double intervalLengthDays)
+{
+    m_timeKind = kind;
+    m_intervalLength = intervalLengthDays;
+}
+
+void TimeSeriesArgumentDouble::setTimeInterpolation(HydroCouple::Temporal::TimeInterpolation policy)
+{
+    m_timeInterpolation = policy;
+}
+
+void TimeSeriesArgumentDouble::setTimeExtrapolation(HydroCouple::Temporal::TimeExtrapolation policy)
+{
+    m_timeExtrapolation = policy;
+}
+
 std::vector<int64_t> TimeSeriesArgumentDouble::shape() const
 {
     return {static_cast<int64_t>(m_timeSeries ? m_timeSeries->count() : 0)};
@@ -303,6 +342,10 @@ nlohmann::json TimeSeriesArgumentDouble::writeData() const
     auto j = AbstractArgument::writeData();
     j["times"]  = m_timeSeries->times();
     j["values"] = m_timeSeries->values();
+    j["timeKind"]          = static_cast<int>(m_timeKind);
+    j["intervalLength"]    = m_intervalLength;
+    j["timeInterpolation"] = static_cast<int>(m_timeInterpolation);
+    j["timeExtrapolation"] = static_cast<int>(m_timeExtrapolation);
     return j;
 }
 
@@ -338,6 +381,14 @@ bool TimeSeriesArgumentDouble::assignFromJson(const nlohmann::json &j,
     m_timeSeries->clear();
     for (size_t i = 0; i < times.size(); ++i)
         m_timeSeries->addValue(times[i], values[i]);
+    if (j.contains("timeKind"))
+        m_timeKind = static_cast<HydroCouple::Temporal::TimeKind>(j["timeKind"].get<int>());
+    if (j.contains("intervalLength"))
+        m_intervalLength = j["intervalLength"].get<double>();
+    if (j.contains("timeInterpolation"))
+        m_timeInterpolation = static_cast<HydroCouple::Temporal::TimeInterpolation>(j["timeInterpolation"].get<int>());
+    if (j.contains("timeExtrapolation"))
+        m_timeExtrapolation = static_cast<HydroCouple::Temporal::TimeExtrapolation>(j["timeExtrapolation"].get<int>());
     return true;
 }
 

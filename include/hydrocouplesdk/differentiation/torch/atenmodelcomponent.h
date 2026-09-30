@@ -89,6 +89,9 @@ public:
     void update(const std::vector<HydroCouple::IOutput *> &requiredOutputs = {}) final;
     void finish() override;
     [[nodiscard]] std::set<HydroCouple::Capability> capabilities() const override;
+    //! The prognostic state: differentiableStates() (which the interface
+    //! requires to be a subset). Override to add state step() does not see.
+    [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *> states() const override;
 
     // -- ICheckpointableModelComponent ---------------------------------------
     bool saveState(std::string &token, std::string &message) override;

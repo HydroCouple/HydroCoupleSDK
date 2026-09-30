@@ -31,7 +31,7 @@ namespace {
 struct BackendCase
 {
     std::string                                    label;
-    std::function<std::unique_ptr<DeviceBackend>()> make;
+    std::function<std::unique_ptr<SDK::Device::DeviceBackend>()> make;
 };
 
 std::vector<BackendCase> backendCases()
@@ -90,7 +90,7 @@ class DeviceBackendConformance
 protected:
     void SetUp() override { m_backend = GetParam().make(); }
 
-    std::unique_ptr<DeviceBackend> m_backend;
+    std::unique_ptr<SDK::Device::DeviceBackend> m_backend;
 };
 
 } // namespace

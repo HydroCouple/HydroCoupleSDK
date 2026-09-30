@@ -61,6 +61,19 @@ public:
     [[nodiscard]] HydroCouple::IDimension::LengthType lengthType() const override;
 
     /*!
+     * \brief What this axis means (time, entity, layer, ...).
+     * \details Inferred from a well-known id at construction ("time",
+     * "layers", "faces", "x_cells", ...; see dimension.cpp) and otherwise
+     * DimensionRole::Unknown until setRole() is called.
+     */
+    [[nodiscard]] HydroCouple::IDimension::DimensionRole role() const override;
+
+    /*!
+     * \brief Sets the role and fires propertyChanged("Role").
+     */
+    void setRole(HydroCouple::IDimension::DimensionRole role);
+
+    /*!
      * \brief Sets the length type and fires propertyChanged("LengthType").
      * \param lt  New length type.
      */
@@ -84,6 +97,8 @@ public:
 private:
     HydroCouple::IDimension::LengthType m_lengthType =
         HydroCouple::IDimension::LengthType::Dynamic;
+    HydroCouple::IDimension::DimensionRole m_role =
+        HydroCouple::IDimension::DimensionRole::Unknown;
 };
 
 } // namespace HydroCouple::SDK

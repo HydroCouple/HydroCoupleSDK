@@ -120,6 +120,18 @@ public:
      */
     [[nodiscard]] HydroCouple::IDimension *timeDimension() const override;
 
+    // ── Temporal semantics ────────────────────────────────────────────────
+    // Persisted with the series ("timeKind", "intervalLength",
+    // "timeInterpolation", "timeExtrapolation" keys in the JSON form).
+
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override;
+    [[nodiscard]] double intervalLength() const override;
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override;
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override;
+    void setTimeKind(HydroCouple::Temporal::TimeKind kind, double intervalLengthDays = 0.0);
+    void setTimeInterpolation(HydroCouple::Temporal::TimeInterpolation policy);
+    void setTimeExtrapolation(HydroCouple::Temporal::TimeExtrapolation policy);
+
     // ── IArgument ─────────────────────────────────────────────────────────
 
     /*!
@@ -179,6 +191,10 @@ private:
 
     std::shared_ptr<TimeSeries> m_timeSeries;
     HydroCouple::SDK::Dimension     *m_timeDim;
+    HydroCouple::Temporal::TimeKind m_timeKind = HydroCouple::Temporal::TimeKind::Unknown;
+    double m_intervalLength = 0.0;
+    HydroCouple::Temporal::TimeInterpolation m_timeInterpolation = HydroCouple::Temporal::TimeInterpolation::Linear;
+    HydroCouple::Temporal::TimeExtrapolation m_timeExtrapolation = HydroCouple::Temporal::TimeExtrapolation::HoldLast;
     std::filesystem::path       m_inputFile;
 
     //! IDateTime objects the interface must hand out, built on demand.

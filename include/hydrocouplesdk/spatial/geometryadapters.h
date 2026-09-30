@@ -61,7 +61,7 @@ public:
      * \param[in] index Position within the owning collection.
      * \param[in] srs   Spatial reference (borrowed; may be nullptr).
      */
-    GeometryAdapter(std::string id, unsigned int index,
+    GeometryAdapter(std::string id, int64_t index,
                     HydroCouple::Spatial::ISpatialReferenceSystem *srs);
 
     ~GeometryAdapter() override = default;
@@ -78,7 +78,7 @@ public:
     // ── IGeometry: identity and description ───────────────────────────────
 
     [[nodiscard]] const std::string &id() const override { return m_id; }
-    [[nodiscard]] unsigned int index() const override { return m_index; }
+    [[nodiscard]] int64_t index() const override { return m_index; }
     [[nodiscard]] int coordinateDimension() const override { return 2; }
 
     [[nodiscard]] HydroCouple::Spatial::ISpatialReferenceSystem *
@@ -101,7 +101,7 @@ public:
     // "no" rather than guessed, and the WKB above is what a caller with GEOS
     // or GDAL uses instead.
 
-    [[nodiscard]] IGeometry *boundary() const override { return nullptr; }
+    [[nodiscard]] std::unique_ptr<IGeometry> boundary() const override { return nullptr; }
     [[nodiscard]] bool equals(const IGeometry &) const override
     {
         return false;
@@ -134,15 +134,15 @@ public:
     {
         return false;
     }
-    [[nodiscard]] bool relate(const IGeometry &) const override
+    [[nodiscard]] bool relate(const IGeometry &, const std::string &) const override
     {
         return false;
     }
-    [[nodiscard]] IGeometry *locateAlong(double) const override
+    [[nodiscard]] std::unique_ptr<IGeometry> locateAlong(double) const override
     {
         return nullptr;
     }
-    [[nodiscard]] IGeometry *locateBetween(double, double) const override
+    [[nodiscard]] std::unique_ptr<IGeometry> locateBetween(double, double) const override
     {
         return nullptr;
     }
@@ -150,21 +150,21 @@ public:
     {
         return 0.0;
     }
-    [[nodiscard]] IGeometry *buffer(double) const override { return nullptr; }
-    [[nodiscard]] IGeometry *convexHull() const override { return nullptr; }
-    [[nodiscard]] IGeometry *intersection(const IGeometry &) const override
+    [[nodiscard]] std::unique_ptr<IGeometry> buffer(double) const override { return nullptr; }
+    [[nodiscard]] std::unique_ptr<IGeometry> convexHull() const override { return nullptr; }
+    [[nodiscard]] std::unique_ptr<IGeometry> intersection(const IGeometry &) const override
     {
         return nullptr;
     }
-    [[nodiscard]] IGeometry *unionG(const IGeometry &) const override
+    [[nodiscard]] std::unique_ptr<IGeometry> unionG(const IGeometry &) const override
     {
         return nullptr;
     }
-    [[nodiscard]] IGeometry *difference(const IGeometry &) const override
+    [[nodiscard]] std::unique_ptr<IGeometry> difference(const IGeometry &) const override
     {
         return nullptr;
     }
-    [[nodiscard]] IGeometry *symmetricDifference(
+    [[nodiscard]] std::unique_ptr<IGeometry> symmetricDifference(
         const IGeometry &) const override
     {
         return nullptr;
@@ -177,7 +177,7 @@ protected:
     void setEnvelope(const Envelope &envelope) { m_envelope.setEnvelope(envelope); }
 
     std::string m_id;
-    unsigned int m_index = 0;
+    int64_t m_index = 0;
     HydroCouple::Spatial::ISpatialReferenceSystem *m_srs = nullptr;
     mutable EnvelopeAdapter m_envelope;
 };
@@ -197,7 +197,7 @@ public:
      * \brief Construct over a copy of \p point.
      */
     PointAdapter(const Point &point, std::string id = "point",
-                 unsigned int index = 0,
+                 int64_t index = 0,
                  HydroCouple::Spatial::ISpatialReferenceSystem *srs = nullptr);
 
     ~PointAdapter() override = default;
@@ -240,7 +240,7 @@ public:
      */
     LineStringAdapter(
         const LineString &line, std::string id = "linestring",
-        unsigned int index = 0,
+        int64_t index = 0,
         HydroCouple::Spatial::ISpatialReferenceSystem *srs = nullptr);
 
     ~LineStringAdapter() override = default;
@@ -266,12 +266,12 @@ public:
 
     // ── ICurve / ILineString ──────────────────────────────────────────────
 
-    [[nodiscard]] int pointCount() const override
+    [[nodiscard]] int64_t pointCount() const override
     {
         return m_line.pointCount();
     }
 
-    [[nodiscard]] HydroCouple::Spatial::IPoint *point(int index) const override;
+    [[nodiscard]] HydroCouple::Spatial::IPoint *point(int64_t index) const override;
 
     [[nodiscard]] double length() const override { return m_line.length(); }
 
@@ -306,7 +306,7 @@ public:
      */
     PolygonAdapter(
         const Polygon &polygon, std::string id = "polygon",
-        unsigned int index = 0,
+        int64_t index = 0,
         HydroCouple::Spatial::ISpatialReferenceSystem *srs = nullptr);
 
     ~PolygonAdapter() override = default;
@@ -335,21 +335,23 @@ public:
     [[nodiscard]] HydroCouple::Spatial::ILineString *exteriorRing()
         const override;
 
-    [[nodiscard]] int interiorRingCount() const override
+    [[nodiscard]] int64_t interiorRingCount() const override
     {
         return m_polygon.numInteriorRings();
     }
 
     [[nodiscard]] HydroCouple::Spatial::ILineString *interiorRing(
-        int index) const override;
+        int64_t index) const override;
 
     [[nodiscard]] double area() const override { return m_polygon.area(); }
 
-    [[nodiscard]] HydroCouple::Spatial::IPoint *centroid() const override;
+    //! Newly constructed, caller-owned (interface ownership convention).
+    [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IPoint> centroid() const override;
 
-    [[nodiscard]] HydroCouple::Spatial::IPoint *pointOnSurface() const override;
+    //! Newly constructed, caller-owned (interface ownership convention).
+    [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IPoint> pointOnSurface() const override;
 
-    [[nodiscard]] HydroCouple::Spatial::IMultiCurve *boundaryMultiCurve()
+    [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IMultiCurve> boundaryMultiCurve()
         const override
     {
         return nullptr;

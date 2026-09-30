@@ -19,40 +19,13 @@
 
 namespace HydroCouple::SDK {
 
-// ── ExchangeItemChangeEventArgs ───────────────────────────────────────────
-
-/*!
- * \brief Concrete implementation of HydroCouple::IExchangeItemChangeEventArgs.
- *
- * Carries a pointer to the exchange item that fired the event and a
- * human-readable message describing the change.
- */
-class HYDROCOUPLESDK_EXPORT ExchangeItemChangeEventArgs
-    : public HydroCouple::IExchangeItemChangeEventArgs
-{
-public:
-    ExchangeItemChangeEventArgs(HydroCouple::IExchangeItem *item,
-                                 std::string message = {});
-
-    ~ExchangeItemChangeEventArgs() override = default;
-
-    [[nodiscard]] HydroCouple::IExchangeItem *exchangeItem() const override;
-    [[nodiscard]] std::string                 message()      const override;
-
-private:
-    HydroCouple::IExchangeItem *m_item;
-    std::string                 m_message;
-};
-
-
 // ── AbstractExchangeItem ──────────────────────────────────────────────────
 
 /*!
  * \brief Abstract base class for HydroCouple::IExchangeItem.
  *
- * Extends AbstractComponentDataItem with the exchange-item signal
- * (ISignal<const shared_ptr<IExchangeItemChangeEventArgs>&>) and a
- * helper emitMessage() used by subclasses to fire status notifications.
+ * Extends AbstractComponentDataItem with a helper emitMessage() used by
+ * subclasses to fire value-changed notifications with a status message.
  *
  * IExchangeItem itself adds no extra pure virtuals beyond IComponentDataItem;
  * the concrete data is added by IInput/IOutput subclasses.

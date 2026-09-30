@@ -63,7 +63,7 @@ public:
      */
     TimeRegularGrid2DComponentDataItem(
         std::string_view id, HydroCouple::Spatial::IRegularGrid2D *grid,
-        HydroCouple::Spatial::MeshDataObjectType objectType, int yCells,
+        HydroCouple::Spatial::MeshLocation objectType, int yCells,
         int xCells, ValueDefinition *valueDef = nullptr,
         HydroCouple::IModelComponent *mc = nullptr)
         : AbstractComponentDataItem(
@@ -110,6 +110,26 @@ public:
         return const_cast<Dimension *>(&m_timeDimension);
     }
 
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeKind();
+    }
+
+    [[nodiscard]] double intervalLength() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::intervalLength();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeInterpolation();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeExtrapolation();
+    }
+
     // ── IRegularGrid2DComponentDataItem ───────────────────────────────────
 
     [[nodiscard]] HydroCouple::Spatial::IRegularGrid2D *grid() const override
@@ -117,8 +137,8 @@ public:
         return m_grid;
     }
 
-    [[nodiscard]] HydroCouple::Spatial::MeshDataObjectType
-    meshDataObjectType() const override
+    [[nodiscard]] HydroCouple::Spatial::MeshLocation
+    location() const override
     {
         return m_objectType;
     }
@@ -198,7 +218,7 @@ public:
 
 private:
     HydroCouple::Spatial::IRegularGrid2D     *m_grid;
-    HydroCouple::Spatial::MeshDataObjectType  m_objectType;
+    HydroCouple::Spatial::MeshLocation  m_objectType;
     int m_yCells;
     int m_xCells;
     Dimension m_timeDimension;
@@ -234,7 +254,7 @@ public:
      */
     TimeRegularGrid3DComponentDataItem(
         std::string_view id, HydroCouple::Spatial::IRegularGrid3D *grid,
-        HydroCouple::Spatial::MeshDataObjectType objectType, int zCells,
+        HydroCouple::Spatial::MeshLocation objectType, int zCells,
         int yCells, int xCells, ValueDefinition *valueDef = nullptr,
         HydroCouple::IModelComponent *mc = nullptr)
         : AbstractComponentDataItem(
@@ -285,6 +305,26 @@ public:
         return const_cast<Dimension *>(&m_timeDimension);
     }
 
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeKind();
+    }
+
+    [[nodiscard]] double intervalLength() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::intervalLength();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeInterpolation();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeExtrapolation();
+    }
+
     // ── IRegularGrid3DComponentDataItem ───────────────────────────────────
 
     [[nodiscard]] HydroCouple::Spatial::IRegularGrid3D *grid() const override
@@ -292,8 +332,8 @@ public:
         return m_grid;
     }
 
-    [[nodiscard]] HydroCouple::Spatial::MeshDataObjectType
-    meshDataObjectType() const override
+    [[nodiscard]] HydroCouple::Spatial::MeshLocation
+    location() const override
     {
         return m_objectType;
     }
@@ -376,7 +416,7 @@ public:
 
 private:
     HydroCouple::Spatial::IRegularGrid3D     *m_grid;
-    HydroCouple::Spatial::MeshDataObjectType  m_objectType;
+    HydroCouple::Spatial::MeshLocation  m_objectType;
     int m_zCells;
     int m_yCells;
     int m_xCells;

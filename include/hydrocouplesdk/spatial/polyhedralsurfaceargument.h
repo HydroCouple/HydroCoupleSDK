@@ -134,7 +134,7 @@ public:
     // that reason: a cache invalidated at four call sites is a cache that
     // will be stale at the fifth.
 
-    [[nodiscard]] HydroCouple::Spatial::MeshDataObjectType meshDataObjectType()
+    [[nodiscard]] HydroCouple::Spatial::MeshLocation location()
         const override;
 
     [[nodiscard]] HydroCouple::Spatial::SpatialDataType meshDataType()
@@ -151,9 +151,11 @@ public:
     [[nodiscard]] HydroCouple::Spatial::IPolyhedralSurface *polyhedralSurface()
         const override;
 
-    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override;
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override;
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override;
+    //! The node axis — the one the argument's { nodes, 3 } shape is indexed by.
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override;
+
+    //! Node positions are Cartesian x, y, z in the surface's reference system.
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override;
 
     // ── Mesh access ───────────────────────────────────────────────────────
 
@@ -206,13 +208,6 @@ private:
 
     //! Built on demand from m_mesh; dropped by adoptMesh().
     mutable std::unique_ptr<PolyhedralSurfaceAdapter> m_surface;
-
-    //! The two axes a surface has that the argument's own shape does not.
-    //! The vertex axis is m_nodeDimension below — the one the argument is
-    //! already indexed by — because a second dimension object meaning the
-    //! same thing is a second thing that can disagree.
-    Dimension m_patchDimension{"patch", "Mesh face"};
-    Dimension m_edgeDimension{"edge", "Mesh edge"};
 
     Dimension m_nodeDimension{"node", "Mesh node"};
     Dimension m_coordinateDimension{"coordinate", "x, y, z"};

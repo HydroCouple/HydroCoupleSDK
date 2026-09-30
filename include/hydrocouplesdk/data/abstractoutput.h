@@ -47,7 +47,12 @@ public:
                    ValueDefinition *valueDefinition,
                    HydroCouple::IModelComponent *modelComponent);
 
-    ~AbstractOutput() override = default;
+    /*!
+     * \brief Orphans any SDK adapters still registered, so an adapter that
+     *        outlives its adaptee does not deregister through a dangling
+     *        pointer in its own destructor.
+     */
+    ~AbstractOutput() override;
 
     // ── IOutput ───────────────────────────────────────────────────────────
 

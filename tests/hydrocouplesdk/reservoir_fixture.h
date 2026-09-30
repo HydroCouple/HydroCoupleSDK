@@ -191,6 +191,7 @@ public:
     {
         return {storage.get()};
     }
+    std::vector<IComponentDataItem *> states() const override { return {storage.get()}; }
 
     bool vjp(DifferentialSet seeds, DifferentialSet results, std::string *message) override
     {

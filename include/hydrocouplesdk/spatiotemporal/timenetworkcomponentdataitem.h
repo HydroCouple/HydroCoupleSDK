@@ -9,7 +9,7 @@
  *         time (plan §7a).
  *
  * Implements the standard's ITimeNetworkComponentDataItem: time is
- * dimension 0, the entity dimension selected by networkDataObjectType()
+ * dimension 0, the entity dimension selected by location()
  * (edge or node) is dimension 1 — shape() = { timeCount, entityCount }.
  * The INetwork association is borrowed from the owning component; the
  * item owns values and dimensions.
@@ -57,7 +57,7 @@ public:
      */
     TimeNetworkComponentDataItem(
         std::string_view id, HydroCouple::Spatial::INetwork *network,
-        HydroCouple::Spatial::NetworkDataObjectType objectType,
+        HydroCouple::Spatial::MeshLocation objectType,
         HydroCouple::Spatial::SpatialDataType dataType, int entityCount,
         ValueDefinition *valueDef = nullptr,
         HydroCouple::IModelComponent *mc = nullptr)
@@ -69,7 +69,7 @@ public:
           m_dataType(dataType),
           m_timeDimension("time", "Time dimension"),
           m_entityDimension(
-              objectType == HydroCouple::Spatial::NetworkDataObjectType::Edge
+              objectType == HydroCouple::Spatial::MeshLocation::Edge
                   ? "edges"
                   : "nodes",
               "Network entity dimension")
@@ -106,6 +106,26 @@ public:
         return const_cast<Dimension *>(&m_timeDimension);
     }
 
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeKind();
+    }
+
+    [[nodiscard]] double intervalLength() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::intervalLength();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeInterpolation();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeExtrapolation();
+    }
+
     // ── INetworkComponentDataItem ─────────────────────────────────────────
 
     [[nodiscard]] HydroCouple::Spatial::INetwork *network() const override
@@ -113,8 +133,8 @@ public:
         return m_network;
     }
 
-    [[nodiscard]] HydroCouple::Spatial::NetworkDataObjectType
-    networkDataObjectType() const override
+    [[nodiscard]] HydroCouple::Spatial::MeshLocation
+    location() const override
     {
         return m_objectType;
     }
@@ -125,20 +145,20 @@ public:
         return m_dataType;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
-        return m_objectType ==
-                       HydroCouple::Spatial::NetworkDataObjectType::Edge
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        return const_cast<Dimension *>(&m_entityDimension);
     }
 
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
     {
-        return m_objectType ==
-                       HydroCouple::Spatial::NetworkDataObjectType::Node
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        return m_vectorBasis;
+    }
+
+    //! Declares the frame of vector/tensor values (Unknown for scalars).
+    void setVectorBasis(HydroCouple::Spatial::VectorBasis basis)
+    {
+        m_vectorBasis = basis;
     }
 
     // ── v2 typed hyperslab data plane ────────────────────────────────────
@@ -176,8 +196,9 @@ public:
 
 private:
     HydroCouple::Spatial::INetwork               *m_network;
-    HydroCouple::Spatial::NetworkDataObjectType   m_objectType;
+    HydroCouple::Spatial::MeshLocation   m_objectType;
     HydroCouple::Spatial::SpatialDataType         m_dataType;
+    HydroCouple::Spatial::VectorBasis m_vectorBasis = HydroCouple::Spatial::VectorBasis::Unknown;
     Dimension m_timeDimension;
     Dimension m_entityDimension;
 };

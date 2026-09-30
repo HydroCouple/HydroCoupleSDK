@@ -144,6 +144,27 @@ public:
         return dimensions().empty() ? nullptr : dimensions().front();
     }
 
+    // What a recorded value's timestamp means is whatever the producer
+    // declared when it was written; the result catalogue does not (yet)
+    // carry that, so a reopened item answers honestly: not declared. A
+    // recorded series is served exactly at the instants it holds.
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return HydroCouple::Temporal::TimeKind::Unknown;
+    }
+
+    [[nodiscard]] double intervalLength() const override { return 0.0; }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return HydroCouple::Temporal::TimeInterpolation::None;
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return HydroCouple::Temporal::TimeExtrapolation::Refuse;
+    }
+
 protected:
     ResultEntry    m_entry;
     IResultReader *m_reader;
@@ -171,7 +192,7 @@ class SpatialRecordedItem final
       public virtual HydroCouple::SpatioTemporal::
           ITimeSeriesPolyhedralSurfaceComponentDataItem
 {
-    using MeshDataObjectType = HydroCouple::Spatial::MeshDataObjectType;
+    using MeshLocation = HydroCouple::Spatial::MeshLocation;
 
 public:
     SpatialRecordedItem(const ResultEntry &entry, IResultReader *reader,
@@ -186,13 +207,13 @@ public:
         switch (entry.location.value_or(IO::MeshLocation::Node))
         {
             case IO::MeshLocation::Edge:
-                m_objectType = MeshDataObjectType::Edge;
+                m_objectType = MeshLocation::Edge;
                 break;
             case IO::MeshLocation::Face:
-                m_objectType = MeshDataObjectType::Cell;
+                m_objectType = MeshLocation::Face;
                 break;
             default:
-                m_objectType = MeshDataObjectType::Vertex;
+                m_objectType = MeshLocation::Node;
                 break;
         }
     }
@@ -201,7 +222,7 @@ public:
 
     // ── IPolyhedralSurfaceComponentDataItem ──────────────────────────────
 
-    [[nodiscard]] MeshDataObjectType meshDataObjectType() const override
+    [[nodiscard]] MeshLocation location() const override
     {
         return m_objectType;
     }
@@ -220,40 +241,21 @@ public:
         return m_surface.get();
     }
 
-    /*!
-     * \brief The entity dimension, for the entity the values are on.
-     *
-     * The other two answer nullptr, which is what the SDK's own
-     * spatiotemporal items already promise: the accessors report where the
-     * values actually live rather than describing the mesh three times over.
-     */
-    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
     {
-        return m_objectType == MeshDataObjectType::Cell ? entityDimension()
-                                                        : nullptr;
+        // Scalars only (see meshDataType()).
+        return HydroCouple::Spatial::VectorBasis::Unknown;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
-    {
-        return m_objectType == MeshDataObjectType::Edge ? entityDimension()
-                                                        : nullptr;
-    }
-
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
-    {
-        return m_objectType == MeshDataObjectType::Vertex ? entityDimension()
-                                                          : nullptr;
-    }
-
-private:
     //! The dimension the values run along: the last, time being the first.
-    [[nodiscard]] HydroCouple::IDimension *entityDimension() const
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
         return dimensions().empty() ? nullptr : dimensions().back();
     }
 
+private:
     std::unique_ptr<Spatial::PolyhedralSurfaceAdapter> m_surface;
-    MeshDataObjectType m_objectType = MeshDataObjectType::Vertex;
+    MeshLocation m_objectType = MeshLocation::Node;
 };
 
 /*!

@@ -76,6 +76,12 @@ public:
     // ── IArgument ─────────────────────────────────────────────────────────
 
     /*!
+     * \brief What this argument is to the model (configuration, parameter,
+     *        initial condition, forcing, geometry). Defaults to Configuration.
+     */
+    [[nodiscard]] HydroCouple::IArgument::ArgumentRole role() const override;
+
+    /*!
      * \brief Returns true if the argument is optional (a missing value is acceptable).
      */
     [[nodiscard]] bool isOptional() const override;
@@ -190,6 +196,11 @@ public:
     // ── Setters (for subclass constructors) ──────────────────────────────
 
     /*!
+     * \brief Sets the argument's role.
+     */
+    void setRole(HydroCouple::IArgument::ArgumentRole role);
+
+    /*!
      * \brief Sets whether this argument is optional.
      */
     void setIsOptional(bool isOptional);
@@ -228,6 +239,8 @@ protected:
     void setSourceUri(const std::string &uri);
 
 private:
+    HydroCouple::IArgument::ArgumentRole m_role =
+        HydroCouple::IArgument::ArgumentRole::Configuration;
     bool m_isOptional        = false;
     bool m_isReadOnly        = false;
     HydroCouple::IArgument::ArgumentInputType m_currentArgType =

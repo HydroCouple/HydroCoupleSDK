@@ -9,7 +9,7 @@
  *         vertical layers.
  *
  * Implements the standard's `ILayeredMeshComponentDataItem`: the mesh entity
- * selected by `meshDataObjectType()` is dimension 0 and the layer is dimension
+ * selected by `location()` is dimension 0 and the layer is dimension
  * 1, so `shape() = { entityCount, layerCount }`. That ordering is not a free
  * choice — `IPolyhedralSurfaceComponentDataItem` fixes the entity as dimension
  * 0 with additional dimensions following, and this item has to remain readable
@@ -53,7 +53,7 @@ class LayeredMeshComponentDataItem
       public virtual HydroCouple::Spatial::ILayeredMeshComponentDataItem
 {
     using Store              = HydroCouple::SDK::ComponentDataItem2D<T>;
-    using MeshDataObjectType = HydroCouple::Spatial::MeshDataObjectType;
+    using MeshLocation = HydroCouple::Spatial::MeshLocation;
 
 public:
     /*!
@@ -74,7 +74,7 @@ public:
     LayeredMeshComponentDataItem(
         std::string_view id, HydroCouple::Spatial::IPolyhedralSurface *surface,
         HydroCouple::Spatial::IVerticalCoordinate *vertical,
-        MeshDataObjectType objectType,
+        MeshLocation objectType,
         HydroCouple::Spatial::SpatialDataType dataType, int entityCount,
         int layerCount, ValueDefinition *valueDef = nullptr,
         HydroCouple::IModelComponent *mc = nullptr)
@@ -94,7 +94,7 @@ public:
 
     // ── IPolyhedralSurfaceComponentDataItem ───────────────────────────────
 
-    [[nodiscard]] MeshDataObjectType meshDataObjectType() const override
+    [[nodiscard]] MeshLocation location() const override
     {
         return m_objectType;
     }
@@ -110,25 +110,20 @@ public:
         return m_surface;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
-        return m_objectType == MeshDataObjectType::Cell
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        return const_cast<Dimension *>(&m_entityDimension);
     }
 
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
     {
-        return m_objectType == MeshDataObjectType::Edge
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        return m_vectorBasis;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
+    //! Declares the frame of vector/tensor values (Unknown for scalars).
+    void setVectorBasis(HydroCouple::Spatial::VectorBasis basis)
     {
-        return m_objectType == MeshDataObjectType::Vertex
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        m_vectorBasis = basis;
     }
 
     // ── ILayering ─────────────────────────────────────────────────────────
@@ -179,22 +174,23 @@ public:
     }
 
 private:
-    [[nodiscard]] static const char *entityDimensionId(MeshDataObjectType objectType)
+    [[nodiscard]] static const char *entityDimensionId(MeshLocation objectType)
     {
         switch (objectType)
         {
-            case MeshDataObjectType::Cell:   return "patches";
-            case MeshDataObjectType::Edge:   return "edges";
-            case MeshDataObjectType::Vertex: return "vertices";
-            case MeshDataObjectType::Face:   return "faces";
+            case MeshLocation::Node:   return "nodes";
+            case MeshLocation::Edge:   return "edges";
+            case MeshLocation::Face:   return "faces";
+            case MeshLocation::Volume: return "volumes";
         }
         return "entities";
     }
 
     HydroCouple::Spatial::IPolyhedralSurface  *m_surface;
     HydroCouple::Spatial::IVerticalCoordinate *m_vertical;
-    MeshDataObjectType                         m_objectType;
+    MeshLocation                         m_objectType;
     HydroCouple::Spatial::SpatialDataType      m_dataType;
+    HydroCouple::Spatial::VectorBasis          m_vectorBasis = HydroCouple::Spatial::VectorBasis::Unknown;
     Dimension m_entityDimension;
     Dimension m_layerDimension;
 };

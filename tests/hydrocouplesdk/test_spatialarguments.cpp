@@ -84,10 +84,10 @@ public:
         return false;
     }
 
-    [[nodiscard]] HydroCouple::Spatial::MeshDataObjectType
-    meshDataObjectType() const override
+    [[nodiscard]] HydroCouple::Spatial::MeshLocation
+    location() const override
     {
-        return HydroCouple::Spatial::MeshDataObjectType::Cell;
+        return HydroCouple::Spatial::MeshLocation::Face;
     }
     [[nodiscard]] HydroCouple::Spatial::SpatialDataType meshDataType()
         const override
@@ -99,17 +99,13 @@ public:
     {
         return const_cast<PolyhedralSurfaceAdapter *>(&m_adapter);
     }
-    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
         return nullptr;
     }
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
     {
-        return nullptr;
-    }
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
-    {
-        return nullptr;
+        return HydroCouple::Spatial::VectorBasis::Unknown;
     }
 
 private:

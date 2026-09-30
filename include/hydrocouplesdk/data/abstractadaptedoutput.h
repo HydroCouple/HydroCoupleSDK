@@ -61,7 +61,18 @@ public:
                            HydroCouple::IOutput *adaptee,
                            HydroCouple::IAdaptedOutputFactory *adaptedOutputFactory);
 
-    ~AbstractAdaptedOutput() override = default;
+    /*!
+     * \brief Deregisters from the adaptee (IOutput::addAdaptedOutput contract:
+     *        registration is non-owning, so the adapter must remove itself).
+     */
+    ~AbstractAdaptedOutput() override;
+
+    /*!
+     * \brief Forgets the adaptee. Called by AbstractOutput's destructor when the
+     *        adaptee dies first; after this, adaptee() is nullptr and refresh()
+     *        is a no-op.
+     */
+    void detachFromAdaptee() noexcept { m_adaptee = nullptr; }
 
     // ── IOutput ───────────────────────────────────────────────────────────
 

@@ -169,13 +169,13 @@ TEST(TimeNetworkItemTest, EntityDimensionFollowsObjectType)
 {
     TimeNetworkComponentDataItemDouble edges(
         "flows", /*network=*/nullptr,
-        HydroCouple::Spatial::NetworkDataObjectType::Edge,
+        HydroCouple::Spatial::MeshLocation::Edge,
         HydroCouple::Spatial::SpatialDataType::Scalar, /*entityCount=*/4);
 
-    EXPECT_EQ(edges.networkDataObjectType(),
-              HydroCouple::Spatial::NetworkDataObjectType::Edge);
-    EXPECT_NE(edges.edgeDimension(), nullptr);
-    EXPECT_EQ(edges.vertexDimension(), nullptr);
+    EXPECT_EQ(edges.location(),
+              HydroCouple::Spatial::MeshLocation::Edge);
+    ASSERT_NE(edges.entityDimension(), nullptr);
+    EXPECT_EQ(edges.entityDimension()->id(), "edges");
     EXPECT_EQ(edges.network(), nullptr);
 
     edges.addTimeStep(std::make_shared<TimeData>("t0", 300.0),
@@ -186,10 +186,10 @@ TEST(TimeNetworkItemTest, EntityDimensionFollowsObjectType)
     EXPECT_DOUBLE_EQ(edges.getValueAt(1, 3), 8.0);
 
     TimeNetworkComponentDataItemDouble nodes(
-        "heads", nullptr, HydroCouple::Spatial::NetworkDataObjectType::Node,
+        "heads", nullptr, HydroCouple::Spatial::MeshLocation::Node,
         HydroCouple::Spatial::SpatialDataType::Scalar, 2);
-    EXPECT_EQ(nodes.edgeDimension(), nullptr);
-    EXPECT_NE(nodes.vertexDimension(), nullptr);
+    ASSERT_NE(nodes.entityDimension(), nullptr);
+    EXPECT_EQ(nodes.entityDimension()->id(), "nodes");
 }
 
 // ── Time-mesh items ───────────────────────────────────────────────────────
@@ -197,24 +197,23 @@ TEST(TimeNetworkItemTest, EntityDimensionFollowsObjectType)
 TEST(TimeMeshItemTest, EntityDimensionMirrorsAttachment)
 {
     TimeSeriesTINComponentDataItemDouble cells(
-        "wse", /*tin=*/nullptr, HydroCouple::Spatial::MeshDataObjectType::Cell,
+        "wse", /*tin=*/nullptr, HydroCouple::Spatial::MeshLocation::Face,
         HydroCouple::Spatial::SpatialDataType::Scalar, /*entityCount=*/5);
 
     EXPECT_EQ(cells.TIN(), nullptr);
     EXPECT_EQ(cells.polyhedralSurface(), nullptr);
-    EXPECT_NE(cells.patchDimension(), nullptr);
-    EXPECT_EQ(cells.edgeDimension(), nullptr);
-    EXPECT_EQ(cells.vertexDimension(), nullptr);
+    ASSERT_NE(cells.entityDimension(), nullptr);
+    EXPECT_EQ(cells.entityDimension()->id(), "faces");
 
     cells.addTimeStep(std::make_shared<TimeData>("t0", 400.0),
                       {1, 2, 3, 4, 5});
     EXPECT_EQ(cells.shape(), (std::vector<int64_t>{1, 5}));
 
     TimeSeriesPolyhedralSurfaceComponentDataItem<double> vertices(
-        "elev", nullptr, HydroCouple::Spatial::MeshDataObjectType::Vertex,
+        "elev", nullptr, HydroCouple::Spatial::MeshLocation::Node,
         HydroCouple::Spatial::SpatialDataType::Scalar, 3);
-    EXPECT_EQ(vertices.patchDimension(), nullptr);
-    EXPECT_NE(vertices.vertexDimension(), nullptr);
+    ASSERT_NE(vertices.entityDimension(), nullptr);
+    EXPECT_EQ(vertices.entityDimension()->id(), "nodes");
 }
 
 // ── Time-grid items ───────────────────────────────────────────────────────
@@ -223,7 +222,7 @@ TEST(TimeGridItemTest, Rank3HyperslabOver2DGrid)
 {
     TimeRegularGrid2DComponentDataItemDouble item(
         "depth", /*grid=*/nullptr,
-        HydroCouple::Spatial::MeshDataObjectType::Cell, /*yCells=*/2,
+        HydroCouple::Spatial::MeshLocation::Face, /*yCells=*/2,
         /*xCells=*/3);
 
     // Two time steps of a 2×3 field: values t*100 + y*10 + x.
@@ -267,7 +266,7 @@ TEST(TimeGridItemTest, Rank4HyperslabOver3DGrid)
 {
     TimeRegularGrid3DComponentDataItemDouble item(
         "conc", /*grid=*/nullptr,
-        HydroCouple::Spatial::MeshDataObjectType::Cell, /*zCells=*/2,
+        HydroCouple::Spatial::MeshLocation::Face, /*zCells=*/2,
         /*yCells=*/2, /*xCells=*/2);
 
     std::vector<double> field(8);

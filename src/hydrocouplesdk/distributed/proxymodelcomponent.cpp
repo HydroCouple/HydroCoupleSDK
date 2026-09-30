@@ -72,7 +72,7 @@ std::string ProxyModelComponent::remoteId() const
     return m_remoteId;
 }
 
-bool ProxyModelComponent::connect(std::string &message)
+bool ProxyModelComponent::connectToPeer(std::string &message)
 {
     if (m_connected)
     {
@@ -85,7 +85,7 @@ bool ProxyModelComponent::connect(std::string &message)
     return true;
 }
 
-void ProxyModelComponent::disconnect()
+void ProxyModelComponent::disconnectFromPeer()
 {
     m_connected = false;
 }

@@ -44,6 +44,13 @@ rebuild() {
   done
 }
 
+# Apple's GNU Make 3.81 compares timestamps to the whole second: a source
+# written in the same second as its object's last build reads as up to
+# date, so the gate runs the PREVIOUS row's binary (E10, X2 and W1 read
+# SURVIVED on macOS; applied by hand, each is caught). Let the clock pass
+# into a new second before every source write.
+settle() { sleep 1; }
+
 matched() { "$TESTS" --gtest_list_tests --gtest_filter="$1" 2>/dev/null | grep -c '^  '; }
 
 mutation() {  # LABEL FILE OLD NEW FILTER
@@ -53,12 +60,13 @@ mutation() {  # LABEL FILE OLD NEW FILTER
   fi
   cp "$file" "$BACKUP/orig"
   MUTATED="$file"
+  settle
   if ! $PY "$HERE/mutate.py" "$file" "$old" "$new"; then
     MUTATED=""
     echo "NOT APPLIED $label"; failures=$((failures + 1)); return
   fi
   if ! rebuild; then
-    cp "$BACKUP/orig" "$file"; MUTATED=""
+    settle; cp "$BACKUP/orig" "$file"; MUTATED=""
     if ! rebuild; then echo "BROKEN      baseline no longer builds"; exit 2; fi
     echo "CAUGHT      $label (does not build)"; caught=$((caught + 1)); return
   fi
@@ -67,14 +75,14 @@ mutation() {  # LABEL FILE OLD NEW FILTER
   else
     echo "CAUGHT      $label"; caught=$((caught + 1))
   fi
-  cp "$BACKUP/orig" "$file"; MUTATED=""
+  settle; cp "$BACKUP/orig" "$file"; MUTATED=""
 }
 
 # On any exit -- including Ctrl-C mid-row -- put the planted fault back
 # before rebuilding, so an interrupted run cannot leave a bug in src/.
 restore() {
   if [ -n "$MUTATED" ] && [ -f "$BACKUP/orig" ]; then
-    cp "$BACKUP/orig" "$MUTATED"
+    settle; cp "$BACKUP/orig" "$MUTATED"
     echo "restored $MUTATED after an interrupted row" >&2
   fi
 }

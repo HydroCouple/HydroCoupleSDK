@@ -50,7 +50,7 @@ public:
      * \return           The exponent (e.g. 1 for Length in metres, 2 for area).
      */
     [[nodiscard]] double power(
-        HydroCouple::IUnitDimensions::FundamentalUnitDimension dimension) override;
+        HydroCouple::IUnitDimensions::FundamentalUnitDimension dimension) const override;
 
     /*!
      * \brief Sets the power exponent for the given fundamental dimension.

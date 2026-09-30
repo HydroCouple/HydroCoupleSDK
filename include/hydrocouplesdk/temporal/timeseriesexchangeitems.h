@@ -93,6 +93,26 @@ public:
         return m_timeDim;
     }
 
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return TimeSeriesComponentDataItem<T>::timeKind();
+    }
+
+    [[nodiscard]] double intervalLength() const override
+    {
+        return TimeSeriesComponentDataItem<T>::intervalLength();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return TimeSeriesComponentDataItem<T>::timeInterpolation();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return TimeSeriesComponentDataItem<T>::timeExtrapolation();
+    }
+
     // ── v2 typed hyperslab data plane ────────────────────────────────────
 
     [[nodiscard]] std::vector<int64_t> shape() const override
@@ -273,6 +293,26 @@ public:
     [[nodiscard]] HydroCouple::IDimension *timeDimension() const override
     {
         return m_timeDim;
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return TimeSeriesComponentDataItem<T>::timeKind();
+    }
+
+    [[nodiscard]] double intervalLength() const override
+    {
+        return TimeSeriesComponentDataItem<T>::intervalLength();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return TimeSeriesComponentDataItem<T>::timeInterpolation();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return TimeSeriesComponentDataItem<T>::timeExtrapolation();
     }
 
     // ── v2 typed hyperslab data plane ────────────────────────────────────

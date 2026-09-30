@@ -50,33 +50,43 @@ public:
     {
     }
 
-    void setStage(double stage) { m_stage = stage; }
+    void setStage(double stage) { m_stage = stage; ++m_epoch; }
 
     [[nodiscard]] HydroCouple::Spatial::VerticalCoordinateKind kind() const override
     {
         return HydroCouple::Spatial::VerticalCoordinateKind::Sigma;
     }
 
-    [[nodiscard]] int  layerCount() const override { return m_layers; }
+    [[nodiscard]] int64_t layerCount() const override { return m_layers; }
+    [[nodiscard]] int64_t columnCount() const override { return m_columns; }
     [[nodiscard]] bool isTimeVarying() const override { return true; }
+    [[nodiscard]] uint64_t geometryEpoch() const override { return m_epoch; }
 
-    [[nodiscard]] double interfaceElevation(int64_t, int interfaceIndex) const override
+    [[nodiscard]] double interfaceElevation(int64_t, int64_t interfaceIndex) const override
     {
         const double sigma =
             static_cast<double>(interfaceIndex) / static_cast<double>(m_layers);
         return m_stage + sigma * (m_bed - m_stage);
     }
 
-    void interfaceElevations(int64_t cellIndex, double *elevations) const override
+    // Bulk [column][interface] profile, rebuilt whenever the stage moves.
+    [[nodiscard]] std::span<const double> interfaceElevations() const override
     {
-        for (int k = 0; k <= m_layers; ++k)
-            elevations[k] = interfaceElevation(cellIndex, k);
+        if (m_profile.size() != static_cast<size_t>(m_columns * (m_layers + 1)))
+            m_profile.resize(static_cast<size_t>(m_columns * (m_layers + 1)));
+        for (int64_t c = 0; c < m_columns; ++c)
+            for (int64_t k = 0; k <= m_layers; ++k)
+                m_profile[static_cast<size_t>(c * (m_layers + 1) + k)] = interfaceElevation(c, k);
+        return m_profile;
     }
 
 private:
-    int    m_layers;
-    double m_bed;
-    double m_stage;
+    int64_t  m_layers;
+    int64_t  m_columns = 1;
+    double   m_bed;
+    double   m_stage;
+    uint64_t m_epoch = 0;
+    mutable std::vector<double> m_profile;
 };
 
 } // namespace
@@ -86,7 +96,7 @@ TEST(LayeredMeshItemTest, EntityIsDimensionZeroAndLayerIsDimensionOne)
     TestSigmaCoordinate vertical(kLayers, -10.0, 0.0);
     LayeredMeshComponentDataItem<double> item(
         "temperature", /*surface=*/nullptr, &vertical,
-        HydroCouple::Spatial::MeshDataObjectType::Cell,
+        HydroCouple::Spatial::MeshLocation::Face,
         HydroCouple::Spatial::SpatialDataType::Scalar, kCells, kLayers);
 
     // The ordering is fixed by IPolyhedralSurfaceComponentDataItem, not chosen
@@ -95,16 +105,15 @@ TEST(LayeredMeshItemTest, EntityIsDimensionZeroAndLayerIsDimensionOne)
     EXPECT_EQ(item.shape(), (std::vector<int64_t>{kCells, kLayers}));
     EXPECT_EQ(item.dataKind(), DataKind::Float64);
 
-    ASSERT_NE(item.patchDimension(), nullptr);
-    EXPECT_EQ(item.patchDimension()->id(), "patches");
-    EXPECT_EQ(item.edgeDimension(), nullptr);
-    EXPECT_EQ(item.vertexDimension(), nullptr);
+    ASSERT_NE(item.entityDimension(), nullptr);
+    EXPECT_EQ(item.entityDimension()->id(), "faces");
+    EXPECT_EQ(item.location(), HydroCouple::Spatial::MeshLocation::Face);
 
     ASSERT_NE(item.layerDimension(), nullptr);
     EXPECT_EQ(item.layerDimension()->id(), "layers");
 
     // The layer dimension must not masquerade as the entity dimension.
-    EXPECT_NE(item.layerDimension(), item.patchDimension());
+    EXPECT_NE(item.layerDimension(), item.entityDimension());
 }
 
 TEST(LayeredMeshItemTest, ValuesRoundTripThroughTheHyperslabPlane)
@@ -112,7 +121,7 @@ TEST(LayeredMeshItemTest, ValuesRoundTripThroughTheHyperslabPlane)
     TestSigmaCoordinate vertical(kLayers, -10.0, 0.0);
     LayeredMeshComponentDataItem<double> item(
         "temperature", nullptr, &vertical,
-        HydroCouple::Spatial::MeshDataObjectType::Cell,
+        HydroCouple::Spatial::MeshLocation::Face,
         HydroCouple::Spatial::SpatialDataType::Scalar, kCells, kLayers);
 
     // cell*10 + layer, so a transposed read is unmistakable rather than merely
@@ -144,7 +153,7 @@ TEST(LayeredMeshItemTest, APartialSlabTouchesOnlyItsOwnCells)
     TestSigmaCoordinate vertical(kLayers, -10.0, 0.0);
     LayeredMeshComponentDataItem<double> item(
         "temperature", nullptr, &vertical,
-        HydroCouple::Spatial::MeshDataObjectType::Cell,
+        HydroCouple::Spatial::MeshLocation::Face,
         HydroCouple::Spatial::SpatialDataType::Scalar, kCells, kLayers);
     item.setDefaultValue(-999.0);
     item.resetDataArray();
@@ -176,7 +185,7 @@ TEST(LayeredMeshItemTest, TheVerticalCoordinateItHandsOutIsLive)
     TestSigmaCoordinate vertical(kLayers, -10.0, 0.0);
     LayeredMeshComponentDataItem<double> item(
         "temperature", nullptr, &vertical,
-        HydroCouple::Spatial::MeshDataObjectType::Cell,
+        HydroCouple::Spatial::MeshLocation::Face,
         HydroCouple::Spatial::SpatialDataType::Scalar, kCells, kLayers);
 
     ASSERT_NE(item.verticalCoordinate(), nullptr);
@@ -202,7 +211,7 @@ TEST(LayeredMeshItemTest, ReadableThroughThePolyhedralSurfaceBase)
     TestSigmaCoordinate vertical(kLayers, -10.0, 0.0);
     LayeredMeshComponentDataItem<double> item(
         "temperature", nullptr, &vertical,
-        HydroCouple::Spatial::MeshDataObjectType::Cell,
+        HydroCouple::Spatial::MeshLocation::Face,
         HydroCouple::Spatial::SpatialDataType::Scalar, kCells, kLayers);
 
     // A partner that only understands surfaces must still get the topology and
@@ -211,7 +220,7 @@ TEST(LayeredMeshItemTest, ReadableThroughThePolyhedralSurfaceBase)
     auto *surfaceView =
         static_cast<HydroCouple::Spatial::IPolyhedralSurfaceComponentDataItem *>(&item);
     EXPECT_EQ(surfaceView->shape(), (std::vector<int64_t>{kCells, kLayers}));
-    ASSERT_NE(surfaceView->patchDimension(), nullptr);
+    ASSERT_NE(surfaceView->entityDimension(), nullptr);
 
     // And a partner that cares only about layering can find it without knowing
     // whether it was handed a mesh or a network.

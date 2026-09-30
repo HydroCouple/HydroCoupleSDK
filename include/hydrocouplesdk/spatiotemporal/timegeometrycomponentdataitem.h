@@ -102,6 +102,26 @@ public:
         return const_cast<Dimension *>(&m_timeDimension);
     }
 
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeKind();
+    }
+
+    [[nodiscard]] double intervalLength() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::intervalLength();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeInterpolation();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeExtrapolation();
+    }
+
     // ── IGeometryComponentDataItem ────────────────────────────────────────
 
     [[nodiscard]] HydroCouple::Spatial::IGeometry::GeometryType

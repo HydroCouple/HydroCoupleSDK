@@ -49,11 +49,11 @@ namespace detail {
 //! direction it is, gathered so the input and the output cannot drift apart.
 struct LayeredMeshFacets
 {
-    using MeshDataObjectType = HydroCouple::Spatial::MeshDataObjectType;
+    using MeshLocation = HydroCouple::Spatial::MeshLocation;
 
     LayeredMeshFacets(HydroCouple::Spatial::IPolyhedralSurface *surface,
                       HydroCouple::Spatial::IVerticalCoordinate *vertical,
-                      MeshDataObjectType objectType,
+                      MeshLocation objectType,
                       HydroCouple::Spatial::SpatialDataType dataType)
         : surface(surface), vertical(vertical), objectType(objectType),
           dataType(dataType),
@@ -62,21 +62,21 @@ struct LayeredMeshFacets
     {
     }
 
-    [[nodiscard]] static const char *entityDimensionId(MeshDataObjectType objectType)
+    [[nodiscard]] static const char *entityDimensionId(MeshLocation objectType)
     {
         switch (objectType)
         {
-            case MeshDataObjectType::Cell:   return "patches";
-            case MeshDataObjectType::Edge:   return "edges";
-            case MeshDataObjectType::Vertex: return "vertices";
-            case MeshDataObjectType::Face:   return "faces";
+            case MeshLocation::Node:   return "nodes";
+            case MeshLocation::Edge:   return "edges";
+            case MeshLocation::Face:   return "faces";
+            case MeshLocation::Volume: return "volumes";
         }
         return "entities";
     }
 
     HydroCouple::Spatial::IPolyhedralSurface  *surface;
     HydroCouple::Spatial::IVerticalCoordinate *vertical;
-    MeshDataObjectType                         objectType;
+    MeshLocation                         objectType;
     HydroCouple::Spatial::SpatialDataType      dataType;
     Dimension                                  entityDimension;
     Dimension                                  layerDimension;
@@ -94,7 +94,7 @@ class LayeredMeshOutput : public AbstractOutput,
                           public virtual HydroCouple::Spatial::ILayeredMeshComponentDataItem
 {
     using Store              = ComponentDataItem2D<T>;
-    using MeshDataObjectType = HydroCouple::Spatial::MeshDataObjectType;
+    using MeshLocation = HydroCouple::Spatial::MeshLocation;
 
 public:
     /*!
@@ -104,7 +104,7 @@ public:
     LayeredMeshOutput(std::string_view id,
                       HydroCouple::Spatial::IPolyhedralSurface *surface,
                       HydroCouple::Spatial::IVerticalCoordinate *vertical,
-                      MeshDataObjectType objectType,
+                      MeshLocation objectType,
                       HydroCouple::Spatial::SpatialDataType dataType,
                       int entityCount, int layerCount,
                       ValueDefinition *valueDef, HydroCouple::IModelComponent *mc)
@@ -117,7 +117,7 @@ public:
 
     ~LayeredMeshOutput() override = default;
 
-    [[nodiscard]] MeshDataObjectType meshDataObjectType() const override
+    [[nodiscard]] MeshLocation location() const override
     {
         return m_facets.objectType;
     }
@@ -135,21 +135,21 @@ public:
 
     [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
     {
-        return m_facets.objectType == MeshDataObjectType::Cell
+        return m_facets.objectType == MeshLocation::Face
                    ? const_cast<Dimension *>(&m_facets.entityDimension)
                    : nullptr;
     }
 
     [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
     {
-        return m_facets.objectType == MeshDataObjectType::Edge
+        return m_facets.objectType == MeshLocation::Edge
                    ? const_cast<Dimension *>(&m_facets.entityDimension)
                    : nullptr;
     }
 
     [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
     {
-        return m_facets.objectType == MeshDataObjectType::Vertex
+        return m_facets.objectType == MeshLocation::Node
                    ? const_cast<Dimension *>(&m_facets.entityDimension)
                    : nullptr;
     }
@@ -214,13 +214,13 @@ class LayeredMeshInput : public AbstractInput,
                          public virtual HydroCouple::Spatial::ILayeredMeshComponentDataItem
 {
     using Store              = ComponentDataItem2D<T>;
-    using MeshDataObjectType = HydroCouple::Spatial::MeshDataObjectType;
+    using MeshLocation = HydroCouple::Spatial::MeshLocation;
 
 public:
     LayeredMeshInput(std::string_view id,
                      HydroCouple::Spatial::IPolyhedralSurface *surface,
                      HydroCouple::Spatial::IVerticalCoordinate *vertical,
-                     MeshDataObjectType objectType,
+                     MeshLocation objectType,
                      HydroCouple::Spatial::SpatialDataType dataType, int entityCount,
                      int layerCount, ValueDefinition *valueDef,
                      HydroCouple::IModelComponent *mc)
@@ -233,7 +233,7 @@ public:
 
     ~LayeredMeshInput() override = default;
 
-    [[nodiscard]] MeshDataObjectType meshDataObjectType() const override
+    [[nodiscard]] MeshLocation location() const override
     {
         return m_facets.objectType;
     }
@@ -251,21 +251,21 @@ public:
 
     [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
     {
-        return m_facets.objectType == MeshDataObjectType::Cell
+        return m_facets.objectType == MeshLocation::Face
                    ? const_cast<Dimension *>(&m_facets.entityDimension)
                    : nullptr;
     }
 
     [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
     {
-        return m_facets.objectType == MeshDataObjectType::Edge
+        return m_facets.objectType == MeshLocation::Edge
                    ? const_cast<Dimension *>(&m_facets.entityDimension)
                    : nullptr;
     }
 
     [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
     {
-        return m_facets.objectType == MeshDataObjectType::Vertex
+        return m_facets.objectType == MeshLocation::Node
                    ? const_cast<Dimension *>(&m_facets.entityDimension)
                    : nullptr;
     }

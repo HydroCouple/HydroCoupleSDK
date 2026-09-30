@@ -215,7 +215,9 @@ TEST(SpatialAdaptersTest, MeshViewServesTheDefinitionsOwnArrays)
 
     EXPECT_EQ(view.nodeCount(), 4);
     EXPECT_EQ(view.faceCount(), 2);
-    EXPECT_EQ(view.edgeCount(), 2);
+    // The definition holds two edges; the two triangles imply three more,
+    // which the view appends after them (the definition's keep indexes 0, 1).
+    EXPECT_EQ(view.edgeCount(), 5);
 
     ASSERT_EQ(view.nodeX().size(), 4u);
     EXPECT_DOUBLE_EQ(view.nodeX()[2], 1.0);
@@ -224,7 +226,8 @@ TEST(SpatialAdaptersTest, MeshViewServesTheDefinitionsOwnArrays)
 
     // MeshDefinition keeps edges as pairs while the interface hands out one
     // flat span, so this is the one place the two representations differ.
-    ASSERT_EQ(view.edgeNodes().size(), 4u);
+    ASSERT_EQ(view.edgeNodes().size(), 10u);
+    EXPECT_EQ(static_cast<int64_t>(view.edgeNodes().size()), 2 * view.edgeCount());
     EXPECT_EQ(view.edgeNodes()[0], 0);
     EXPECT_EQ(view.edgeNodes()[1], 1);
     EXPECT_EQ(view.edgeNodes()[2], 1);

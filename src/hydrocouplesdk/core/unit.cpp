@@ -16,7 +16,7 @@ UnitDimensions::UnitDimensions(std::string_view caption)
     m_powers.fill(0.0);
 }
 
-double UnitDimensions::power(Dim dimension)
+double UnitDimensions::power(Dim dimension) const
 {
     return m_powers[static_cast<int>(dimension)];
 }

@@ -66,7 +66,9 @@ public:
 
     [[nodiscard]] int64_t edgeCount() const override
     {
-        return m_mesh.edgeCount();
+        // Includes the edges derived from face loops (see
+        // deriveTopologyAndMetrics()), so it always agrees with edgeNodes().
+        return static_cast<int64_t>(m_edgeNodes.size()) / 2;
     }
 
     [[nodiscard]] int64_t faceCount() const override
@@ -104,12 +106,46 @@ public:
         return m_edgeNodes;
     }
 
+    // Topology and metrics derived once at construction (see the .cpp): a
+    // definition that carries no edges gets them from its face loops, so a
+    // surface always answers edgeFaces() and a conservative remap on either
+    // side of a coupling integrates over the same areas.
+
+    [[nodiscard]] std::span<const int64_t> faceEdgeOffsets() const override
+    {
+        return m_faceEdgeOffsets;
+    }
+
+    [[nodiscard]] std::span<const int64_t> faceEdges() const override
+    {
+        return m_faceEdges;
+    }
+
+    [[nodiscard]] std::span<const int64_t> edgeFaces() const override
+    {
+        return m_edgeFaces;
+    }
+
+    [[nodiscard]] std::span<const double> faceX() const override { return m_faceX; }
+    [[nodiscard]] std::span<const double> faceY() const override { return m_faceY; }
+    [[nodiscard]] std::span<const double> faceAreas() const override { return m_faceAreas; }
+    [[nodiscard]] std::span<const double> edgeLengths() const override { return m_edgeLengths; }
+    [[nodiscard]] std::span<const double> edgeNormalX() const override { return m_edgeNormalX; }
+    [[nodiscard]] std::span<const double> edgeNormalY() const override { return m_edgeNormalY; }
+
 private:
+    void deriveTopologyAndMetrics();
+
     HydroCouple::SDK::IO::MeshDefinition m_mesh;
 
     //! Edge endpoints flattened to pairs, because MeshDefinition stores them
     //! as an array of arrays and the interface hands out one flat span.
     std::vector<int64_t> m_edgeNodes;
+    std::vector<int64_t> m_faceEdgeOffsets;
+    std::vector<int64_t> m_faceEdges;
+    std::vector<int64_t> m_edgeFaces;
+    std::vector<double> m_faceX, m_faceY, m_faceAreas;
+    std::vector<double> m_edgeLengths, m_edgeNormalX, m_edgeNormalY;
 };
 
 /*!
@@ -123,12 +159,12 @@ public:
     /*!
      * \brief Construct at \p point with graph index \p index.
      */
-    VertexAdapter(const Point &point, unsigned int index,
+    VertexAdapter(const Point &point, int64_t index,
                   HydroCouple::Spatial::ISpatialReferenceSystem *srs = nullptr);
 
     ~VertexAdapter() override = default;
 
-    [[nodiscard]] unsigned int index() const override
+    [[nodiscard]] int64_t index() const override
     {
         return PointAdapter::index();
     }
@@ -168,12 +204,12 @@ public:
     /*!
      * \brief Construct between two vertices.
      */
-    EdgeAdapter(unsigned int index, VertexAdapter *origin,
+    EdgeAdapter(int64_t index, VertexAdapter *origin,
                 VertexAdapter *destination);
 
     ~EdgeAdapter() override = default;
 
-    [[nodiscard]] unsigned int index() const override { return m_index; }
+    [[nodiscard]] int64_t index() const override { return m_index; }
 
     [[nodiscard]] HydroCouple::Spatial::IVertex *orig() const override;
 
@@ -205,7 +241,7 @@ public:
     [[nodiscard]] IEdge *rightPrev() const override { return nullptr; }
 
 private:
-    unsigned int m_index = 0;
+    int64_t m_index = 0;
     VertexAdapter *m_origin = nullptr;
     VertexAdapter *m_destination = nullptr;
 };
@@ -344,7 +380,7 @@ public:
      * \note Needs adjacency the SDK's PolyhedralSurface does not keep;
      *       reports nullptr rather than a wrong neighbourhood.
      */
-    [[nodiscard]] HydroCouple::Spatial::IMultiPolygon *boundingPolygons(
+    [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IMultiPolygon> boundingPolygons(
         const HydroCouple::Spatial::IPolygon *) const override
     {
         return nullptr;
@@ -373,17 +409,15 @@ public:
 
     [[nodiscard]] double area() const override { return m_area; }
 
-    [[nodiscard]] HydroCouple::Spatial::IPoint *centroid() const override
+    //! Newly constructed, caller-owned (interface ownership convention).
+    [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IPoint> centroid() const override;
+
+    [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IPoint> pointOnSurface() const override
     {
-        return m_centroid.get();
+        return centroid();
     }
 
-    [[nodiscard]] HydroCouple::Spatial::IPoint *pointOnSurface() const override
-    {
-        return m_centroid.get();
-    }
-
-    [[nodiscard]] HydroCouple::Spatial::IMultiCurve *boundaryMultiCurve()
+    [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IMultiCurve> boundaryMultiCurve()
         const override
     {
         return nullptr;
@@ -391,6 +425,7 @@ public:
 
 private:
     double m_area = 0.0;
+    Point m_centroidPoint;
     std::unique_ptr<PointAdapter> m_centroid;
     std::vector<std::unique_ptr<PolygonAdapter>> m_patches;
     std::vector<std::unique_ptr<VertexAdapter>> m_vertices;

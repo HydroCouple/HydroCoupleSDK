@@ -116,6 +116,25 @@ public:
         return {m_timesJulian.data(), m_timesJulian.size()};
     }
 
+    // ── Temporal semantics (ITimeSeriesComponentDataItem) ────────────────
+    //
+    // What a time coordinate refers to and what the item does between/outside
+    // its held instants. Defaults are the honest "not declared" values; a
+    // component that knows (every component does) sets them at construction.
+
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const noexcept { return m_timeKind; }
+    [[nodiscard]] double intervalLength() const noexcept { return m_intervalLength; }
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const noexcept { return m_timeInterpolation; }
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const noexcept { return m_timeExtrapolation; }
+
+    void setTimeKind(HydroCouple::Temporal::TimeKind kind, double intervalLengthDays = 0.0) noexcept
+    {
+        m_timeKind = kind;
+        m_intervalLength = intervalLengthDays;
+    }
+    void setTimeInterpolation(HydroCouple::Temporal::TimeInterpolation policy) noexcept { m_timeInterpolation = policy; }
+    void setTimeExtrapolation(HydroCouple::Temporal::TimeExtrapolation policy) noexcept { m_timeExtrapolation = policy; }
+
     /*!
      * \brief ITimeSeriesComponentDataItem::timeSpan implementation.
      */
@@ -221,6 +240,10 @@ public:
 
 protected:
     std::vector<std::shared_ptr<IDateTime>> m_times;
+    HydroCouple::Temporal::TimeKind m_timeKind = HydroCouple::Temporal::TimeKind::Unknown;
+    double m_intervalLength = 0.0;
+    HydroCouple::Temporal::TimeInterpolation m_timeInterpolation = HydroCouple::Temporal::TimeInterpolation::Unknown;
+    HydroCouple::Temporal::TimeExtrapolation m_timeExtrapolation = HydroCouple::Temporal::TimeExtrapolation::Unknown;
     std::vector<double> m_timesJulian; //!< Julian-day cache backing times().
     std::vector<T>      m_values;      //!< Flat: [time * elementSize + element].
     int                 m_elementSize;

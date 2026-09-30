@@ -226,6 +226,11 @@ std::set<HydroCouple::Capability> AtenModelComponent::capabilities() const
     return caps;
 }
 
+std::vector<IComponentDataItem *> AtenModelComponent::states() const
+{
+    return differentiableStates();
+}
+
 void AtenModelComponent::afterStep(const StepResult &) {}
 
 bool AtenModelComponent::doneAfterStep() const { return false; }

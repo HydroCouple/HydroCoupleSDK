@@ -66,8 +66,22 @@ public:
 
     /*!
      * \brief Returns the \c type_info for the value type.
+     * \details SDK-level convenience (no longer part of the interface, whose
+     * element type is the owning item's dataKind()).
      */
-    [[nodiscard]] const std::type_info &type() const override;
+    [[nodiscard]] const std::type_info &type() const;
+
+    /*!
+     * \brief How values behave under regridding and aggregation.
+     * \details Defaults to ValueKind::Unknown; a component that knows what its
+     * quantity is (and every component does) sets it with setValueKind().
+     */
+    [[nodiscard]] HydroCouple::ValueKind valueKind() const override;
+
+    /*!
+     * \brief Sets the value kind and fires propertyChanged("ValueKind").
+     */
+    void setValueKind(HydroCouple::ValueKind kind);
 
     /*!
      * \brief Returns the sentinel value representing missing data
@@ -120,6 +134,7 @@ public:
 
 protected:
     const std::type_info *m_type = &typeid(void);  // non-owning; static storage duration
+    HydroCouple::ValueKind m_valueKind = HydroCouple::ValueKind::Unknown;
 
 private:
     double m_missingValue = -999999.0;

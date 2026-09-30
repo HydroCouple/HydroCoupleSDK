@@ -477,10 +477,10 @@ TEST_F(ProxyWorkerTest, ConnectHandshakeAndPing)
 {
     std::string message;
     EXPECT_FALSE(m_proxy->isConnected());
-    ASSERT_TRUE(m_proxy->connect(message)) << message;
+    ASSERT_TRUE(m_proxy->connectToPeer(message)) << message;
     EXPECT_TRUE(m_proxy->isConnected());
     EXPECT_TRUE(m_proxy->ping(2.0));
-    m_proxy->disconnect();
+    m_proxy->disconnectFromPeer();
     EXPECT_FALSE(m_proxy->isConnected());
 }
 
@@ -488,7 +488,7 @@ TEST_F(ProxyWorkerTest, RemoteLifecycleMirrorsStatus)
 {
     using Status = IModelComponent::ComponentStatus;
     std::string message;
-    ASSERT_TRUE(m_proxy->connect(message)) << message;
+    ASSERT_TRUE(m_proxy->connectToPeer(message)) << message;
 
     m_proxy->initialize();
     EXPECT_EQ(m_proxy->status(), Status::Initialized);
@@ -505,7 +505,7 @@ TEST_F(ProxyWorkerTest, RemoteLifecycleMirrorsStatus)
 TEST_F(ProxyWorkerTest, RemoteValueRoundTripThroughUpdate)
 {
     std::string message;
-    ASSERT_TRUE(m_proxy->connect(message)) << message;
+    ASSERT_TRUE(m_proxy->connectToPeer(message)) << message;
     m_proxy->initialize();
 
     // Push inflow {1,2,3} → remote update() doubles → pull flow {2,4,6}.
@@ -527,7 +527,7 @@ TEST_F(ProxyWorkerTest, RemoteValueRoundTripThroughUpdate)
 TEST_F(ProxyWorkerTest, UnknownItemSurfacesRemoteError)
 {
     std::string message;
-    ASSERT_TRUE(m_proxy->connect(message)) << message;
+    ASSERT_TRUE(m_proxy->connectToPeer(message)) << message;
     m_proxy->initialize();
 
     std::array<double, 3> values{};
@@ -548,7 +548,7 @@ TEST(ProxyWorkerDeath, DeadPeerLatchesFailedWithDiagnostic)
     proxy.setRequestTimeout(0.2);
 
     std::string message;
-    EXPECT_FALSE(proxy.connect(message));
+    EXPECT_FALSE(proxy.connectToPeer(message));
     EXPECT_NE(message.find("timed out"), std::string::npos);
 
     proxy.initialize();

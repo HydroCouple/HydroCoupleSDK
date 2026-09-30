@@ -38,6 +38,9 @@ public:
     }
     bool test() override { return true; }
     void wait() override {}
+    // Cancellation is not supported by this request: report whether the
+    // operation has already completed (true) or is still pending (false).
+    [[nodiscard]] bool cancel() override { return test(); }
     bool failed(std::string &message) const override
     {
         message = m_failure;
@@ -101,6 +104,9 @@ public:
         m_complete = true;
     }
 
+    // Cancellation is not supported by this request: report whether the
+    // operation has already completed (true) or is still pending (false).
+    [[nodiscard]] bool cancel() override { return test(); }
     bool failed(std::string &message) const override
     {
         message = m_failure;
@@ -170,6 +176,9 @@ public:
         finish();
     }
 
+    // Cancellation is not supported by this request: report whether the
+    // operation has already completed (true) or is still pending (false).
+    [[nodiscard]] bool cancel() override { return test(); }
     bool failed(std::string &message) const override
     {
         message = m_failure;

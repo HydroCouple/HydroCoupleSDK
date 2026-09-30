@@ -10,7 +10,7 @@
  *
  * Implements the standard's ITimeSeriesPolyhedralSurfaceComponentDataItem:
  * time is dimension 0, the mesh entity dimension selected by
- * meshDataObjectType() (patch/cell, edge, or vertex) is dimension 1 —
+ * location() (patch/cell, edge, or vertex) is dimension 1 —
  * shape() = { timeCount, entityCount }. The IPolyhedralSurface/ITIN
  * association is borrowed from the owning component. The three entity
  * dimension accessors return the dimension the values are attached to and
@@ -44,7 +44,7 @@ class TimeSeriesPolyhedralSurfaceComponentDataItem
           ITimeSeriesPolyhedralSurfaceComponentDataItem
 {
     using TimeStore = HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>;
-    using MeshDataObjectType = HydroCouple::Spatial::MeshDataObjectType;
+    using MeshLocation = HydroCouple::Spatial::MeshLocation;
 
 public:
     /*!
@@ -62,7 +62,7 @@ public:
     TimeSeriesPolyhedralSurfaceComponentDataItem(
         std::string_view id,
         HydroCouple::Spatial::IPolyhedralSurface *surface,
-        MeshDataObjectType objectType,
+        MeshLocation objectType,
         HydroCouple::Spatial::SpatialDataType dataType, int entityCount,
         ValueDefinition *valueDef = nullptr,
         HydroCouple::IModelComponent *mc = nullptr)
@@ -108,9 +108,29 @@ public:
         return const_cast<Dimension *>(&m_timeDimension);
     }
 
+    [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeKind();
+    }
+
+    [[nodiscard]] double intervalLength() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::intervalLength();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeInterpolation();
+    }
+
+    [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
+    {
+        return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeExtrapolation();
+    }
+
     // ── IPolyhedralSurfaceComponentDataItem ───────────────────────────────
 
-    [[nodiscard]] MeshDataObjectType meshDataObjectType() const override
+    [[nodiscard]] MeshLocation location() const override
     {
         return m_objectType;
     }
@@ -127,25 +147,20 @@ public:
         return m_surface;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
-        return m_objectType == MeshDataObjectType::Cell
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        return const_cast<Dimension *>(&m_entityDimension);
     }
 
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
     {
-        return m_objectType == MeshDataObjectType::Edge
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        return m_vectorBasis;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
+    //! Declares the frame of vector/tensor values (Unknown for scalars).
+    void setVectorBasis(HydroCouple::Spatial::VectorBasis basis)
     {
-        return m_objectType == MeshDataObjectType::Vertex
-                   ? const_cast<Dimension *>(&m_entityDimension)
-                   : nullptr;
+        m_vectorBasis = basis;
     }
 
     // ── v2 typed hyperslab data plane ────────────────────────────────────
@@ -183,21 +198,22 @@ public:
 
 private:
     [[nodiscard]] static const char *
-    entityDimensionId(MeshDataObjectType objectType)
+    entityDimensionId(MeshLocation objectType)
     {
         switch (objectType)
         {
-            case MeshDataObjectType::Cell:   return "patches";
-            case MeshDataObjectType::Edge:   return "edges";
-            case MeshDataObjectType::Vertex: return "vertices";
-            case MeshDataObjectType::Face:   return "faces";
+            case MeshLocation::Node:   return "nodes";
+            case MeshLocation::Edge:   return "edges";
+            case MeshLocation::Face:   return "faces";
+            case MeshLocation::Volume: return "volumes";
         }
         return "entities";
     }
 
     HydroCouple::Spatial::IPolyhedralSurface *m_surface;
-    MeshDataObjectType                        m_objectType;
+    MeshLocation                        m_objectType;
     HydroCouple::Spatial::SpatialDataType     m_dataType;
+    HydroCouple::Spatial::VectorBasis         m_vectorBasis = HydroCouple::Spatial::VectorBasis::Unknown;
     Dimension m_timeDimension;
     Dimension m_entityDimension;
 };
@@ -217,7 +233,7 @@ public:
      */
     TimeSeriesTINComponentDataItem(
         std::string_view id, HydroCouple::Spatial::ITIN *tin,
-        HydroCouple::Spatial::MeshDataObjectType objectType,
+        HydroCouple::Spatial::MeshLocation objectType,
         HydroCouple::Spatial::SpatialDataType dataType, int entityCount,
         ValueDefinition *valueDef = nullptr,
         HydroCouple::IModelComponent *mc = nullptr)

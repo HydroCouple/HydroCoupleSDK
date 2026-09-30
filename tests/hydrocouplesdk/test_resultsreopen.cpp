@@ -911,19 +911,16 @@ TEST(ResultsReopenTest, AReopenedItemIsSpatialAndCarriesItsMesh)
     EXPECT_EQ(surface->vertexCount(), written.nodeCount());
     EXPECT_EQ(surface->patchCount(), written.faceCount());
 
-    // The values are recorded per node, so the item says so and the other two
-    // dimension accessors say nothing rather than describing the mesh three
-    // times over.
-    EXPECT_EQ(surfaceItem->meshDataObjectType(),
-              HCS::MeshDataObjectType::Vertex);
-    EXPECT_NE(surfaceItem->vertexDimension(), nullptr);
-    EXPECT_EQ(surfaceItem->patchDimension(), nullptr);
-    EXPECT_EQ(surfaceItem->edgeDimension(), nullptr);
+    // The values are recorded per node, so the item says so, and its single
+    // entity dimension is that node axis.
+    EXPECT_EQ(surfaceItem->location(),
+              HCS::MeshLocation::Node);
+    EXPECT_NE(surfaceItem->entityDimension(), nullptr);
 
     // The entity dimension is the one the values run along, which is the
     // second: time is the first, as the interface documents.
     ASSERT_EQ(items.front()->dimensions().size(), 2u);
-    EXPECT_EQ(surfaceItem->vertexDimension(),
+    EXPECT_EQ(surfaceItem->entityDimension(),
               items.front()->dimensions().back());
 
     for (int64_t vertex = 0; vertex < surface->vertexCount(); ++vertex)

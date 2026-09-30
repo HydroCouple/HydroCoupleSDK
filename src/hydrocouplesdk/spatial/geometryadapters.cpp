@@ -85,7 +85,7 @@ void appendCoordinateText(std::ostringstream &text, const LineString &line)
 // ── GeometryAdapter ───────────────────────────────────────────────────────
 
 GeometryAdapter::GeometryAdapter(
-    std::string id, unsigned int index,
+    std::string id, int64_t index,
     HydroCouple::Spatial::ISpatialReferenceSystem *srs)
     : m_id(std::move(id)), m_index(index), m_srs(srs)
 {
@@ -144,7 +144,7 @@ std::string GeometryAdapter::getWKT() const
 // ── PointAdapter ──────────────────────────────────────────────────────────
 
 PointAdapter::PointAdapter(const Point &point, std::string id,
-                           unsigned int index,
+                           int64_t index,
                            HydroCouple::Spatial::ISpatialReferenceSystem *srs)
     : GeometryAdapter(std::move(id), index, srs), m_point(point)
 {
@@ -171,7 +171,7 @@ std::vector<unsigned char> PointAdapter::getWKB() const
 // ── LineStringAdapter ─────────────────────────────────────────────────────
 
 LineStringAdapter::LineStringAdapter(
-    const LineString &line, std::string id, unsigned int index,
+    const LineString &line, std::string id, int64_t index,
     HydroCouple::Spatial::ISpatialReferenceSystem *srs)
     : GeometryAdapter(std::move(id), index, srs), m_line(line)
 {
@@ -190,7 +190,7 @@ void LineStringAdapter::rebuildPoints()
     {
         m_points.push_back(std::make_unique<PointAdapter>(
             m_line.pointAt(i), m_id + ":" + std::to_string(i),
-            static_cast<unsigned int>(i), m_srs));
+            static_cast<int64_t>(i), m_srs));
     }
 }
 
@@ -205,9 +205,9 @@ std::vector<unsigned char> LineStringAdapter::getWKB() const
     return bytes;
 }
 
-HydroCouple::Spatial::IPoint *LineStringAdapter::point(int index) const
+HydroCouple::Spatial::IPoint *LineStringAdapter::point(int64_t index) const
 {
-    return index >= 0 && index < static_cast<int>(m_points.size())
+    return index >= 0 && index < static_cast<int64_t>(m_points.size())
                ? m_points[static_cast<size_t>(index)].get()
                : nullptr;
 }
@@ -225,7 +225,7 @@ HydroCouple::Spatial::IPoint *LineStringAdapter::endPoint() const
 // ── PolygonAdapter ────────────────────────────────────────────────────────
 
 PolygonAdapter::PolygonAdapter(
-    const Polygon &polygon, std::string id, unsigned int index,
+    const Polygon &polygon, std::string id, int64_t index,
     HydroCouple::Spatial::ISpatialReferenceSystem *srs)
     : GeometryAdapter(std::move(id), index, srs), m_polygon(polygon)
 {
@@ -242,7 +242,7 @@ PolygonAdapter::PolygonAdapter(
         m_interiors.push_back(std::make_unique<LineStringAdapter>(
             m_polygon.interiorRing(i),
             m_id + ":interior" + std::to_string(i),
-            static_cast<unsigned int>(i), m_srs));
+            static_cast<int64_t>(i), m_srs));
     }
 
     m_centroid = std::make_unique<PointAdapter>(m_polygon.centroid(),
@@ -273,24 +273,27 @@ HydroCouple::Spatial::ILineString *PolygonAdapter::exteriorRing() const
     return m_exterior.get();
 }
 
-HydroCouple::Spatial::ILineString *PolygonAdapter::interiorRing(int index) const
+HydroCouple::Spatial::ILineString *PolygonAdapter::interiorRing(int64_t index) const
 {
-    return index >= 0 && index < static_cast<int>(m_interiors.size())
+    return index >= 0 && index < static_cast<int64_t>(m_interiors.size())
                ? m_interiors[static_cast<size_t>(index)].get()
                : nullptr;
 }
 
-HydroCouple::Spatial::IPoint *PolygonAdapter::centroid() const
+std::unique_ptr<HydroCouple::Spatial::IPoint> PolygonAdapter::centroid() const
 {
-    return m_centroid.get();
+    // The interface hands out a caller-owned object; the cached adapter is the
+    // template it is copied from.
+    return std::make_unique<PointAdapter>(m_polygon.centroid(),
+                                          m_id + ":centroid", 0, m_srs);
 }
 
-HydroCouple::Spatial::IPoint *PolygonAdapter::pointOnSurface() const
+std::unique_ptr<HydroCouple::Spatial::IPoint> PolygonAdapter::pointOnSurface() const
 {
     // The centroid of a convex polygon lies inside it; for a concave one it
     // may not, and computing a guaranteed interior point needs the geometry
     // engine the SDK does not link. Documented rather than approximated.
-    return m_centroid.get();
+    return centroid();
 }
 
 } // namespace HydroCouple::SDK::Spatial

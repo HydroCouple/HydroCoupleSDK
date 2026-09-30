@@ -297,14 +297,14 @@ void PolyhedralSurfaceArgument::adoptMesh(
     m_surface.reset();
 }
 
-HydroCouple::Spatial::MeshDataObjectType
-PolyhedralSurfaceArgument::meshDataObjectType() const
+HydroCouple::Spatial::MeshLocation
+PolyhedralSurfaceArgument::location() const
 {
     // The argument's own values are the node coordinates — shape() says
     // { nodes, 3 } — so what this data item is *about* is vertices. A
     // consumer reading Cell here would look for one value per face and
     // find one per node.
-    return HydroCouple::Spatial::MeshDataObjectType::Vertex;
+    return HydroCouple::Spatial::MeshLocation::Node;
 }
 
 HydroCouple::Spatial::SpatialDataType
@@ -339,23 +339,17 @@ PolyhedralSurfaceArgument::polyhedralSurface() const
     return m_surface.get();
 }
 
-HydroCouple::IDimension *PolyhedralSurfaceArgument::patchDimension() const
+HydroCouple::IDimension *PolyhedralSurfaceArgument::entityDimension() const
 {
-    return const_cast<Dimension *>(&m_patchDimension);
-}
-
-HydroCouple::IDimension *PolyhedralSurfaceArgument::edgeDimension() const
-{
-    return const_cast<Dimension *>(&m_edgeDimension);
-}
-
-HydroCouple::IDimension *PolyhedralSurfaceArgument::vertexDimension() const
-{
-    // The argument's own node axis, not a second one meaning the same
-    // thing: shape() is { nodes, 3 } against exactly this dimension, so a
-    // separate vertex dimension would let the two disagree about how many
-    // vertices there are.
+    // The argument's own node axis: shape() is { nodes, 3 } against exactly
+    // this dimension, so a separate entity dimension would let the two
+    // disagree about how many vertices there are.
     return const_cast<Dimension *>(&m_nodeDimension);
+}
+
+HydroCouple::Spatial::VectorBasis PolyhedralSurfaceArgument::vectorBasis() const
+{
+    return HydroCouple::Spatial::VectorBasis::Cartesian;
 }
 
 bool PolyhedralSurfaceArgument::setMesh(

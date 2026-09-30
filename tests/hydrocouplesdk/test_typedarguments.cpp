@@ -211,17 +211,14 @@ TEST(TypedArgumentTest, AMeshArgumentReportsItsSurface)
     EXPECT_EQ(surface->patchCount(), 2);
     EXPECT_EQ(surface->vertexCount(), 4);
 
-    // The vertex axis is the argument's own node dimension, not a second
+    // The entity axis is the argument's own node dimension, not a second
     // one that could disagree about how many vertices there are.
-    ASSERT_NE(item->vertexDimension(), nullptr);
-    EXPECT_EQ(item->vertexDimension()->id(), "node");
+    ASSERT_NE(item->entityDimension(), nullptr);
+    EXPECT_EQ(item->entityDimension()->id(), "node");
+    EXPECT_EQ(item->vectorBasis(), HydroCouple::Spatial::VectorBasis::Cartesian);
 
-    ASSERT_NE(item->patchDimension(), nullptr);
-    ASSERT_NE(item->edgeDimension(), nullptr);
-    EXPECT_NE(item->patchDimension(), item->edgeDimension());
-
-    EXPECT_EQ(item->meshDataObjectType(),
-              HydroCouple::Spatial::MeshDataObjectType::Vertex);
+    EXPECT_EQ(item->location(),
+              HydroCouple::Spatial::MeshLocation::Node);
     EXPECT_EQ(item->meshDataType(),
               HydroCouple::Spatial::SpatialDataType::Vector);
 }

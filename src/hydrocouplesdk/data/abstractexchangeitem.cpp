@@ -6,25 +6,6 @@
 
 namespace HydroCouple::SDK {
 
-// ── ExchangeItemChangeEventArgs ───────────────────────────────────────────
-
-ExchangeItemChangeEventArgs::ExchangeItemChangeEventArgs(
-    HydroCouple::IExchangeItem *item, std::string message)
-    : m_item(item), m_message(std::move(message))
-{
-}
-
-HydroCouple::IExchangeItem *ExchangeItemChangeEventArgs::exchangeItem() const
-{
-    return m_item;
-}
-
-std::string ExchangeItemChangeEventArgs::message() const
-{
-    return m_message;
-}
-
-
 // ── AbstractExchangeItem ──────────────────────────────────────────────────
 
 AbstractExchangeItem::AbstractExchangeItem(

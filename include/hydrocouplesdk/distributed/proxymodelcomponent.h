@@ -12,7 +12,7 @@
  * treat it exactly like a local IModelComponent, while every lifecycle call
  * becomes a protocol request (Envelope + optional payload) answered by the
  * worker with Ack or Error. Cloud hardening per the interface review:
- * explicit connect()/disconnect()/isConnected(), ping() heartbeats,
+ * explicit connectToPeer()/disconnectFromPeer()/isConnected(), ping() heartbeats,
  * per-request timeouts, and peer death surfacing as ComponentStatus::Failed
  * plus an ErrorEntry in the component's diagnostic queue.
  *
@@ -78,9 +78,9 @@ public:
     /*!
      * \brief Hello/Ack handshake within the request timeout.
      */
-    [[nodiscard]] bool connect(std::string &message) override;
+    [[nodiscard]] bool connectToPeer(std::string &message) override;
 
-    void disconnect() override;
+    void disconnectFromPeer() override;
 
     [[nodiscard]] bool isConnected() const override;
 

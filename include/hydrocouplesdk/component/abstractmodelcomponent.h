@@ -113,6 +113,13 @@ public:
     [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *> results() const override;
 
     /*!
+     * \brief Default states(): none. A component whose update() depends on its
+     * past overrides this to list its prognostic items (what a checkpoint must
+     * capture; a superset of any differentiableStates()).
+     */
+    [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *> states() const override;
+
+    /*!
      * \brief Default initialize(): transitions Created/Failed → Initialized.
      *
      * Calls in order: createArguments(), initializeArguments(),
@@ -169,6 +176,17 @@ public:
      * reportError().
      */
     [[nodiscard]] std::vector<ErrorEntry> errors(bool clearAfterRead = false) override;
+
+    /*!
+     * \brief Queues a diagnostic on this component's error queue on behalf of
+     *        one of its data items (the interface's error-channel convention:
+     *        a bool-returning method that fails queues a Severity::Error entry).
+     */
+    void queueError(ErrorEntry::Severity severity, int32_t code,
+                    const std::string &message)
+    {
+        reportError(severity, code, message);
+    }
 
     // ── MPI (SDK transport machinery — not part of the v2 interface) ──────
 

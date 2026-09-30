@@ -11,6 +11,41 @@ MAJOR.MINOR must match the interface headers it is built against
 
 ## [Unreleased] — 2.1.0
 
+### Changed — interface ABI 4 (contract-consistency round, 2026-09-29)
+
+Lockstep update for the HydroCouple contract-consistency round; the full
+per-interface table is in `HydroCouple/plans/sdk/ABI4_HANDOFF_2026-09-29.md`.
+Compile-checked against the new headers; **the Mac build and ctest run are
+the first verification step** (see the hand-off's checklist).
+
+- `ValueDefinition::valueKind()/setValueKind()` (persisted); `type()` is now
+  SDK-only. `Dimension::role()`, inferred from the axis id at construction.
+  `AbstractModelComponent::states()` (default empty — override in components
+  with prognostic state). `AbstractArgument::role()/setRole()`.
+- `MeshLocation` replaces `MeshDataObjectType`/`NetworkDataObjectType`
+  everywhere (`Cell`→`Face`, `Vertex`→`Node`); entity-dimension ids are now
+  `"faces"`/`"nodes"` (**remap persisted catalogues**). `entityDimension()`
+  and `vectorBasis()` replace `patchDimension()/edgeDimension()/vertexDimension()`.
+- Temporal semantics (`timeKind`, `intervalLength`, `timeInterpolation`,
+  `timeExtrapolation`) on the `TimeSeriesComponentDataItem<T>` mixin, every
+  concrete item, `TimeSeriesArgumentDouble` (persisted; defaults
+  Linear/HoldLast matching `getInterpolatedValue()`) and reopened results
+  (Unknown/None/Refuse). `TimeSpan::endJulianDay()`.
+- `AbstractOutput::addConsumer()` is the single wiring entry point: checks
+  `canConsume()`, sets the provider, queues an error (new public
+  `AbstractModelComponent::queueError()`) and throws on refusal;
+  `ModelInitializer` wires through it. Adapters deregister from their
+  adaptee in their destructor; `AbstractOutput`'s destructor detaches them.
+- Geometry adapters: `int64_t` indexes, `unique_ptr` from every constructing
+  method, `relate(geom, pattern)`, caller-owned `centroid()`.
+  `MeshViewAdapter` derives face→edge / edge→face connectivity and face/edge
+  metrics (appending edges implied by face loops when the definition has none).
+- `PartitionedDataItem::partitionedDimension()`; `cancel()` on every
+  `IExchangeRequest` (reports completion; cannot cancel);
+  `ProxyModelComponent::connectToPeer()/disconnectFromPeer()`.
+- Removed `ExchangeItemChangeEventArgs`; `UnitDimensions::power()` is const.
+
+
 Composition IO moves into the SDK, and completed runs become reopenable.
 
 ### Fixed

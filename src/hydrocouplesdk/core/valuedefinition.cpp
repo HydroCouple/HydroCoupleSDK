@@ -25,6 +25,17 @@ const std::type_info &ValueDefinition::type() const
     return *m_type;
 }
 
+HydroCouple::ValueKind ValueDefinition::valueKind() const
+{
+    return m_valueKind;
+}
+
+void ValueDefinition::setValueKind(HydroCouple::ValueKind kind)
+{
+    m_valueKind = kind;
+    emitPropertyChanged("ValueKind");
+}
+
 double ValueDefinition::missingValue() const
 {
     return m_missingValue;
@@ -54,6 +65,7 @@ nlohmann::json ValueDefinition::toJson() const
     j["description"]  = description();
     j["missingValue"] = m_missingValue;
     j["defaultValue"] = m_defaultValue;
+    j["valueKind"]    = static_cast<int>(m_valueKind);
     return j;
 }
 
@@ -67,6 +79,8 @@ void ValueDefinition::fromJson(const nlohmann::json &j)
         m_missingValue = j["missingValue"].get<double>();
     if (j.contains("defaultValue"))
         m_defaultValue = j["defaultValue"].get<double>();
+    if (j.contains("valueKind"))
+        m_valueKind = static_cast<HydroCouple::ValueKind>(j["valueKind"].get<int>());
 }
 
 DataKind ValueDefinition::dataKindForType(const std::type_info &type)
@@ -90,11 +104,13 @@ ValueDefinition *ValueDefinition::copy(const HydroCouple::IValueDefinition *src)
 {
     if (!src)
         return nullptr;
-    auto *result = new ValueDefinition(src->type());
+    const auto *sdk = dynamic_cast<const ValueDefinition *>(src);
+    auto *result = new ValueDefinition(sdk ? sdk->type() : typeid(double));
     result->setCaption(src->caption());
     result->setDescription(src->description());
     result->setMissingValue(src->missingValue());
     result->setDefaultValue(src->defaultValue());
+    result->setValueKind(src->valueKind());
     return result;
 }
 
@@ -165,6 +181,7 @@ Quality *Quality::copy(const HydroCouple::IQuality *src)
     result->setDescription(src->description());
     result->setMissingValue(src->missingValue());
     result->setDefaultValue(src->defaultValue());
+    result->setValueKind(src->valueKind());
     result->setIsOrdered(src->isOrdered());
     return result;
 }
@@ -285,11 +302,13 @@ Quantity *Quantity::copy(const HydroCouple::IQuantity *src)
 {
     if (!src)
         return nullptr;
-    auto *result = new Quantity(src->type(), Unit::copy(src->unit()));
+    const auto *sdk = dynamic_cast<const ValueDefinition *>(src);
+    auto *result = new Quantity(sdk ? sdk->type() : typeid(double), Unit::copy(src->unit()));
     result->setCaption(src->caption());
     result->setDescription(src->description());
     result->setMissingValue(src->missingValue());
     result->setDefaultValue(src->defaultValue());
+    result->setValueKind(src->valueKind());
     result->setMinValue(src->minValue());
     result->setMaxValue(src->maxValue());
     return result;

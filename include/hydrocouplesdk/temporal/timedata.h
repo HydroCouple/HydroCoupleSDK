@@ -126,6 +126,8 @@ public:
     // ITimeSpan
     [[nodiscard]] double duration() const override { return m_duration; }
 
+    [[nodiscard]] double endJulianDay() const override { return julianDay() + m_duration; }
+
     // Accessors
     [[nodiscard]] double startTime() const { return julianDay(); }
     [[nodiscard]] double endTime() const { return julianDay() + m_duration; }
