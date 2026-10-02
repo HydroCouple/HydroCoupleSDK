@@ -133,6 +133,11 @@ std::vector<HydroCouple::IArgument *> AbstractAdaptedOutput::arguments() const
     return result;
 }
 
+std::vector<HydroCouple::IComponentDataItem *> AbstractAdaptedOutput::states() const
+{
+    return {};
+}
+
 HydroCouple::IOutput *AbstractAdaptedOutput::adaptee() const
 {
     return m_adaptee;

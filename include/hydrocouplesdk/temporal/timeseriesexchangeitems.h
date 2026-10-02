@@ -62,7 +62,14 @@ public:
         : AbstractInput(id, dimensions, valueDef, modelComponent),
           TimeSeriesComponentDataItem<T>(100, elementSize),
           m_timeDim(dimensions.empty() ? nullptr : dimensions[0])
-    {}
+    {
+        // retrieveValuesFromProvider() takes the provider's latest held
+        // instant as it is, so this input needs no value fabricated between
+        // or beyond the provider's instants. Subclasses that query at their
+        // own times should declare what they accept instead.
+        this->setTimeInterpolation(HydroCouple::Temporal::TimeInterpolation::None);
+        this->setTimeExtrapolation(HydroCouple::Temporal::TimeExtrapolation::Refuse);
+    }
 
     ~TimeSeriesInput() override = default;
 
@@ -264,7 +271,13 @@ public:
         : AbstractOutput(id, dimensions, valueDef, modelComponent),
           TimeSeriesComponentDataItem<T>(100, elementSize),
           m_timeDim(dimensions.empty() ? nullptr : dimensions[0])
-    {}
+    {
+        // The data plane serves held instants by index and nothing else: no
+        // value is made up between two instants or past the last one. A
+        // consumer that needs that wires a TemporalInterpolationAdaptedOutput.
+        this->setTimeInterpolation(HydroCouple::Temporal::TimeInterpolation::None);
+        this->setTimeExtrapolation(HydroCouple::Temporal::TimeExtrapolation::Refuse);
+    }
 
     ~TimeSeriesOutput() override = default;
 

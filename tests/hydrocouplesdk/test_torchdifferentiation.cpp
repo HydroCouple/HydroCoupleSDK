@@ -26,6 +26,7 @@
 #include "reservoir_fixture.h"
 
 #include "hydrocouplesdk/data/lineartransformadaptedoutput.h"
+#include "hydrocouplesdk/data/relaxationadaptedoutput.h"
 #include "hydrocouplesdk/data/sdkadaptedoutputfactory.h"
 #include "hydrocouplesdk/differentiation/differentiableworkflow.h"
 #include "hydrocouplesdk/differentiation/torch/atenmodelcomponent.h"
@@ -934,4 +935,150 @@ TEST(TorchDifferentiationTest, ATrainingLoopRecoversAKnownParameter)
     EXPECT_LT(last, 1e-6 * first);
     for (int i = 0; i < kCells; ++i)
         EXPECT_NEAR(kB[i].item<double>(), truth[i], 1e-3) << "cell " << i;
+}
+
+namespace {
+
+//! G2.4: a stateful adapter between two components,
+//!     A ──► relax (λ) ──► B ──► loss,
+//! or, \p throughUnit, with a linear transform in front of it,
+//!     A ──► unit (m, b) ──► relax (λ) ──► B ──► loss.
+struct Relaxed
+{
+    explicit Relaxed(bool throughUnit = false)
+    {
+        workflow = std::make_unique<DifferentiableWorkflow>("relaxed");
+        std::string msg;
+        EXPECT_TRUE(workflow->addModelComponent(&A, nullptr, &msg)) << msg;
+        EXPECT_TRUE(workflow->addModelComponent(&B, nullptr, &msg)) << msg;
+        workflow->initialize();
+        IOutput *adaptee = A.out;
+        if (throughUnit)
+        {
+            unit = std::make_unique<LinearTransformAdaptedOutput>(
+                "unit", A.out, SdkAdaptedOutputFactory::instance());
+            A.out->addAdaptedOutput(unit.get());
+            adaptee = unit.get();
+        }
+        relax = std::make_unique<RelaxationAdaptedOutput>(
+            "relax", adaptee, SdkAdaptedOutputFactory::instance());
+        adaptee->addAdaptedOutput(relax.get());
+        connect(relax.get(), B.in);
+        EXPECT_TRUE(workflow->validate().empty());
+        workflow->prepare();
+        if (unit)
+        {
+            setArgument(*unit, "multiplier", 0.9);
+            unit->initialize();   // refreshes relax too: initialize relax after
+        }
+        relax->initialize();
+    }
+    ~Relaxed()
+    {
+        workflow->finish();
+        if (unit)
+        {
+            unit->removeAdaptedOutput(relax.get());
+            A.out->removeAdaptedOutput(unit.get());
+        }
+        else
+        {
+            A.out->removeAdaptedOutput(relax.get());
+        }
+    }
+    IArgument *factor() const { return relax->differentiableArguments().at(0); }
+    IArgument *multiplier() const { return unit->differentiableArguments().at(0); }
+
+    Reservoir A{"A", true, true, /*forced=*/true};
+    Reservoir B{"B"};
+    std::unique_ptr<LinearTransformAdaptedOutput> unit;
+    std::unique_ptr<RelaxationAdaptedOutput> relax;
+    std::unique_ptr<DifferentiableWorkflow> workflow;
+};
+
+} // namespace
+
+TEST(TorchDifferentiationTest, ARelaxationKeepsTheStateEachRunRewindsTo)
+{
+    // The record starts mid-run, where the adapter has a history (its values
+    // are a blend, not its adaptee's). Every run must start there -- the
+    // first as much as the ones a rewind returns to. Initializing an adapter
+    // again to take a parameter would move it: the relaxation itself
+    // directly, or through the linear transform in front of it, whose
+    // initialize() refreshes everything below it.
+    for (const bool throughUnit : {false, true})
+    {
+        constexpr int warmUp = 3;
+        std::vector<double> expected;   // the same composition, simply stepped on
+        {
+            Relaxed reference(throughUnit);
+            setArgument(*reference.relax, "relaxation_factor", 0.35);
+            for (int n = 0; n < warmUp + kSteps; ++n)
+            {
+                reference.workflow->update();
+                if (n >= warmUp)
+                    for (int i = 0; i < kCells; ++i)
+                        expected.push_back((*reference.B.out)[i]);
+            }
+        }
+
+        Relaxed r(throughUnit);
+        setArgument(*r.relax, "relaxation_factor", 0.35);
+        for (int n = 0; n < warmUp; ++n)
+            r.workflow->update();
+        r.workflow->clearRecording();
+        TorchComposition c(*r.workflow, kSteps);
+        c.bindArgument(r.relax.get(), r.factor());
+        if (throughUnit)
+            c.bindArgument(r.unit.get(), r.multiplier());
+        c.observe(r.B.out);
+        torch::NoGradGuard noGrad;
+        std::vector<torch::Tensor> parameters{tensorOf({0.35})};
+        if (throughUnit)
+            parameters.push_back(tensorOf({0.9}));
+        const torch::Tensor first = c(parameters)[0].contiguous().clone();
+        const std::vector<double> got(first.data_ptr<double>(),
+                                      first.data_ptr<double>() + first.numel());
+        EXPECT_EQ(got, expected) << (throughUnit ? "through the unit" : "direct");
+        for (int run = 2; run <= 3; ++run)
+            EXPECT_TRUE(torch::equal(c(parameters)[0], first))
+                << "run " << run << (throughUnit ? " through the unit" : " direct");
+    }
+}
+
+TEST(TorchDifferentiationTest, ATrainingLoopRecoversARelaxationFactor)
+{
+    // λ is a parameter: TorchComposition rewinds the adapter with the
+    // components, and the adapter reads λ at every refresh.
+    const double truth = 0.35;
+    torch::Tensor target;
+    {
+        Relaxed r;
+        TorchComposition c(*r.workflow, kSteps);
+        c.bindArgument(r.relax.get(), r.factor());
+        c.observe(r.B.out);
+        torch::NoGradGuard noGrad;
+        target = c({tensorOf({truth})})[0].clone();
+    }
+
+    Relaxed r;
+    TorchComposition c(*r.workflow, kSteps);
+    c.bindArgument(r.relax.get(), r.factor());
+    c.observe(r.B.out);
+    torch::Tensor lambda = tensorOf({0.8}).requires_grad_(true);
+    torch::optim::Adam optimizer({lambda}, torch::optim::AdamOptions(0.01));
+
+    double first = 0.0, last = 0.0;
+    for (int iteration = 0; iteration < 400; ++iteration)
+    {
+        optimizer.zero_grad();
+        torch::Tensor loss = (c({lambda})[0] - target).pow(2).mean();
+        loss.backward();
+        optimizer.step();
+        if (iteration == 0)
+            first = loss.item<double>();
+        last = loss.item<double>();
+    }
+    EXPECT_LT(last, 1e-6 * first);
+    EXPECT_NEAR(lambda.item<double>(), truth, 1e-3);
 }

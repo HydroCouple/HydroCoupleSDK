@@ -63,7 +63,7 @@ struct Envelope
     uint32_t magic        = kMagic;   //!< Constant marker for validation.
     uint8_t  version      = kVersion; //!< Protocol version.
     uint8_t  opCode       = 0;        //!< OpCode of this message.
-    uint16_t flags        = 0;        //!< Reserved (0).
+    uint16_t flags        = 0;        //!< Bit 15 (kFlagStatusPresent): low byte carries the replier's ComponentStatus.
     int32_t  sourceRank   = -1;       //!< Sender's rank.
     int32_t  targetRank   = -1;       //!< Intended receiver's rank.
     uint32_t tag          = 0;        //!< Request/route tag.
@@ -86,6 +86,17 @@ struct Envelope
         return magic == kMagic && version == kVersion;
     }
 };
+
+/*!
+ * \brief Set on a reply whose low flags byte is the replying component's
+ *        ComponentStatus after the request was served.
+ *
+ * Lets a proxy mirror the peer's status (Updated vs Done vs WaitingForData)
+ * instead of assuming one, without a protocol version bump: a peer that
+ * predates the bit sends flags == 0, and a proxy that sees no bit keeps its
+ * own inference.
+ */
+inline constexpr uint16_t kFlagStatusPresent = 0x8000;
 
 static_assert(sizeof(Envelope) == 32, "protocol envelope must be 32 bytes");
 static_assert(std::is_trivially_copyable_v<Envelope>,

@@ -18,6 +18,62 @@ TemporalInterpolationAdaptedOutput::TemporalInterpolationAdaptedOutput(
 {
     m_method[0] = "linear";
     addArgument(&m_method);
+    m_sampleDimension.setRole(HydroCouple::IDimension::DimensionRole::Time);
+    m_fieldDimension.setRole(HydroCouple::IDimension::DimensionRole::Component);
+    m_record = std::make_unique<SampleRecord>(
+        std::string(id) + ".record", m_series,
+        std::vector<Dimension *>{&m_sampleDimension, &m_fieldDimension});
+}
+
+std::vector<HydroCouple::IComponentDataItem *>
+TemporalInterpolationAdaptedOutput::states() const
+{
+    return {m_record.get()};
+}
+
+// ── The recorded samples ────────────────────────────────────────────────────
+
+TemporalInterpolationAdaptedOutput::SampleRecord::SampleRecord(
+    std::string_view id, const TimeSeries &series,
+    const std::vector<Dimension *> &dimensions)
+    : AbstractComponentDataItem(id, dimensions, nullptr, nullptr), m_series(series)
+{
+}
+
+std::vector<int64_t> TemporalInterpolationAdaptedOutput::SampleRecord::shape() const
+{
+    return {static_cast<int64_t>(m_series.count()), 2};
+}
+
+DataKind TemporalInterpolationAdaptedOutput::SampleRecord::dataKind() const
+{
+    return DataKind::Float64;
+}
+
+bool TemporalInterpolationAdaptedOutput::SampleRecord::getValuesInto(
+    const BufferDescriptor &destination, std::span<const int64_t> start,
+    std::span<const int64_t> count, std::string *message) const
+{
+    const std::vector<double> &times = m_series.times();
+    const std::vector<double> &values = m_series.values();
+    std::vector<double> rows(times.size() * 2);
+    for (size_t i = 0; i < times.size(); ++i)
+    {
+        rows[2 * i] = times[i];
+        rows[2 * i + 1] = values[i];
+    }
+    const std::vector<int64_t> extent = shape();
+    return detail::readHyperslab<double>(rows.data(), extent, destination, start,
+                                         count, message);
+}
+
+bool TemporalInterpolationAdaptedOutput::SampleRecord::setValuesFrom(
+    const BufferDescriptor &, std::span<const int64_t>, std::span<const int64_t>,
+    std::string *message)
+{
+    if (message)
+        *message = "the sample record of a TemporalInterpolationAdaptedOutput is read-only";
+    return false;
 }
 
 void TemporalInterpolationAdaptedOutput::initialize()

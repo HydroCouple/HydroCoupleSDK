@@ -37,6 +37,13 @@ namespace HydroCouple::SDK::Temporal {
  * Argument \c method: "linear" (default), "nearest", or "previous"
  * (hold-from-left); an unrecognized value falls back to linear —
  * initialize() has no error channel.
+ *
+ * Stateful: what it serves depends on every sample it has recorded, so
+ * states() lists that record as a read-only [samples, 2] Float64 item of
+ * (time, value) rows. The record grows by a row per refresh, so the adapter
+ * is neither differentiable nor checkpointable (its state changes shape); an
+ * orchestrator that must return a composition to an earlier step refuses a
+ * connection through it rather than replay it with the wrong record.
  */
 class HYDROCOUPLESDK_EXPORT TemporalInterpolationAdaptedOutput
     : public AbstractAdaptedOutput
@@ -66,6 +73,9 @@ public:
     //! Delegates to refresh().
     void updateValues() override;
 
+    //! The recorded samples: the state refresh() appends to.
+    [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *> states() const override;
+
     // ── v2 typed hyperslab data plane ─────────────────────────────────────
 
     [[nodiscard]] std::vector<int64_t> shape() const override;
@@ -92,6 +102,27 @@ public:
     [[nodiscard]] int sampleCount() const noexcept { return m_series.count(); }
 
 private:
+    //! The recorded samples as a read-only [count, 2] item of (time, value).
+    class SampleRecord final : public AbstractComponentDataItem
+    {
+    public:
+        SampleRecord(std::string_view id, const TimeSeries &series,
+                     const std::vector<Dimension *> &dimensions);
+        [[nodiscard]] std::vector<int64_t> shape() const override;
+        [[nodiscard]] DataKind dataKind() const override;
+        [[nodiscard]] bool getValuesInto(const BufferDescriptor &destination,
+                                         std::span<const int64_t> start,
+                                         std::span<const int64_t> count,
+                                         std::string *message = nullptr) const override;
+        [[nodiscard]] bool setValuesFrom(const BufferDescriptor &source,
+                                         std::span<const int64_t> start,
+                                         std::span<const int64_t> count,
+                                         std::string *message = nullptr) override;
+
+    private:
+        const TimeSeries &m_series;
+    };
+
     //! Copies sample \p index of the adaptee into the internal series.
     void appendSample(int64_t index);
 
@@ -104,6 +135,9 @@ private:
 
     TimeSeries m_series;
     double m_queryTime = 0.0;
+    Dimension m_sampleDimension{"sample"};
+    Dimension m_fieldDimension{"field"};
+    std::unique_ptr<SampleRecord> m_record;
 };
 
 } // namespace HydroCouple::SDK::Temporal

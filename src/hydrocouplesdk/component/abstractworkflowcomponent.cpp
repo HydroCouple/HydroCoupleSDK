@@ -4,8 +4,11 @@
 #include "stdafx.h"
 #include "hydrocouplesdk/component/abstractworkflowcomponent.h"
 #include "hydrocouplesdk/component/workflowstatuschangeeventargs.h"
+#include "hydrocouplesdk/core/diagnosticcodes.h"
+#include "hydrocouplehelpers.h"
 
 #include <algorithm>
+#include <iterator>
 
 namespace HydroCouple::SDK {
 
@@ -120,20 +123,31 @@ std::vector<std::string> AbstractWorkflowComponent::validate()
                                "': " + problem);
     }
 
+    const std::vector<ConnectionFinding> links = validateConnections();
+
     validateComposition(problems);
 
-    if (problems.empty())
+    // Link warnings are worth seeing whatever the outcome; they fail nothing.
+    for (const auto &finding : links)
+        if (finding.severity != ErrorEntry::Severity::Error)
+            reportError(finding.severity, finding.code, finding.message);
+
+    for (const auto &problem : problems)
+        reportError(ErrorEntry::Severity::Error, 0, problem);
+    for (const auto &finding : links)
     {
-        setStatus(WorkflowStatus::Validated);
+        if (finding.severity != ErrorEntry::Severity::Error)
+            continue;
+        reportError(ErrorEntry::Severity::Error, finding.code, finding.message);
+        problems.push_back(finding.message);
     }
+
+    if (problems.empty())
+        setStatus(WorkflowStatus::Validated);
     else
-    {
-        for (const auto &problem : problems)
-            reportError(ErrorEntry::Severity::Error, 0, problem);
         setStatus(WorkflowStatus::Failed,
                   "composition validation found " +
                       std::to_string(problems.size()) + " problem(s)");
-    }
     return problems;
 }
 
@@ -408,6 +422,36 @@ bool AbstractWorkflowComponent::onInitialize(std::string &)
     return true;
 }
 
+std::vector<ConnectionFinding> AbstractWorkflowComponent::validateConnections()
+{
+    std::vector<ConnectionFinding> findings;
+    for (auto *component : m_components)
+    {
+        if (!component)
+            continue;
+        for (HydroCouple::IInput *input : component->inputs())
+        {
+            if (!input)
+                continue;
+            std::vector<HydroCouple::IOutput *> providers;
+            if (auto *multi = dynamic_cast<HydroCouple::IMultiInput *>(input))
+                providers = multi->providers();
+            else if (HydroCouple::IOutput *provider = input->provider())
+                providers.push_back(provider);
+
+            for (HydroCouple::IOutput *provider : providers)
+            {
+                if (!provider)
+                    continue;
+                auto link = validateConnection(*provider, *input);
+                findings.insert(findings.end(), std::make_move_iterator(link.begin()),
+                                std::make_move_iterator(link.end()));
+            }
+        }
+    }
+    return findings;
+}
+
 void AbstractWorkflowComponent::validateComposition(std::vector<std::string> &)
 {
 }
@@ -478,8 +522,28 @@ void AbstractWorkflowComponent::setStatus(WorkflowStatus status,
                                           const std::string &message,
                                           float progress)
 {
-    const WorkflowStatus previous = m_status;
-    m_status                      = status;
+    const WorkflowStatus previous = m_status.exchange(status);
+
+    // Checked against the normative table and reported -- once per distinct
+    // (from, to) -- rather than refused, for the same reason as components:
+    // a refused Done would strand whoever waits for it.
+    if (previous != status &&
+        !HydroCouple::Helpers::isValidWorkflowStatusTransition(previous, status))
+    {
+        bool firstTime = false;
+        {
+            std::scoped_lock lock(m_errorMutex);
+            firstTime = m_reportedIllegalTransitions
+                            .emplace(static_cast<int>(previous), static_cast<int>(status))
+                            .second;
+        }
+        if (firstTime)
+            reportError(ErrorEntry::Severity::Error,
+                        Diagnostic::IllegalStatusTransition,
+                        "illegal workflow status transition " +
+                            statusToString(previous) + " -> " + statusToString(status) +
+                            " (Helpers::isValidWorkflowStatusTransition rejects it)");
+    }
 
     if (status == WorkflowStatus::Failed)
         reportError(ErrorEntry::Severity::Fatal, 0,

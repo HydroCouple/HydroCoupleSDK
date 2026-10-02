@@ -12,6 +12,7 @@
 #include "hydrocouplesdk/data/exchangeitems1d.h"
 #include "hydrocouplesdk/data/exchangeitems2d.h"
 #include "hydrocouplesdk/core/dimension.h"
+#include "hydrocouplesdk/core/unit.h"
 #include "hydrocouplesdk/core/valuedefinition.h"
 
 #include <array>
@@ -361,4 +362,35 @@ TEST_F(ExchangeItemTest, OutputJsonRoundTrip)
     restored.readData(j);
     EXPECT_EQ(restored.length(), 3);
     EXPECT_EQ(restored[1], 8);
+}
+
+// ── UnitDimensions ────────────────────────────────────────────────────────
+
+// Every fundamental dimension the standard names has its own slot: set, read
+// back, copied, and untouched by its neighbours. PlaneAngle was added to the
+// standard after the storage was sized, and for a while read and wrote one
+// element past the end of it.
+TEST(UnitDimensionsTest, HoldEveryFundamentalDimension)
+{
+    using D = HydroCouple::IUnitDimensions::FundamentalUnitDimension;
+    const D all[] = {D::Length,           D::Mass,
+                     D::Time,             D::ElectricCurrent,
+                     D::Temperature,      D::AmountOfSubstance,
+                     D::LuminousIntensity, D::Currency,
+                     D::Unitless,         D::PlaneAngle};
+
+    UnitDimensions fresh("fresh");
+    for (D axis : all)
+        EXPECT_EQ(fresh.power(axis), 0.0) << static_cast<int>(axis);
+
+    UnitDimensions dims("all");
+    for (size_t i = 0; i < std::size(all); ++i)
+        dims.setPower(all[i], static_cast<double>(i + 1));
+
+    std::unique_ptr<UnitDimensions> copied(UnitDimensions::copy(&dims));
+    for (size_t i = 0; i < std::size(all); ++i)
+    {
+        EXPECT_EQ(dims.power(all[i]), static_cast<double>(i + 1)) << i;
+        EXPECT_EQ(copied->power(all[i]), static_cast<double>(i + 1)) << i;
+    }
 }

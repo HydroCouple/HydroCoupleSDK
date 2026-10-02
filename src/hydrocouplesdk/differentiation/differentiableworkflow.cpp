@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <functional>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -40,6 +41,37 @@ differentiable(HydroCouple::IModelComponent *component)
     if (!component->capabilities().count(HydroCouple::Capability::Differentiable))
         return nullptr;
     return dynamic_cast<HydroCouple::IDifferentiableModelComponent *>(component);
+}
+
+HydroCouple::IDifferentiableAdaptedOutput *
+differentiable(HydroCouple::IAdaptedOutput *adapted)
+{
+    return dynamic_cast<HydroCouple::IDifferentiableAdaptedOutput *>(adapted);
+}
+
+HydroCouple::ICheckpointableAdaptedOutput *
+checkpointable(HydroCouple::IAdaptedOutput *adapted)
+{
+    return dynamic_cast<HydroCouple::ICheckpointableAdaptedOutput *>(adapted);
+}
+
+//! Whether an adapter's values depend on its previous refreshes.
+bool carriesState(HydroCouple::IAdaptedOutput *adapted)
+{
+    if (!adapted->states().empty())
+        return true;
+    auto *d = differentiable(adapted);
+    return d && !d->differentiableStates().empty();
+}
+
+const HydroCouple::IIdentity *ownerOf(const HydroCouple::IModelComponent *component)
+{
+    return component;
+}
+
+const HydroCouple::IIdentity *ownerOf(const HydroCouple::IAdaptedOutput *adapted)
+{
+    return adapted;
 }
 
 std::vector<double> &accumulate(std::vector<double> &into,
@@ -144,11 +176,11 @@ Gradients::find(const HydroCouple::IIdentity *owner,
 }
 
 const StateGradient *
-Gradients::findState(const HydroCouple::IModelComponent *component,
+Gradients::findState(const HydroCouple::IIdentity *owner,
                      const HydroCouple::IComponentDataItem *state) const
 {
     for (const StateGradient &g : initialStates)
-        if (g.component == component && g.state == state)
+        if (g.owner == owner && g.state == state)
             return &g;
     return nullptr;
 }
@@ -226,18 +258,35 @@ int DifferentiableWorkflow::refusedReleases() const noexcept
     return m_refusedReleases;
 }
 
-void DifferentiableWorkflow::releaseAll(const std::vector<std::string> &tokens)
+void DifferentiableWorkflow::releaseAll(const Checkpoint &checkpoint)
 {
     const auto order = scheduleOrder();
-    for (size_t i = 0; i < order.size() && i < tokens.size(); ++i)
+    for (size_t i = 0; i < order.size() && i < checkpoint.components.size(); ++i)
     {
-        if (tokens[i].empty())
+        if (checkpoint.components[i].empty())
             continue;   // a component without Capability::Checkpointing
         auto *cp = checkpointable(order[i]);
         if (!cp)
             continue;
         std::string why;
-        if (cp->releaseState(tokens[i], why))
+        if (cp->releaseState(checkpoint.components[i], why))
+            ++m_released;
+        else
+            ++m_refusedReleases;
+    }
+    // Only adapters still in the composition are asked: one that has left it
+    // may be gone, and its token is dropped unreleased.
+    const auto adapters = managedAdapters();
+    const std::set<HydroCouple::IAdaptedOutput *> present(adapters.begin(), adapters.end());
+    for (const AdapterToken &saved : checkpoint.adapters)
+    {
+        if (!present.count(saved.adapter) || saved.adapter->id() != saved.id)
+            continue;
+        auto *cp = checkpointable(saved.adapter);
+        if (!cp)
+            continue;
+        std::string why;
+        if (cp->releaseState(saved.token, why))
             ++m_released;
         else
             ++m_refusedReleases;
@@ -316,50 +365,134 @@ DifferentiableWorkflow::scheduleOrder() const
     return order;
 }
 
+std::vector<HydroCouple::IAdaptedOutput *> DifferentiableWorkflow::managedAdapters() const
+{
+    std::vector<HydroCouple::IAdaptedOutput *> found;
+    std::set<HydroCouple::IAdaptedOutput *> seen;
+    std::function<void(HydroCouple::IOutput *)> walk = [&](HydroCouple::IOutput *output) {
+        for (HydroCouple::IAdaptedOutput *adapted : output->adaptedOutputs())
+        {
+            if (!adapted || !seen.insert(adapted).second)
+                continue;
+            found.push_back(adapted);
+            walk(adapted);
+        }
+    };
+    for (auto *component : scheduleOrder())
+        for (HydroCouple::IOutput *output : component->outputs())
+            if (output)
+                walk(output);
+    return found;
+}
+
 bool DifferentiableWorkflow::onPrepare(std::string &message)
 {
     clearRecording();
     return TimeSteppedWorkflow::onPrepare(message);
 }
 
-bool DifferentiableWorkflow::saveAll(std::vector<std::string> &tokens,
-                                     std::string &message)
+bool DifferentiableWorkflow::saveAll(Checkpoint &checkpoint, std::string &message)
 {
+    checkpoint = Checkpoint{};
     const auto order = scheduleOrder();
-    tokens.assign(order.size(), std::string());
+    checkpoint.components.assign(order.size(), std::string());
     for (size_t i = 0; i < order.size(); ++i)
     {
         auto *cp = checkpointable(order[i]);
         if (!cp)
             continue;
         std::string why;
-        if (!cp->saveState(tokens[i], why))
+        if (!cp->saveState(checkpoint.components[i], why))
         {
             message = "checkpoint of '" + order[i]->id() + "' failed: " + why;
+            checkpoint.components[i].clear();
+            releaseAll(checkpoint);   // nothing will restore a partial checkpoint
+            checkpoint = Checkpoint{};
             return false;
         }
+    }
+    for (HydroCouple::IAdaptedOutput *adapted : managedAdapters())
+    {
+        auto *cp = checkpointable(adapted);
+        if (!cp)
+            continue;
+        std::string token, why;
+        if (!cp->saveState(token, why))
+        {
+            message = "checkpoint of adapted output '" + adapted->id() + "' failed: " + why;
+            releaseAll(checkpoint);
+            checkpoint = Checkpoint{};
+            return false;
+        }
+        checkpoint.adapters.push_back(AdapterToken{adapted, adapted->id(), std::move(token)});
     }
     return true;
 }
 
-bool DifferentiableWorkflow::restoreAll(const std::vector<std::string> &tokens,
+bool DifferentiableWorkflow::restoreAll(const Checkpoint &checkpoint,
                                         std::string &message)
 {
+    // Refuse before restoring anything: a composition restored in part is
+    // worse than one left where it was.
     const auto order = scheduleOrder();
     for (size_t i = 0; i < order.size(); ++i)
-    {
-        auto *cp = checkpointable(order[i]);
-        if (!cp)
+        if (!checkpointable(order[i]))
         {
             message = "component '" + order[i]->id() +
                       "' lacks Capability::Checkpointing, so an earlier step "
                       "cannot be replayed";
             return false;
         }
+    const auto adapters = managedAdapters();
+    const std::set<HydroCouple::IAdaptedOutput *> present(adapters.begin(), adapters.end());
+    std::set<HydroCouple::IAdaptedOutput *> saved;
+    for (const AdapterToken &entry : checkpoint.adapters)
+    {
+        if (!present.count(entry.adapter) || entry.adapter->id() != entry.id)
+        {
+            message = "adapted output '" + entry.id + "', checkpointed earlier, "
+                      "has left the composition, so an earlier step cannot be replayed";
+            return false;
+        }
+        saved.insert(entry.adapter);
+    }
+    for (HydroCouple::IAdaptedOutput *adapted : adapters)
+        if (carriesState(adapted) && !saved.count(adapted))
+        {
+            message = "adapted output '" + adapted->id() +
+                      "' carries state but " +
+                      (checkpointable(adapted)
+                           ? std::string("joined the composition after the checkpoint")
+                           : std::string("is not an ICheckpointableAdaptedOutput")) +
+                      ", so an earlier step cannot be replayed";
+            return false;
+        }
+
+    for (size_t i = 0; i < order.size(); ++i)
+    {
         std::string why;
-        if (!cp->restoreState(tokens[i], why))
+        if (!checkpointable(order[i])->restoreState(checkpoint.components[i], why))
         {
             message = "restore of '" + order[i]->id() + "' failed: " + why;
+            return false;
+        }
+    }
+    // A stateless adapter's values follow from its adaptee's: refresh the
+    // trees on the restored outputs (each adapter refreshes its children)...
+    for (auto *component : order)
+        for (HydroCouple::IOutput *output : component->outputs())
+            if (output)
+                for (HydroCouple::IAdaptedOutput *adapted : output->adaptedOutputs())
+                    if (adapted)
+                        adapted->refresh();
+    // ... then return every stateful one to its checkpoint, which that
+    // refresh moved on.
+    for (const AdapterToken &entry : checkpoint.adapters)
+    {
+        std::string why;
+        if (!checkpointable(entry.adapter)->restoreState(entry.token, why))
+        {
+            message = "restore of adapted output '" + entry.id + "' failed: " + why;
             return false;
         }
     }
@@ -373,7 +506,7 @@ bool DifferentiableWorkflow::performStep(std::string &message)
     record.updated.resize(order.size());
     for (size_t i = 0; i < order.size(); ++i)
         record.updated[i] = !finishedStatus(order[i]->status());
-    std::vector<std::string> tokens;
+    Checkpoint tokens;
     if (!saveAll(tokens, message))
         return false;
     if (!TimeSteppedWorkflow::performStep(message))
@@ -470,6 +603,7 @@ std::vector<std::string> DifferentiableWorkflow::differentiabilityProblems() con
             }
             HydroCouple::IOutput *provider = input->provider();
             bool broken = false;
+            std::vector<HydroCouple::IAdaptedOutput *> chain;
             while (auto *adapted = dynamic_cast<HydroCouple::IAdaptedOutput *>(provider))
             {
                 if (!dynamic_cast<HydroCouple::IDifferentiableAdaptedOutput *>(adapted))
@@ -481,13 +615,37 @@ std::vector<std::string> DifferentiableWorkflow::differentiabilityProblems() con
                     broken = true;
                     break;
                 }
+                chain.push_back(adapted);
                 provider = adapted->adaptee();
             }
             if (broken || !provider)
                 continue;
             auto *owner = provider->modelComponent();
+            if (owner == component)
+            {
+                // The schedule has no self-edges, so this is no loop to it;
+                // but the input reads the previous step's output, a lag the
+                // sweep does not model.
+                problems.push_back("'" + component->id() + "." + input->id() +
+                                   "' reads '" + component->id() + "''s own output '" +
+                                   provider->id() +
+                                   "': a lagged self-coupling is not differentiable yet");
+                continue;
+            }
             if (!owner || !managed.count(owner))
-                continue;   // an unmanaged provider is a constant
+            {
+                // An unmanaged provider is a constant, and so is a stateless
+                // adapter on its connection; a stateful one would have to be
+                // replayed, which nothing here does.
+                for (HydroCouple::IAdaptedOutput *adapted : chain)
+                    if (carriesState(adapted))
+                        problems.push_back("adapted output '" + adapted->id() +
+                                           "' carries state but adapts '" +
+                                           provider->id() +
+                                           "', whose component is outside the "
+                                           "workflow, so its refreshes cannot be replayed");
+                continue;
+            }
             auto *pd = differentiable(owner);
             if (!pd)
                 continue;   // already reported above
@@ -499,6 +657,17 @@ std::vector<std::string> DifferentiableWorkflow::differentiabilityProblems() con
                                    "' does not differentiate");
         }
     }
+
+    // Stateful adapters (G2.4): replaying an earlier step must return them
+    // too, whether or not a derivative crosses them -- an adapter whose state
+    // ran on would feed the replay the wrong values.
+    if (m_records.size() > 1)
+        for (HydroCouple::IAdaptedOutput *adapted : managedAdapters())
+            if (carriesState(adapted) && !checkpointable(adapted))
+                problems.push_back("adapted output '" + adapted->id() +
+                                   "' carries state but is not an "
+                                   "ICheckpointableAdaptedOutput, so only a "
+                                   "single recorded step can be differentiated");
 
     for (size_t step = 0; step < m_records.size(); ++step)
         for (size_t i = 0; i < order.size(); ++i)
@@ -513,16 +682,20 @@ std::vector<std::string> DifferentiableWorkflow::differentiabilityProblems() con
 
 // ── backward() ─────────────────────────────────────────────────────────────
 
+//! State cotangents, by the component or adapter that carries the state.
+using StateCarry =
+    std::map<const HydroCouple::IIdentity *,
+             std::map<HydroCouple::IComponentDataItem *, std::vector<double>>>;
+
 //! The working state of one reverse pass.
 struct DifferentiableWorkflow::Pass
 {
     const SeedFunction *seedFunction = nullptr;
     std::vector<HydroCouple::IModelComponent *> order;
+    std::vector<HydroCouple::IAdaptedOutput *> adapters;
     ArgumentSums argumentSums;
     //! State cotangents carried from the step after the one being swept.
-    std::map<HydroCouple::IModelComponent *,
-             std::map<HydroCouple::IComponentDataItem *, std::vector<double>>>
-        stateCarry;
+    StateCarry stateCarry;
     //! The next step that must be swept: steps are visited strictly
     //! last-first, and sweepStep() checks it.
     int nextStep = 0;
@@ -542,18 +715,111 @@ bool DifferentiableWorkflow::sweepStep(int step, Pass &pass, std::string &messag
     Seeds seeds;
     if (*pass.seedFunction)
         (*pass.seedFunction)(step, seeds);
+    // Cotangents of every output this step, root outputs and adapted outputs
+    // alike: whatever reads an output adds to its entry.
     std::map<const HydroCouple::IOutput *, std::vector<double>> outBar =
         std::move(seeds.m_values);
 
-    std::map<HydroCouple::IModelComponent *,
-             std::map<HydroCouple::IComponentDataItem *, std::vector<double>>>
-        nextCarry;
+    StateCarry nextCarry;
+    const std::set<HydroCouple::IModelComponent *> managed(pass.order.begin(),
+                                                           pass.order.end());
+    std::set<HydroCouple::IAdaptedOutput *> reversed;
+    //! Root outputs of unmanaged providers whose adapters a managed input reads.
+    std::set<HydroCouple::IOutput *> externalRoots;
+
+    // One adapter's vjp for this step: seeded with what its consumers added
+    // and with its state carried back from step+1; it adds its adaptee's
+    // cotangent to the adaptee.
+    auto reverseAdapter = [&](HydroCouple::IAdaptedOutput *adapted) -> bool {
+        auto *d = differentiable(adapted);
+        if (!d)
+        {
+            // No differentiable input reads through it (checked up front), so
+            // a cotangent here came from a seed -- on it, or on a child.
+            if (outBar.count(adapted))
+            {
+                message = "a cotangent reached adapted output '" + adapted->id() +
+                          "' at step " + std::to_string(step) +
+                          " (seeded on it or on an adapter it feeds), but it is "
+                          "not differentiable";
+                return false;
+            }
+            return true;
+        }
+        const auto *self = itemOf<HydroCouple::IComponentDataItem>(adapted);
+        EntryBatch seedBatch;
+        auto found = outBar.find(adapted);
+        if (found != outBar.end())
+            seedBatch.seed(self, DifferentialRole::Output, adapted->shape(), found->second);
+        const auto states = d->differentiableStates();
+        auto &carried = pass.stateCarry[ownerOf(adapted)];
+        for (HydroCouple::IComponentDataItem *state : states)
+        {
+            auto c = carried.find(state);
+            if (c != carried.end())
+                seedBatch.seed(state, DifferentialRole::StateAfter, state->shape(), c->second);
+        }
+        if (seedBatch.empty())
+            return true;   // nothing downstream depends on this adapter
+
+        HydroCouple::IOutput *adaptee = adapted->adaptee();
+        EntryBatch results;
+        size_t adapteeAt = 0;
+        if (adaptee)
+            adapteeAt = results.result(itemOf(adaptee), DifferentialRole::Input,
+                                       adaptee->shape());
+        const auto arguments = d->differentiableArguments();
+        std::vector<size_t> argumentAt, stateAt;
+        for (auto *argument : arguments)
+            argumentAt.push_back(results.result(itemOf(argument), DifferentialRole::Argument,
+                                                argument->shape()));
+        for (auto *state : states)
+            stateAt.push_back(results.result(state, DifferentialRole::StateBefore,
+                                             state->shape()));
+
+        std::string why;
+        if (!d->vjp(seedBatch.set(), results.set(), &why))
+        {
+            message = "adapted output '" + adapted->id() + "'.vjp at step " +
+                      std::to_string(step) + " refused: " + why;
+            return false;
+        }
+        for (size_t a = 0; a < arguments.size(); ++a)
+            pass.argumentSums.add(adapted, arguments[a], arguments[a]->shape(),
+                                  results.values(argumentAt[a]));
+        for (size_t k = 0; k < states.size(); ++k)
+            nextCarry[ownerOf(adapted)][states[k]] = results.values(stateAt[k]);
+        if (adaptee)
+            accumulate(outBar[adaptee], results.values(adapteeAt));
+        return true;
+    };
+
+    // An adapter tree, leaves first: every child has added its share to its
+    // adaptee before the adaptee's own vjp runs.
+    std::function<bool(HydroCouple::IAdaptedOutput *)> reverseTree =
+        [&](HydroCouple::IAdaptedOutput *adapted) -> bool {
+        if (!reversed.insert(adapted).second)
+            return true;
+        for (HydroCouple::IAdaptedOutput *child : adapted->adaptedOutputs())
+            if (child && !reverseTree(child))
+                return false;
+        return reverseAdapter(adapted);
+    };
 
     const auto &order = pass.order;
     for (auto it = order.rbegin(); it != order.rend(); ++it)
     {
         HydroCouple::IModelComponent *component = *it;
         auto *d = differentiable(component);
+
+        // Everything downstream of this component has run: reverse the
+        // adapters hanging off its outputs, so their cotangents reach the
+        // outputs themselves.
+        for (HydroCouple::IOutput *output : component->outputs())
+            if (output)
+                for (HydroCouple::IAdaptedOutput *adapted : output->adaptedOutputs())
+                    if (adapted && !reverseTree(adapted))
+                        return false;
 
         // Seeds: output cotangents reached so far, state from step+1.
         EntryBatch seedBatch;
@@ -565,9 +831,9 @@ bool DifferentiableWorkflow::sweepStep(int step, Pass &pass, std::string &messag
                                output->shape(), found->second);
         }
         const auto states = d->differentiableStates();
+        auto &carried = pass.stateCarry[ownerOf(component)];
         for (HydroCouple::IComponentDataItem *state : states)
         {
-            auto &carried = pass.stateCarry[component];
             auto found = carried.find(state);
             if (found != carried.end())
                 seedBatch.seed(state, DifferentialRole::StateAfter,
@@ -604,51 +870,38 @@ bool DifferentiableWorkflow::sweepStep(int step, Pass &pass, std::string &messag
             pass.argumentSums.add(component, arguments[k], arguments[k]->shape(),
                                   results.values(argumentAt[k]));
         for (size_t k = 0; k < states.size(); ++k)
-            nextCarry[component][states[k]] = results.values(stateAt[k]);
+            nextCarry[ownerOf(component)][states[k]] = results.values(stateAt[k]);
 
-        // Route each input's cotangent back along its connection.
+        // Each input's cotangent goes to the output it reads -- a root output
+        // or an adapted output, which passes it on when its tree is reversed.
         for (size_t k = 0; k < inputs.size(); ++k)
         {
-            std::vector<double> cotangent = results.values(inputAt[k]);
             HydroCouple::IOutput *provider = inputs[k]->provider();
-            while (auto *adapted =
-                       dynamic_cast<HydroCouple::IDifferentiableAdaptedOutput *>(provider))
-            {
-                HydroCouple::IOutput *adaptee = adapted->adaptee();
-                EntryBatch aSeeds, aResults;
-                aSeeds.seed(itemOf<HydroCouple::IComponentDataItem>(adapted),
-                            DifferentialRole::Output, adapted->shape(), cotangent);
-                const size_t adapteeAt = aResults.result(
-                    itemOf(adaptee), DifferentialRole::Input, adaptee->shape());
-                const auto aArguments = adapted->differentiableArguments();
-                std::vector<size_t> aArgumentAt;
-                for (auto *argument : aArguments)
-                    aArgumentAt.push_back(aResults.result(
-                        itemOf(argument), DifferentialRole::Argument,
-                        argument->shape()));
-                std::string aMessage;
-                if (!adapted->vjp(aSeeds.set(), aResults.set(), &aMessage))
-                {
-                    message = "adapted output '" + adapted->id() +
-                              "'.vjp at step " + std::to_string(step) +
-                              " refused: " + aMessage;
-                    return false;
-                }
-                for (size_t a = 0; a < aArguments.size(); ++a)
-                    pass.argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),
-                                          aResults.values(aArgumentAt[a]));
-                cotangent = aResults.values(adapteeAt);
-                provider = adaptee;
-            }
-            if (!provider)
+            HydroCouple::IOutput *root = provider;
+            while (auto *adapted = dynamic_cast<HydroCouple::IAdaptedOutput *>(root))
+                root = adapted->adaptee();
+            if (!root)
                 continue;
-            auto *owner = provider->modelComponent();
-            if (!owner ||
-                std::find(order.begin(), order.end(), owner) == order.end())
-                continue;   // unmanaged provider: a constant
-            accumulate(outBar[provider], cotangent);
+            auto *owner = root->modelComponent();
+            if (owner && managed.count(owner))
+            {
+                accumulate(outBar[provider], results.values(inputAt[k]));
+                continue;
+            }
+            // An unmanaged provider is a constant, but the adapters on its
+            // connection still have arguments: reverse them after the loop,
+            // and drop what reaches the root.
+            if (provider != root)
+            {
+                accumulate(outBar[provider], results.values(inputAt[k]));
+                externalRoots.insert(root);
+            }
         }
     }
+    for (HydroCouple::IOutput *root : externalRoots)
+        for (HydroCouple::IAdaptedOutput *adapted : root->adaptedOutputs())
+            if (adapted && !reverseTree(adapted))
+                return false;
     pass.stateCarry = std::move(nextCarry);
     return true;
 }
@@ -667,7 +920,7 @@ bool DifferentiableWorkflow::reverseRange(int lo, int hi, Pass &pass,
     const int mid = lo + (hi - lo) / 2;
     if (!advance(lo, mid, message))
         return false;
-    std::vector<std::string> tokens;
+    Checkpoint tokens;
     if (!saveAll(tokens, message))
         return false;
     m_checkpoints[mid] = std::move(tokens);
@@ -702,7 +955,7 @@ bool DifferentiableWorkflow::backward(const SeedFunction &seedFunction,
 
     // Where to come back to. Needed whenever a replay will happen.
     const bool willReplay = steps > 1 || m_linearizedAt != steps;
-    std::vector<std::string> finalTokens;
+    Checkpoint finalTokens;
     if (willReplay && !saveAll(finalTokens, message))
         return false;
     notePeak(willReplay ? 1 : 0);
@@ -710,6 +963,7 @@ bool DifferentiableWorkflow::backward(const SeedFunction &seedFunction,
     Pass pass;
     pass.seedFunction = &seedFunction;
     pass.order = scheduleOrder();
+    pass.adapters = managedAdapters();
     pass.nextStep = steps;
 
     // The rungs held before this pass. reverseRange() drops each temporary
@@ -753,12 +1007,21 @@ bool DifferentiableWorkflow::backward(const SeedFunction &seedFunction,
 
     for (auto *component : pass.order)
     {
-        auto carried = pass.stateCarry.find(component);
+        auto carried = pass.stateCarry.find(ownerOf(component));
         if (carried == pass.stateCarry.end())
             continue;
         for (auto &[state, values] : carried->second)
-            gradients.initialStates.push_back(
-                StateGradient{component, state, state->shape(), values});
+            gradients.initialStates.push_back(StateGradient{
+                ownerOf(component), component, nullptr, state, state->shape(), values});
+    }
+    for (auto *adapted : pass.adapters)
+    {
+        auto carried = pass.stateCarry.find(ownerOf(adapted));
+        if (carried == pass.stateCarry.end())
+            continue;
+        for (auto &[state, values] : carried->second)
+            gradients.initialStates.push_back(StateGradient{
+                ownerOf(adapted), nullptr, adapted, state, state->shape(), values});
     }
     gradients.arguments = pass.argumentSums.take();
 

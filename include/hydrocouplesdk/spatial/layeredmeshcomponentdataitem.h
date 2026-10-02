@@ -88,6 +88,8 @@ public:
           m_entityDimension(entityDimensionId(objectType), "Mesh entity dimension"),
           m_layerDimension("layers", "Vertical layer dimension")
     {
+        m_entityDimension.setRole(HydroCouple::IDimension::DimensionRole::Entity);
+        m_layerDimension.setRole(HydroCouple::IDimension::DimensionRole::Layer);
     }
 
     ~LayeredMeshComponentDataItem() override = default;

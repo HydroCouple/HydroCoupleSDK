@@ -28,9 +28,11 @@
  * policy (EveryStep or Logarithmic).
  *
  * Rules the caller must keep:
- *  - A bound argument must be read by its owner at every update (not
- *    latched at initialize()); an adapted output's arguments are, so after
- *    writing them TorchComposition calls the adapter's initialize() again.
+ *  - A bound argument must be read by its owner at every update or refresh,
+ *    not latched at initialize() -- the SDK's components and adapters all
+ *    do. TorchComposition never initializes an adapter again: that would
+ *    refresh it, and every adapter below it, and so move a stateful one
+ *    (the relaxation, say) off the state the rewind restored.
  *  - A bound initial state is written after the rewind, before step 1;
  *    outputs computed from the state before step 1 are not recomputed.
  *  - Each forward call rewinds the workflow, so only the graph of the most

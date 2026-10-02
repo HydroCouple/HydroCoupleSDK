@@ -28,14 +28,16 @@ namespace HydroCouple::SDK {
  * Unit conversion is the motivating use (m³/s → cfs, °C → °F). Arguments
  * \c multiplier (default 1) and \c offset (default 0) are registered in the
  * constructor, so a chain builder that applies step arguments before
- * initialize() lands on them; initialize() latches the coefficients and
- * computes the first values.
+ * initialize() lands on them. The coefficients are read at every refresh
+ * (initialize() makes the first), so a change applies from the next one --
+ * which is what lets a calibration loop set them between runs without
+ * initializing the adapter again (and refreshing everything below it).
  *
  * Differentiable (IDifferentiableAdaptedOutput, Phase G2.1): with x the
  * adaptee's values at the most recent refresh() and ȳ the cotangent of this
  * output, the adjoint is x̄ = m·ȳ, m̄ = Σ ȳ·x, b̄ = Σ ȳ — so a gradient
  * crosses a unit conversion, and the conversion's own coefficients can be
- * calibrated. The coefficients are those latched by initialize().
+ * calibrated. The coefficients are those of the most recent refresh.
  */
 class HYDROCOUPLESDK_EXPORT LinearTransformAdaptedOutput
     : public AbstractAdaptedOutput,
@@ -56,10 +58,11 @@ public:
 
     // ── IAdaptedOutput ────────────────────────────────────────────────────
 
-    //! Latches multiplier/offset from the arguments and computes first values.
+    //! Computes the first values.
     void initialize() override;
 
-    //! Re-reads the adaptee and re-applies the transformation.
+    //! Re-reads the adaptee and the coefficients and re-applies the
+    //! transformation.
     void refresh() override;
 
     //! Delegates to refresh().
@@ -85,6 +88,9 @@ public:
     //! The multiplier and the offset.
     [[nodiscard]] std::vector<HydroCouple::IArgument *>
     differentiableArguments() const override;
+    //! None: the transformation has no memory.
+    [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *>
+    differentiableStates() const override;
     //! Seed: this (Output). Results: adaptee (Input), multiplier/offset (Argument).
     [[nodiscard]] bool vjp(HydroCouple::DifferentialSet seeds,
                            HydroCouple::DifferentialSet results,

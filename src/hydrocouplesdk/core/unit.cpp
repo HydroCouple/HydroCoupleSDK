@@ -18,12 +18,16 @@ UnitDimensions::UnitDimensions(std::string_view caption)
 
 double UnitDimensions::power(Dim dimension) const
 {
-    return m_powers[static_cast<int>(dimension)];
+    const auto slot = static_cast<size_t>(dimension);
+    return slot < m_powers.size() ? m_powers[slot] : 0.0;
 }
 
 void UnitDimensions::setPower(Dim dimension, double power)
 {
-    m_powers[static_cast<int>(dimension)] = power;
+    const auto slot = static_cast<size_t>(dimension);
+    if (slot >= m_powers.size())
+        return;
+    m_powers[slot] = power;
     emitPropertyChanged("Power");
 }
 
@@ -32,10 +36,8 @@ UnitDimensions *UnitDimensions::copy(const HydroCouple::IUnitDimensions *src)
     if (!src) return nullptr;
     auto *d = new UnitDimensions(src->caption());
     d->setDescription(src->description());
-    // Copy all 9 dimension powers
-    for (int i = 0; i <= static_cast<int>(Dim::Unitless); ++i)
-        d->m_powers[i] = const_cast<HydroCouple::IUnitDimensions*>(src)
-                             ->power(static_cast<Dim>(i));
+    for (size_t i = 0; i < kDimensionCount; ++i)
+        d->m_powers[i] = src->power(static_cast<Dim>(i));
     return d;
 }
 

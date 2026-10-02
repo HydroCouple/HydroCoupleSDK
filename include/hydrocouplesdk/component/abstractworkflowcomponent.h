@@ -30,6 +30,7 @@
 #ifndef HYDROCOUPLESDK_ABSTRACTWORKFLOWCOMPONENT_H
 #define HYDROCOUPLESDK_ABSTRACTWORKFLOWCOMPONENT_H
 
+#include "hydrocouplesdk/component/connectionvalidator.h"
 #include "hydrocouplesdk/core/identity.h"
 #include "hydrocouplesdk/core/signal.h"
 #include "hydrocouple.h"
@@ -37,6 +38,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -52,7 +54,8 @@ namespace HydroCouple::SDK {
  * 2. initialize() → Initializing → initializes managed components
  *                   → onInitialize() → Initialized or Failed
  * 3. validate()   → Validating → required roles + component validate()
- *                   + validateComposition() → Validated or Failed
+ *                   + validateConnections() + validateComposition()
+ *                   → Validated or Failed
  * 4. prepare()    → Preparing → component prepare() + onPrepare()
  *                   (schedule building, exchange-pattern negotiation)
  *                   → Prepared or Failed
@@ -62,7 +65,8 @@ namespace HydroCouple::SDK {
  *                   → Finished
  *
  * Subclasses implement performStep() and may override onInitialize(),
- * validateComposition(), onPrepare(), onFinish(), and isCompositionDone().
+ * validateConnections(), validateComposition(), onPrepare(), onFinish(), and
+ * isCompositionDone().
  */
 class HYDROCOUPLESDK_EXPORT AbstractWorkflowComponent
     : public Identity,
@@ -105,7 +109,13 @@ public:
 
     /*!
      * \brief Validates the composition: required roles filled, every managed
-     *        component's validate() clean, then validateComposition().
+     *        component's validate() clean, every link's two ends declaring
+     *        compatible semantics (validateConnections()), then
+     *        validateComposition().
+     * \details A link finding of Error severity is a problem: it is returned,
+     *          queued on errors() with its Diagnostic code, and fails the
+     *          workflow. A Warning (a declaration missing on one end) is
+     *          queued on errors() and does not.
      * \return Empty when valid; otherwise one description per problem.
      */
     [[nodiscard]] std::vector<std::string> validate() override;
@@ -205,6 +215,15 @@ protected:
     virtual bool onInitialize(std::string &message);
 
     /*!
+     * \brief Checks every wired link of every managed component.
+     * \details The default runs validateConnection() over each input's
+     *          provider (each of an IMultiInput's providers) and returns every
+     *          finding. Override to add checks, or to drop findings a strategy
+     *          knows are handled elsewhere; return an empty vector to opt out.
+     */
+    [[nodiscard]] virtual std::vector<ConnectionFinding> validateConnections();
+
+    /*!
      * \brief Strategy-specific composition checks appended by validate();
      *        default adds nothing.
      */
@@ -277,7 +296,12 @@ private:
 
     HydroCouple::IWorkflowComponentInfo *m_componentInfo = nullptr;
 
-    WorkflowStatus m_status = WorkflowStatus::Created;
+    //! Atomic per the interface's threading convention (requestStop() and
+    //! status() may be called from another thread while update() runs).
+    std::atomic<WorkflowStatus> m_status{WorkflowStatus::Created};
+
+    //! (from, to) pairs already reported as illegal (see setStatus()).
+    std::set<std::pair<int, int>> m_reportedIllegalTransitions;
 
     std::vector<RoleSlot>                            m_roles;
     std::vector<HydroCouple::IModelComponent *>      m_components; //!< Insertion order.

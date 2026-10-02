@@ -15,6 +15,7 @@
 #include "hydrocouple.h"
 
 #include <array>
+#include <cstddef>
 #include <string>
 
 namespace HydroCouple::SDK {
@@ -25,7 +26,7 @@ namespace HydroCouple::SDK {
  * \brief Concrete implementation of HydroCouple::IUnitDimensions.
  *
  * Stores the power exponents for each of the seven fundamental SI dimensions
- * plus Currency and Unitless.
+ * plus Currency, Unitless and PlaneAngle.
  */
 class HYDROCOUPLESDK_EXPORT UnitDimensions
     : public Description,
@@ -67,9 +68,14 @@ public:
      */
     [[nodiscard]] static UnitDimensions *copy(const HydroCouple::IUnitDimensions *src);
 
+    //! One slot per FundamentalUnitDimension value. Sized from the enum's
+    //! last value so that adding a dimension to the standard cannot leave
+    //! it reading and writing past the end, as PlaneAngle once did.
+    static constexpr size_t kDimensionCount =
+        static_cast<size_t>(HydroCouple::IUnitDimensions::FundamentalUnitDimension::PlaneAngle) + 1;
+
 private:
-    // One slot per FundamentalUnitDimension enum value (max 9 dimensions)
-    std::array<double, 9> m_powers{};
+    std::array<double, kDimensionCount> m_powers{};
 };
 
 

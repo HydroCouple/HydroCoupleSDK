@@ -247,6 +247,10 @@ void ComponentWorker::reply(int32_t toRank, uint32_t tag, OpCode op,
     Envelope envelope = makeEnvelope(
         op, m_transport->localEndpoint().rank, toRank, tag,
         static_cast<uint64_t>(text.size()));
+    if (m_component)
+        envelope.flags = static_cast<uint16_t>(
+            kFlagStatusPresent |
+            static_cast<uint16_t>(static_cast<uint8_t>(m_component->status())));
     const int64_t envelopeShape = static_cast<int64_t>(sizeof(Envelope));
     std::string message;
     (void)m_transport->send({"", toRank}, static_cast<int32_t>(tag),

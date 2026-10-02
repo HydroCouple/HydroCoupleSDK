@@ -15,6 +15,7 @@
 #include "hydrocouplesdk/core/signal.h"
 #include "hydrocouple.h"
 
+#include <atomic>
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -337,8 +338,19 @@ protected:
 private:
     void initializeIdentifierArgument();
 
-    HydroCouple::IModelComponent::ComponentStatus m_status =
-        HydroCouple::IModelComponent::ComponentStatus::Created;
+    //! Atomic per the interface's threading convention: status() may be read
+    //! from any thread (a proxy updates it from the transport's thread).
+    std::atomic<HydroCouple::IModelComponent::ComponentStatus> m_status{
+        HydroCouple::IModelComponent::ComponentStatus::Created};
+
+    //! Records the transition and checks it against the normative table.
+    //! Returns the status the component held before.
+    HydroCouple::IModelComponent::ComponentStatus
+    commitStatus(HydroCouple::IModelComponent::ComponentStatus status);
+
+    //! (from, to) pairs already reported as illegal, so a component that
+    //! shortcuts every time step reports the defect once, not per step.
+    std::set<std::pair<int, int>> m_reportedIllegalTransitions;
 
     // Ordered insertion lists for deterministic iteration
     std::vector<AbstractInput *>    m_orderedInputs;

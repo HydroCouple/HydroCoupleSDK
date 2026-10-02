@@ -54,17 +54,32 @@ public:
         return 10.0 * step + reach + 0.5;
     }
 
-    std::vector<std::string> validate() override { return {}; }
-    void prepare() override { m_step = 0; }
+    std::vector<std::string> validate() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Validating);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Valid);
+        return {};
+    }
+    void prepare() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Preparing);
+        m_step = 0;
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updated);
+    }
     void update(const std::vector<IOutput *> & = {}) override
     {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updating);
         for (int reach = 0; reach < kReaches; ++reach)
             (*flow)[reach] = value(m_step, reach);
         ++m_step;
         setStatus(m_step >= kSteps ? ComponentStatus::Done
                                    : ComponentStatus::Updated);
     }
-    void finish() override { setStatus(ComponentStatus::Finished); }
+    void finish() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finishing);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finished);
+    }
 
     Output1DDouble *flow = nullptr;
     int             m_step = 0;
@@ -95,11 +110,23 @@ class Downstream : public AbstractModelComponent
 public:
     Downstream() : AbstractModelComponent("downstream", "Downstream") {}
 
-    std::vector<std::string> validate() override { return {}; }
-    void prepare() override { m_step = 0; history.clear(); }
+    std::vector<std::string> validate() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Validating);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Valid);
+        return {};
+    }
+    void prepare() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Preparing);
+        m_step = 0;
+        history.clear();
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updated);
+    }
 
     void update(const std::vector<IOutput *> & = {}) override
     {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updating);
         // Pull from whatever provider is wired — live or recorded.
         if (IOutput *provider = inflow->provider())
         {
@@ -127,7 +154,11 @@ public:
                                    : ComponentStatus::Updated);
     }
 
-    void finish() override { setStatus(ComponentStatus::Finished); }
+    void finish() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finishing);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finished);
+    }
 
     Input1DDouble  *inflow = nullptr;
     Output1DDouble *routed = nullptr;
@@ -167,6 +198,7 @@ std::filesystem::path recordUpstream(const std::filesystem::path &directory)
 
     Upstream upstream;
     upstream.initialize();
+    EXPECT_TRUE(upstream.validate().empty());
     upstream.prepare();
 
     RunRecorder recorder("upstream-run");
@@ -294,6 +326,8 @@ TEST(ExecutionModeTest, StoredUpstreamReproducesTheAllLiveResult)
         ASSERT_TRUE(downstream.inflow->setProvider(upstream.flow));
         upstream.flow->addConsumer(downstream.inflow);
 
+        ASSERT_TRUE(upstream.validate().empty());
+        ASSERT_TRUE(downstream.validate().empty());
         upstream.prepare();
         downstream.prepare();
         for (int step = 0; step < kSteps; ++step)
@@ -339,6 +373,7 @@ TEST(ExecutionModeTest, StoredUpstreamReproducesTheAllLiveResult)
     ASSERT_TRUE(downstream.inflow->setProvider(&slice));
     slice.addConsumer(downstream.inflow);
 
+    ASSERT_TRUE(downstream.validate().empty());
     downstream.prepare();
     for (int step = 0; step < kSteps; ++step)
     {

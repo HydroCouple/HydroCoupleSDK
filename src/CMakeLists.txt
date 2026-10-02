@@ -40,6 +40,7 @@ PRIVATE
     hydrocouplesdk/component/pulldrivenworkflow.cpp
     hydrocouplesdk/component/timesteppedworkflow.cpp
     hydrocouplesdk/component/resultsmodelcomponent.cpp
+    hydrocouplesdk/component/connectionvalidator.cpp
 
     # ── differentiation (namespace HydroCouple::SDK::Differentiation) ─────
     hydrocouplesdk/differentiation/differentiableworkflow.cpp

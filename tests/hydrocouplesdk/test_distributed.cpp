@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include "hydrocouplesdk/core/diagnosticcodes.h"
+
 #include "hydrocouplesdk/distributed/envelope.h"
 #include "hydrocouplesdk/distributed/valuepacker.h"
 #include "hydrocouplesdk/distributed/inproctransport.h"
@@ -376,21 +378,36 @@ public:
         : AbstractModelComponent(id)
     {}
 
-    std::vector<std::string> validate() override { return {}; }
-    void prepare() override {}
+    std::vector<std::string> validate() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Validating);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Valid);
+        return {};
+    }
+    void prepare() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Preparing);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updated);
+    }
     void update(const std::vector<HydroCouple::IOutput *> & = {}) override
     {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updating);
         for (int i = 0; i < inflow->length(); ++i)
             (*flow)[i] = 2.0 * (*inflow)[i];
         ++updateCount;
+        setStatus(stepsUntilDone > 0 && updateCount >= stepsUntilDone
+                      ? HydroCouple::IModelComponent::ComponentStatus::Done
+                      : HydroCouple::IModelComponent::ComponentStatus::Updated);
     }
     void finish() override
     {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finishing);
         setStatus(HydroCouple::IModelComponent::ComponentStatus::Finished);
     }
 
     Input1DDouble  *inflow = nullptr;
     Output1DDouble *flow   = nullptr;
+    int stepsUntilDone = -1; //!< > 0: report Done after this many updates.
     int             updateCount = 0;
 
 protected:
@@ -495,11 +512,42 @@ TEST_F(ProxyWorkerTest, RemoteLifecycleMirrorsStatus)
     EXPECT_EQ(m_remote->status(), Status::Initialized);
 
     EXPECT_TRUE(m_proxy->validate().empty());
+    EXPECT_EQ(m_proxy->status(), Status::Valid);
+    m_proxy->prepare();
+    EXPECT_EQ(m_proxy->status(), Status::Updated);
     m_proxy->update();
     EXPECT_EQ(m_remote->updateCount, 1);
+    EXPECT_EQ(m_proxy->status(), Status::Updated);
     m_proxy->finish();
     EXPECT_EQ(m_proxy->status(), Status::Finished);
     EXPECT_EQ(m_remote->status(), Status::Finished);
+
+    // The proxy walked the normative table: nothing illegal was reported.
+    for (const auto &entry : m_proxy->errors())
+        EXPECT_NE(entry.code, HydroCouple::SDK::Diagnostic::IllegalStatusTransition)
+            << entry.message;
+}
+
+TEST_F(ProxyWorkerTest, ProxyMirrorsTheRemoteReachingDone)
+{
+    // Before the status bit in the reply envelope the proxy reported Updated
+    // after every remote step, so a time-stepped orchestrator waiting for
+    // Done on a remote component never stopped.
+    using Status = IModelComponent::ComponentStatus;
+    std::string message;
+    ASSERT_TRUE(m_proxy->connectToPeer(message)) << message;
+    m_remote->stepsUntilDone = 2;
+
+    m_proxy->initialize();
+    ASSERT_TRUE(m_proxy->validate().empty());
+    m_proxy->prepare();
+    m_proxy->update();
+    EXPECT_EQ(m_proxy->status(), Status::Updated);
+    m_proxy->update();
+    EXPECT_EQ(m_remote->status(), Status::Done);
+    EXPECT_EQ(m_proxy->status(), Status::Done);
+    m_proxy->finish();
+    EXPECT_EQ(m_proxy->status(), Status::Finished);
 }
 
 TEST_F(ProxyWorkerTest, RemoteValueRoundTripThroughUpdate)
@@ -507,6 +555,8 @@ TEST_F(ProxyWorkerTest, RemoteValueRoundTripThroughUpdate)
     std::string message;
     ASSERT_TRUE(m_proxy->connectToPeer(message)) << message;
     m_proxy->initialize();
+    ASSERT_TRUE(m_proxy->validate().empty());
+    m_proxy->prepare();
 
     // Push inflow {1,2,3} → remote update() doubles → pull flow {2,4,6}.
     std::array<double, 3> inflow{1.0, 2.0, 3.0};

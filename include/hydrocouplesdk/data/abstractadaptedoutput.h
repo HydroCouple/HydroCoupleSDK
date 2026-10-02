@@ -128,6 +128,17 @@ public:
      */
     void refresh() override = 0;
 
+    /*!
+     * \brief The state carried from one refresh() to the next: none here.
+     *
+     * Right for an adapter whose values depend only on its adaptee's current
+     * values and its arguments. A subclass whose refresh() depends on its
+     * past (RelaxationAdaptedOutput, TemporalInterpolationAdaptedOutput)
+     * overrides it, so an orchestrator returning the composition to an
+     * earlier step knows the adapter must be returned too.
+     */
+    [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *> states() const override;
+
     // ── Convenience accessors ─────────────────────────────────────────────
 
     /*!

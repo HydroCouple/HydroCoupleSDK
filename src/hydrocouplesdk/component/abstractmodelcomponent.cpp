@@ -8,6 +8,8 @@
 #include "hydrocouplesdk/data/abstractoutput.h"
 #include "hydrocouplesdk/data/abstractargument.h"
 #include "hydrocouplesdk/component/componentstatuschangeeventargs.h"
+#include "hydrocouplesdk/core/diagnosticcodes.h"
+#include "hydrocouplehelpers.h"
 
 #ifdef USE_MPI
 #include <mpi.h>
@@ -94,7 +96,7 @@ std::vector<HydroCouple::IComponentDataItem *> AbstractModelComponent::states() 
 
 void AbstractModelComponent::initialize()
 {
-    auto prevStatus = m_status;
+    const ComponentStatus prevStatus = m_status.load();
     if (prevStatus != ComponentStatus::Created   &&
         prevStatus != ComponentStatus::Failed    &&
         prevStatus != ComponentStatus::Initialized)
@@ -321,11 +323,41 @@ void AbstractModelComponent::initializeAdaptedOutputs()
 
 // ── Status management ─────────────────────────────────────────────────────
 
+HydroCouple::IModelComponent::ComponentStatus
+AbstractModelComponent::commitStatus(HydroCouple::IModelComponent::ComponentStatus status)
+{
+    const ComponentStatus prev = m_status.exchange(status);
+
+    // The table is normative (hydrocouplehelpers.h): implementations must
+    // not make a transition it rejects. The transition is still performed --
+    // refusing it would strand orchestrators that wait for Done -- but the
+    // defect is reported through the normative failure channel, once per
+    // distinct (from, to) pair. A repeated status (from == to) is a progress
+    // or message refresh, not a transition.
+    if (prev != status &&
+        !HydroCouple::Helpers::isValidComponentStatusTransition(prev, status))
+    {
+        bool firstTime = false;
+        {
+            std::lock_guard lock(m_errorMutex);
+            firstTime = m_reportedIllegalTransitions
+                            .emplace(static_cast<int>(prev), static_cast<int>(status))
+                            .second;
+        }
+        if (firstTime)
+            reportError(ErrorEntry::Severity::Error,
+                        Diagnostic::IllegalStatusTransition,
+                        "illegal status transition " + statusToString(prev) +
+                            " -> " + statusToString(status) +
+                            " (Helpers::isValidComponentStatusTransition rejects it)");
+    }
+    return prev;
+}
+
 void AbstractModelComponent::setStatus(
     HydroCouple::IModelComponent::ComponentStatus status)
 {
-    auto prev = m_status;
-    m_status  = status;
+    const ComponentStatus prev = commitStatus(status);
     auto args = std::make_shared<ComponentStatusChangeEventArgs>(
         this, status, prev);
     m_statusChanged.emit(args);
@@ -336,8 +368,7 @@ void AbstractModelComponent::setStatus(
     HydroCouple::IModelComponent::ComponentStatus status,
     const std::string &message)
 {
-    auto prev = m_status;
-    m_status  = status;
+    const ComponentStatus prev = commitStatus(status);
     if (status == ComponentStatus::Failed)
         reportError(ErrorEntry::Severity::Fatal, 0, message);
     auto args = std::shared_ptr<ComponentStatusChangeEventArgs>(
@@ -350,8 +381,9 @@ void AbstractModelComponent::setStatus(
     HydroCouple::IModelComponent::ComponentStatus status,
     const std::string &message, float progress)
 {
-    auto prev = m_status;
-    m_status  = status;
+    const ComponentStatus prev = commitStatus(status);
+    if (status == ComponentStatus::Failed)
+        reportError(ErrorEntry::Severity::Fatal, 0, message);
     auto args = std::shared_ptr<ComponentStatusChangeEventArgs>(
         new ComponentStatusChangeEventArgs(this, status, prev, message, progress));
     m_statusChanged.emit(args);

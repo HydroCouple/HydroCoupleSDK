@@ -149,11 +149,21 @@ private:
      * \param[out] replyInto      Optional destination for an Ack payload.
      * \param[out] message        Error/diagnostic text.
      * \param[in]  timeoutSeconds Overrides requestTimeout() when > 0.
+     * \param[out] rejected       When non-null, set true if the peer answered
+     *                            with an Error reply (it is alive and said
+     *                            no), false for a transport failure/timeout.
      * \return true on Ack within the timeout.
      */
     bool roundTrip(OpCode op, const BufferDescriptor *requestPayload,
                    const BufferDescriptor *replyInto, std::string &message,
-                   double timeoutSeconds = -1.0);
+                   double timeoutSeconds = -1.0, bool *rejected = nullptr);
+
+    /*!
+     * \brief The peer's status as of its last reply, or \p fallback when the
+     *        peer did not report one (it predates kFlagStatusPresent).
+     */
+    [[nodiscard]] HydroCouple::IModelComponent::ComponentStatus
+    remoteStatusOr(HydroCouple::IModelComponent::ComponentStatus fallback) const;
 
     /*!
      * \brief Latches Failed + a Fatal diagnostic for a dead/failed peer.
@@ -166,6 +176,7 @@ private:
     std::atomic<uint32_t>                 m_nextTag{1};
     bool                                  m_connected = false;
     double                                m_requestTimeout = 30.0;
+    std::atomic<int>                      m_remoteStatus{-1}; //!< -1: not reported.
 };
 
 } // namespace HydroCouple::SDK::Distributed

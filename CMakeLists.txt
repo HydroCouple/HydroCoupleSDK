@@ -20,7 +20,7 @@ project(
 
 # Pre-release suffix — appended to PROJECT_VERSION wherever the full version
 # string is used (packaging, docs). Mirrors the HydroCouple interface repo.
-set(HYDROCOUPLESDK_VERSION_SUFFIX "-alpha.1")
+set(HYDROCOUPLESDK_VERSION_SUFFIX "-alpha.2")
 set(HYDROCOUPLESDK_FULL_VERSION "${PROJECT_VERSION}${HYDROCOUPLESDK_VERSION_SUFFIX}")
 
 # ── Language standard ─────────────────────────────────────────────────────

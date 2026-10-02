@@ -67,11 +67,22 @@ public:
     {
     }
 
-    std::vector<std::string> validate() override { return {}; }
-    void prepare() override { m_step = 0; }
+    std::vector<std::string> validate() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Validating);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Valid);
+        return {};
+    }
+    void prepare() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Preparing);
+        m_step = 0;
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updated);
+    }
 
     void update(const std::vector<IOutput *> & = {}) override
     {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updating);
         for (int reach = 0; reach < kReaches; ++reach)
             (*flow)[reach] = value(m_step, reach);
         ++m_step;
@@ -79,7 +90,11 @@ public:
                                    : ComponentStatus::Updated);
     }
 
-    void finish() override { setStatus(ComponentStatus::Finished); }
+    void finish() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finishing);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finished);
+    }
 
     /*!
      * \brief The value written at (step, reach) — the oracle both sides check.
@@ -156,6 +171,7 @@ std::filesystem::path recordRun(const std::filesystem::path &directory)
 
     ProducerComponent producer("producer");
     producer.initialize();
+    EXPECT_TRUE(producer.validate().empty());
     producer.prepare();
 
     RunRecorder recorder("reopen-test-run");
@@ -950,6 +966,7 @@ TEST(ResultsReopenTest, AnItemWithNoRecordedMeshIsNotSpatial)
     // A run recorded to CSV alone: values, times, and no geometry anywhere.
     ProducerComponent producer("producer");
     producer.initialize();
+    ASSERT_TRUE(producer.validate().empty());
     producer.prepare();
 
     RunRecorder recorder("csv-only-run");

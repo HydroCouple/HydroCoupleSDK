@@ -9,7 +9,147 @@ and stay in lockstep with the HydroCouple interface definitions — the SDK's
 MAJOR.MINOR must match the interface headers it is built against
 (enforced at configure time).
 
-## [Unreleased] — 2.1.0
+## [Unreleased]
+
+## [2.0.0-alpha.2] — 2026-10-02
+
+Built against HydroCouple 2.0.0-alpha.2 (interface ABI 4). MAJOR.MINOR stay
+in lockstep with the interface, so this is a 2.0 pre-release rather than the
+2.1.0 this section was provisionally labelled.
+
+### Added — gradients through stateful adapters (G2.4, 2026-10-02)
+
+The reverse engine refused any connection through an adapter whose values
+depend on its past. With the interface's new adapter members
+(`IAdaptedOutput::states()`, `IDifferentiableAdaptedOutput::
+differentiableStates()`, `ICheckpointableAdaptedOutput`) it differentiates
+through them, and replays them correctly.
+
+- **`RelaxationAdaptedOutput` is differentiable and checkpointable.** Its
+  state is its own previous values (`states()` and `differentiableStates()`
+  list the adapter itself). Adjoint, with t = ȳ_out + ȳ_state: x̄ = λt,
+  ȳ_prev = (1 − λ)t, λ̄ = Σ t(x − y_prev); a passthrough refresh (the one
+  `initialize()` makes, or any after the adaptee changes shape) gives x̄ = t
+  alone. The checkpoint token is the state -- each value's bit pattern, so
+  infinities, NaNs and subnormals restore exactly and no locale is involved
+  -- and another process can restore it; a token that does not fit the
+  adaptee, is truncated or carries trailing data is refused. **λ is now read
+  at every refresh** rather than latched at `initialize()`, so a change
+  applies from the next refresh.
+- **`DifferentiableWorkflow` routes cotangents per output.** An input's
+  cotangent is added to the output it reads, root or adapted; before a
+  component's own `vjp()`, the adapter trees on its outputs are reversed
+  leaves first, each adapter's `vjp()` once per step, seeded with what its
+  consumers added and with its state carried back from the following step.
+  (The per-path walk this replaces would have called a stateful adapter
+  once per consumer.)
+- Composition checkpoints carry a token per checkpointable adapter. A
+  restore refuses up front when a stateful adapter would be left out --
+  not checkpointable, or joined the composition after the checkpoint -- and
+  `differentiabilityProblems()` names any stateful adapter that is not an
+  `ICheckpointableAdaptedOutput` when more than one step is recorded, **on
+  or off the differentiated path** (a replay refreshes it either way).
+- `StateGradient` gained `owner` and `adapter` (exactly one of `component`
+  and `adapter` is set); `Gradients::findState()` takes any owner. An
+  adapter's state before step 1 is what its `initialize()` made of its
+  adaptee's prepared values, which the engine leaves to the caller to chain.
+- **`LinearTransformAdaptedOutput` reads its multiplier and offset at every
+  refresh** (they were latched at `initialize()`), like the relaxation's λ.
+  A host that sets them before `initialize()` sees no difference.
+- `TorchComposition` no longer initializes the adapters whose arguments it
+  binds: an adapter's `initialize()` refreshes it and everything below it,
+  which moved a stateful adapter off the state the rewind had restored. The
+  rule is now uniform: every bound argument is read at every update or
+  refresh.
+- After a restore (a replay, the end of `backward()`, `rewind()`), the
+  engine refreshes the stateless adapters on the restored outputs before
+  restoring the stateful ones, so every adapter shows the restored step
+  rather than the last one replayed.
+- Also refused, by name: a component that reads its own output, directly or
+  through adapters (a lagged self-coupling the sweep does not model); a
+  stateful adapter on a connection from a provider outside the workflow;
+  a seed on an output that a non-differentiable adapter stands between. An
+  adapter between a provider outside the workflow and a managed consumer is
+  differentiated again (a regression of the routing rewrite, caught in
+  review).
+- `AbstractAdaptedOutput::states()` returns nothing by default;
+  `TemporalInterpolationAdaptedOutput` lists its sample record as a
+  read-only `[samples, 2]` (time, value) item and stays neither
+  differentiable nor checkpointable, so a replay through it is refused.
+- Gates: 17 new tests in `test_differentiation.cpp`, and the two that
+  asserted stateful adapters are refused rewritten
+  (`EachAdapterSaysWhetherItCarriesState`,
+  `ANonDifferentiableAdapterOnTheConnectionIsRefusedByName`); 2 new in
+  `test_torchdifferentiation.cpp`; `verification/g2/falsify.sh` gains rows
+  S1–S20 and L4, and rewrites E1/E4/E5/E8/T11 for the new routing.
+
+### Added — enforcement of the ABI-4 declarations (2026-10-01)
+
+ABI 4 let items and components declare what their numbers mean and which
+status transitions are lawful. Nothing in the SDK read those declarations;
+now the base classes do. Diagnostic codes are named in the new
+`hydrocouplesdk/core/diagnosticcodes.h` (SDK codes start at 1000; below that
+is left to components).
+
+- **Lifecycle tables enforced.** `AbstractModelComponent::setStatus()` and
+  `AbstractWorkflowComponent::setStatus()` check every transition against
+  `Helpers::isValid{Component,Workflow}StatusTransition`. An illegal one is
+  still performed (refusing a `Done` would hang an orchestrator) and is
+  reported on `errors()` as `Severity::Error`,
+  `Diagnostic::IllegalStatusTransition` (1001), once per distinct (from, to)
+  pair per object. Setting the current status again is a refresh, not a
+  transition. Status is now held in a `std::atomic`.
+  **Action for component authors:** run your component's tests and read
+  `errors()` — the usual finds are skipped `Validating`/`Preparing`/
+  `Updating`/`Finishing` steps.
+- **Connection validator.** `validateConnection(provider, consumer)`
+  (`hydrocouplesdk/component/connectionvalidator.h`) compares the two ends of
+  a link: element type, value definition (quantity vs quality, categories,
+  `ValueKind`, unit dimension and scale), temporal semantics (`TimeKind` and
+  interval, interpolation/extrapolation policy per the interface's
+  provider/consumer reading), horizontal and vertical reference systems,
+  mesh location, scalar/vector structure and vector basis, layering (vertical
+  coordinate kind and layer count) and dimension roles. **Error** when both
+  ends declare and contradict; **Warning** when a declaration is missing.
+  Codes 1101–1112.
+- `AbstractWorkflowComponent::validate()` runs it over every wired link
+  through the new protected virtual `validateConnections()` (override to
+  extend, filter or opt out). Errors are returned as problems, queued with
+  their codes and fail the workflow; Warnings are queued and fail nothing.
+- `ComponentWorker` stamps its component's status into every reply
+  (`Envelope::flags = kFlagStatusPresent | status`; old peers send 0, which
+  reads as "absent"). `ProxyModelComponent` mirrors it, so a remote that
+  reaches `Done` is seen as `Done`, and walks the lawful intermediate states;
+  a rejected `validate` makes the proxy `Invalid` with the remote's message
+  rather than `Failed`.
+
+### Changed
+
+- **`TimeSeriesOutput<T>` / `TimeSeriesInput<T>` declare
+  `TimeInterpolation::None` and `TimeExtrapolation::Refuse`** (was the
+  undeclared `Unknown`), which is what they do: the output serves held
+  instants by index and the input takes its provider's latest held instant.
+  Two SDK time-series items now link without a finding; a subclass that
+  interpolates must say so.
+- Layered mesh items set their dimension roles explicitly (`Entity`,
+  `Layer`).
+
+### Fixed
+
+- **`UnitDimensions` read and wrote past its storage for `PlaneAngle`.** The
+  array was sized 9 when the standard gained a tenth dimension; `power()`
+  returned whatever followed it and `setPower()` overwrote it, and `copy()`
+  dropped the angle. Storage is now sized from the enum, and out-of-range
+  dimensions read 0. Found by the connection validator, whose unit messages
+  printed `rad^6.9e-310`. (Layout change: rebuild components.)
+- **`LayeredMeshInput<T>` / `LayeredMeshOutput<T>` were uninstantiable.**
+  They still declared the pre-ABI-4 `patchDimension()/edgeDimension()/
+  vertexDimension()` and lacked `vectorBasis()`; nothing instantiated them,
+  so nothing noticed. Brought up to the interface (`entityDimension()`,
+  `vectorBasis()`/`setVectorBasis()`), and a new test asserts every class
+  template the SDK ships is concrete.
+- Test fixtures across the suite make only lawful transitions, and drive
+  `validate()` before `prepare()`.
 
 ### Changed — interface ABI 4 (contract-consistency round, 2026-09-29)
 
@@ -430,4 +570,6 @@ build system, and execution layers against HydroCouple v2.0.0-alpha.1.
 - Device fast paths for `ValuePacker` and a direct GPU-aware-MPI path are
   deferred; device-resident fields exchange through staged copies today.
 
+[Unreleased]: https://github.com/cbuahin/HydroCoupleSDK/compare/v2.0.0-alpha.2...HEAD
+[2.0.0-alpha.2]: https://github.com/cbuahin/HydroCoupleSDK/releases/tag/v2.0.0-alpha.2
 [2.0.0-alpha.1]: https://github.com/cbuahin/HydroCoupleSDK/releases/tag/v2.0.0-alpha.1

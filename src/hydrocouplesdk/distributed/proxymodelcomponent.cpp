@@ -127,15 +127,32 @@ void ProxyModelComponent::initialize()
 
 std::vector<std::string> ProxyModelComponent::validate()
 {
+    using Status = HydroCouple::IModelComponent::ComponentStatus;
+    setStatus(Status::Validating);
     std::string message;
-    if (roundTrip(OpCode::Validate, nullptr, nullptr, message))
+    bool rejected = false;
+    if (roundTrip(OpCode::Validate, nullptr, nullptr, message, -1.0, &rejected))
+    {
+        setStatus(Status::Valid);
         return {};
+    }
+    if (rejected)
+    {
+        // The peer is alive and found problems: the composition is Invalid,
+        // not the proxy Failed. The messages are queued per the error-channel
+        // convention so a reader of errors() alone misses nothing.
+        reportError(ErrorEntry::Severity::Error, 0, message);
+        setStatus(Status::Invalid, message);
+        return {message};
+    }
+    peerFailure("remote validate failed: " + message);
     return {message};
 }
 
 void ProxyModelComponent::prepare()
 {
     using Status = HydroCouple::IModelComponent::ComponentStatus;
+    setStatus(Status::Preparing);
     std::string message;
     if (roundTrip(OpCode::Prepare, nullptr, nullptr, message))
         setStatus(Status::Updated, "remote prepared");
@@ -147,21 +164,55 @@ void ProxyModelComponent::update(
     const std::vector<HydroCouple::IOutput *> &)
 {
     using Status = HydroCouple::IModelComponent::ComponentStatus;
+    setStatus(Status::Updating);
     std::string message;
-    if (roundTrip(OpCode::Update, nullptr, nullptr, message))
-        setStatus(Status::Updated, "remote updated");
-    else
+    if (!roundTrip(OpCode::Update, nullptr, nullptr, message))
+    {
         peerFailure("remote update failed: " + message);
+        return;
+    }
+
+    // Mirror what the peer reached: Done after its final step, or
+    // WaitingForData. Without this a proxy reports Updated forever and an
+    // orchestrator waiting for Done never stops.
+    const Status remote = remoteStatusOr(Status::Updated);
+    switch (remote)
+    {
+        case Status::Done:
+            setStatus(Status::Done, "remote done");
+            break;
+        case Status::WaitingForData:
+            setStatus(Status::WaitingForData, "remote waiting for data");
+            break;
+        default:
+            setStatus(Status::Updated, "remote updated");
+            break;
+    }
 }
 
 void ProxyModelComponent::finish()
 {
     using Status = HydroCouple::IModelComponent::ComponentStatus;
+    setStatus(Status::Finishing);
     std::string message;
-    if (roundTrip(OpCode::Finish, nullptr, nullptr, message))
-        setStatus(Status::Finished);
-    else
+    if (!roundTrip(OpCode::Finish, nullptr, nullptr, message))
+    {
         peerFailure("remote finish failed: " + message);
+        return;
+    }
+    // A peer that can be re-initialized returns to Created; mirror it.
+    setStatus(remoteStatusOr(Status::Finished) == Status::Created
+                  ? Status::Created
+                  : Status::Finished);
+}
+
+HydroCouple::IModelComponent::ComponentStatus
+ProxyModelComponent::remoteStatusOr(
+    HydroCouple::IModelComponent::ComponentStatus fallback) const
+{
+    const int remote = m_remoteStatus.load();
+    return remote < 0 ? fallback
+                      : static_cast<HydroCouple::IModelComponent::ComponentStatus>(remote);
 }
 
 // ── Remote data access ────────────────────────────────────────────────────
@@ -243,8 +294,11 @@ bool ProxyModelComponent::roundTrip(OpCode op,
                                     const BufferDescriptor *requestPayload,
                                     const BufferDescriptor *replyInto,
                                     std::string &message,
-                                    double timeoutSeconds)
+                                    double timeoutSeconds,
+                                    bool *rejected)
 {
+    if (rejected)
+        *rejected = false;
     const double timeout =
         timeoutSeconds > 0.0 ? timeoutSeconds : m_requestTimeout;
     const uint32_t tag = m_nextTag.fetch_add(1);
@@ -298,6 +352,9 @@ bool ProxyModelComponent::roundTrip(OpCode op,
         return false;
     }
 
+    if (reply.flags & kFlagStatusPresent)
+        m_remoteStatus = static_cast<int>(reply.flags & 0xFF);
+
     if (reply.op() == OpCode::Ack)
     {
         if (reply.payloadBytes > 0 && replyInto &&
@@ -309,7 +366,9 @@ bool ProxyModelComponent::roundTrip(OpCode op,
         return true;
     }
 
-    // Error: the payload carries the text.
+    // Error: the payload carries the text, and the peer is alive.
+    if (rejected)
+        *rejected = true;
     std::string text(reply.payloadBytes, '\0');
     if (reply.payloadBytes > 0)
     {

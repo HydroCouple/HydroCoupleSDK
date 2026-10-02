@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Phase G2 falsifiers: the SDK reverse engine (DifferentiableWorkflow), the
-# linear-transform adapter's adjoint, and -- when the build has
-# HYDROCOUPLESDK_WITH_TORCH -- the LibTorch layer (rows T*; skipped, and
-# reported as skipped, in a build without it).
+# linear-transform adapter's adjoint, the stateful adapters of G2.4 (rows S*:
+# the relaxation's adjoint and checkpoint, and the engine carrying adapter
+# state; rows L4 and S15-S20 came with the round's independent review), and -- when the build has HYDROCOUPLESDK_WITH_TORCH -- the LibTorch
+# layer (rows T*; skipped, and reported as skipped, in a build without it).
 #
 # Each row plants one fault and requires the named gtest gate to FAIL.
 # SURVIVED = the gate is too weak or the code has nothing to say.
@@ -98,7 +99,8 @@ G='DifferentiationTest.EveryGradientMatchesFiniteDifferences'
 
 echo "== the reverse engine"
 mutation "E1 fan-out overwrites instead of adding" $E \
-  'accumulate(outBar[provider], cotangent);' 'outBar[provider] = cotangent;' "$G"
+  'accumulate(outBar[adaptee], results.values(adapteeAt));' \
+  'outBar[adaptee] = results.values(adapteeAt);' "$G"
 mutation "E2 state cotangent not carried to the previous step" $E \
   'stateCarry = std::move(nextCarry);' 'stateCarry.clear();' "$G"
 mutation "E3 superseded steps never replayed" $E \
@@ -107,10 +109,10 @@ mutation "E3 superseded steps never replayed" $E \
   '    if (true)
         return true;   // already the latest update(): nothing to recompute' "$G"
 mutation "E4 adapter bypassed on the way back" $E \
-  'cotangent = aResults.values(adapteeAt);' '(void)adapteeAt;' "$G"
+  'accumulate(outBar[adaptee], results.values(adapteeAt));' '(void)adapteeAt;' "$G"
 mutation "E5 adapter arguments not summed" $E \
-  'pass.argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),' \
-  'if (false) pass.argumentSums.add(adapted, aArguments[a], aArguments[a]->shape(),' \
+  'pass.argumentSums.add(adapted, arguments[a], arguments[a]->shape(),' \
+  'if (false) pass.argumentSums.add(adapted, arguments[a], arguments[a]->shape(),' \
   'DifferentiationTest.ZeroIsNotAGradient'
 mutation "E6 composition not restored after backward" $E \
   'if (!restoreAll(finalTokens, restoreWhy) && ok)' 'if (false && ok)' \
@@ -119,9 +121,9 @@ mutation "E7 feedback loops not refused" $E \
   '        if (group.size() < 2)
             continue;' '        if (true)
             continue;' 'DifferentiationTest.AFeedbackLoopIsRefused'
-mutation "E8 stateful adapter not refused" $E \
+mutation "E8 non-differentiable adapter not refused" $E \
   'if (!dynamic_cast<HydroCouple::IDifferentiableAdaptedOutput *>(adapted))' \
-  'if (false)' 'DifferentiationTest.AStatefulAdapterOnTheConnectionIsRefusedByName'
+  'if (false)' 'DifferentiationTest.ANonDifferentiableAdapterOnTheConnectionIsRefusedByName'
 mutation "E9 undifferentiated provider output not refused" $E \
   'if (std::find(outs.begin(), outs.end(), provider) == outs.end())' \
   'if (false)' 'DifferentiationTest.AnOutputItsProviderDoesNotDifferentiateIsRefused'
@@ -145,6 +147,10 @@ mutation "L1 dx drops the multiplier" $L \
 mutation "L2 dm linearized at the output, not the input" $L \
   'mbar += ybar[i] * m_source[i];' 'mbar += ybar[i] * m_values[i];' \
   'DifferentiationTest.TheLinearTransformAdjointMatchesFiniteDifferences'
+mutation "L4 coefficients latched at the first refresh" $L \
+  '    m_m = m_multiplier[0];' '    if (m_values.empty())
+        m_m = m_multiplier[0];' \
+  'DifferentiationTest.ARewoundRunWithNewArgumentsDifferentiatesAsAFreshOne'
 mutation "L3 jvp drops the offset" $L \
   'ydot[i] = m_m * xdot[i] + mdot[0] * m_source[i] + bdot[0];' \
   'ydot[i] = m_m * xdot[i] + mdot[0] * m_source[i];' \
@@ -210,6 +216,82 @@ mutation "X7 a failed step's checkpoint is not released" $E \
   '        releaseAll(tokens);
         return false;' '        return false;' \
   'DifferentiationTest.AFailedStepReleasesTheCheckpointItTook'
+
+echo "== G2.4: stateful adapters"
+S='src/hydrocouplesdk/data/relaxationadaptedoutput.cpp'
+RG='DifferentiationTest.ThroughARelaxationEveryGradientMatchesFiniteDifferences'
+RA='DifferentiationTest.TheRelaxationAdjointMatchesFiniteDifferences'
+mutation "S1 adapter state cotangent not carried to the previous step" $E \
+  'nextCarry[ownerOf(adapted)][states[k]] = results.values(stateAt[k]);' '(void)stateAt;' "$RG"
+mutation "S2 adapter reversed per consumer (the per-path walk)" $E \
+  '                accumulate(outBar[provider], results.values(inputAt[k]));
+                continue;' \
+  '                accumulate(outBar[provider], results.values(inputAt[k]));
+                if (auto *a = dynamic_cast<HydroCouple::IAdaptedOutput *>(provider))
+                {
+                    (void)reverseAdapter(a);
+                    outBar.erase(provider);
+                }
+                continue;' 'DifferentiationTest.ARelaxationFeedingTwoConsumersIsReversedOncePerStep'
+mutation "S3 adapter not restored for a replay" $E \
+  'if (!checkpointable(entry.adapter)->restoreState(entry.token, why))' 'if (false)' "$RG"
+mutation "S4 adapter token not released" $E \
+  'if (cp->releaseState(saved.token, why))' 'if (true)' \
+  'DifferentiationTest.AdapterCheckpointsAreReleasedExactlyOnce'
+mutation "S5 a stateful adapter without checkpointing not refused" $E \
+  'if (carriesState(adapted) && !checkpointable(adapted))' 'if (false)' \
+  'DifferentiationTest.AStatefulAdapterThatCannotBeCheckpointedIsRefusedByName'
+mutation "S6 states() ignored: an off-path stateful adapter goes unseen" $E \
+  '    if (!adapted->states().empty())
+        return true;
+' '' 'DifferentiationTest.AStatefulAdapterOffTheDifferentiatedPathStillBlocksReplay'
+mutation "S7 an adapter that joined late replayed without its state" $E \
+  'if (carriesState(adapted) && !saved.count(adapted))' 'if (false)' \
+  'DifferentiationTest.AnAdapterThatJoinedAfterACheckpointCannotBeReplayedThrough'
+mutation "S8 adapter initial-state gradient not reported" $E \
+  '            gradients.initialStates.push_back(StateGradient{
+                ownerOf(adapted), nullptr, adapted, state, state->shape(), values});' \
+  '            (void)values;' "$RG"
+mutation "S9 relaxation: output and state cotangents not summed" $S \
+  't[i] += seed[i];' 't[i] = seed[i];' "$RA"
+mutation "S10 relaxation: state adjoint drops (1 - λ)" $S \
+  'ybar[i] = (1.0 - m_lambda) * t[i];' 'ybar[i] = t[i];' "$RA"
+mutation "S11 relaxation: dλ at the wrong linearization point" $S \
+  'lbar += t[i] * (m_source[i] - m_previous[i]);' \
+  'lbar += t[i] * (m_source[i] - m_values[i]);' "$RA"
+mutation "S12 relaxation: λ latched at initialize()" $S \
+  '    m_lambda = m_relaxationFactor[0];' \
+  '    if (m_values.empty())
+        m_lambda = m_relaxationFactor[0];' \
+  'DifferentiationTest.ARewoundRunWithANewFactorDifferentiatesAsAFreshOne'
+mutation "S13 relaxation: restore keeps the stale linearization" $S \
+  '    m_haveRefresh = false;
+    m_source.clear();
+    m_previous.clear();
+' '' \
+  'DifferentiationTest.ARelaxationCheckpointRestoresItExactly'
+mutation "S14 relaxation: restore accepts a truncated token" $S \
+  '            return refuse("truncated or malformed token");' '            bits = 0;' \
+  'DifferentiationTest.ARelaxationTokenIsExactAndRefusesWhatItCannotRestore'
+mutation "S15 an adapter on a connection from outside the workflow skipped" $E \
+  '            if (provider != root)' '            if (false)' \
+  'DifferentiationTest.AnAdapterOnAConnectionFromOutsideTheWorkflowIsDifferentiated'
+mutation "S16 a lagged self-coupling not refused" $E \
+  '            if (owner == component)' '            if (false)' \
+  'DifferentiationTest.ALaggedSelfCouplingIsRefusedByName'
+mutation "S17 stateless adapters not refreshed at a restore" $E \
+  '                    if (adapted)
+                        adapted->refresh();' '                    (void)adapted;' \
+  'DifferentiationTest.BackwardLeavesTheCompositionWhereItFoundIt'
+mutation "S18 a seed on a non-differentiable adapter dropped" $E \
+  '            if (outBar.count(adapted))' '            if (false)' \
+  'DifferentiationTest.ASeedOnANonDifferentiableAdapterIsRefusedByName'
+mutation "S19 relaxation: a token for another shape accepted" $S \
+  'if (count != 0 && (extent.size() != 1 || count != static_cast<std::uint64_t>(extent[0])))' \
+  'if (false)' 'DifferentiationTest.ARelaxationTokenIsExactAndRefusesWhatItCannotRestore'
+mutation "S20 relaxation: trailing data in a token accepted" $S \
+  '    if (!nextField(rest).empty())' '    if (false)' \
+  'DifferentiationTest.ARelaxationTokenIsExactAndRefusesWhatItCannotRestore'
 
 echo "== rewind()"
 mutation "W1 rewind forgets without restoring" $E \
@@ -279,10 +361,14 @@ if [ "${TARGETS#*Torch}" != "$TARGETS" ]; then
     'torch::Tensor row = cotangents[o][step - 1].contiguous();' \
     'torch::Tensor row = cotangents[o][m_steps - step].contiguous();' \
     'TorchDifferentiationTest.TorchCompositionGradientsAreTheEngines'
-  mutation "T11 adapters do not re-latch their arguments" $T \
-    '                adapted->initialize();   // adapters latch their arguments here' \
-    '                (void)adapted;' \
-    'TorchDifferentiationTest.TorchCompositionRunsAreRepeatable'
+  mutation "T11 bound adapters initialized again, moving the rewound state" $T \
+    '                    "TorchComposition: parameter ", i, ": ", message);' \
+    '                    "TorchComposition: parameter ", i, ": ", message);
+        if (b.argument)
+            if (auto *a = dynamic_cast<HydroCouple::IAdaptedOutput *>(
+                    const_cast<HydroCouple::IIdentity *>(b.owner)))
+                a->initialize();' \
+    'TorchDifferentiationTest.ARelaxationKeepsTheStateEachRunRewindsTo'
   mutation "T12 a stale graph is not refused" $T \
     'TORCH_CHECK(generation == m_generation,' 'TORCH_CHECK(true || generation == m_generation,' \
     'TorchDifferentiationTest.OnlyTheMostRecentRunCanBeDifferentiated'

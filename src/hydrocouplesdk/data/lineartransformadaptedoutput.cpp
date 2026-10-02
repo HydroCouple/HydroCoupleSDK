@@ -25,16 +25,19 @@ LinearTransformAdaptedOutput::LinearTransformAdaptedOutput(
 
 void LinearTransformAdaptedOutput::initialize()
 {
-    m_m = m_multiplier[0];
-    m_b = m_offset[0];
     refresh();
 }
 
 void LinearTransformAdaptedOutput::refresh()
 {
+    // Whatever happens below, the previous refresh is no longer the latest.
+    m_source.clear();
     std::vector<double> source;
     if (!pullAdaptee(source))
         return;
+
+    m_m = m_multiplier[0];
+    m_b = m_offset[0];
 
     m_values.resize(source.size());
     for (size_t i = 0; i < source.size(); ++i)
@@ -137,6 +140,12 @@ LinearTransformAdaptedOutput::differentiableArguments() const
 {
     return {const_cast<Argument1DDouble *>(&m_multiplier),
             const_cast<Argument1DDouble *>(&m_offset)};
+}
+
+std::vector<HydroCouple::IComponentDataItem *>
+LinearTransformAdaptedOutput::differentiableStates() const
+{
+    return {};
 }
 
 bool LinearTransformAdaptedOutput::vjp(HydroCouple::DifferentialSet seeds,

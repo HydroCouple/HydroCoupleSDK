@@ -115,12 +115,12 @@ std::vector<torch::Tensor> TorchComposition::runForward(at::TensorList parameter
     for (size_t i = 0; i < m_bindings.size(); ++i)
     {
         const Binding &b = m_bindings[i];
+        // Owners read their arguments at every update or refresh, so the new
+        // value applies from step 1. No adapter is initialized again: that
+        // would refresh it and everything below it, moving a stateful
+        // adapter off the state the rewind just restored (G2.4).
         TORCH_CHECK(writeItem(b.item(), parameters[i], &message),
                     "TorchComposition: parameter ", i, ": ", message);
-        if (b.argument)
-            if (auto *adapted = dynamic_cast<HydroCouple::IAdaptedOutput *>(
-                    const_cast<HydroCouple::IIdentity *>(b.owner)))
-                adapted->initialize();   // adapters latch their arguments here
     }
 
     std::vector<std::vector<torch::Tensor>> perStep(m_observed.size());

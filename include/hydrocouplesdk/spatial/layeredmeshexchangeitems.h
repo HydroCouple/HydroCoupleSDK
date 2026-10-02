@@ -60,6 +60,8 @@ struct LayeredMeshFacets
           entityDimension(entityDimensionId(objectType), "Mesh entity dimension"),
           layerDimension("layers", "Vertical layer dimension")
     {
+        entityDimension.setRole(HydroCouple::IDimension::DimensionRole::Entity);
+        layerDimension.setRole(HydroCouple::IDimension::DimensionRole::Layer);
     }
 
     [[nodiscard]] static const char *entityDimensionId(MeshLocation objectType)
@@ -78,6 +80,8 @@ struct LayeredMeshFacets
     HydroCouple::Spatial::IVerticalCoordinate *vertical;
     MeshLocation                         objectType;
     HydroCouple::Spatial::SpatialDataType      dataType;
+    HydroCouple::Spatial::VectorBasis          vectorBasis =
+        HydroCouple::Spatial::VectorBasis::Unknown;
     Dimension                                  entityDimension;
     Dimension                                  layerDimension;
 };
@@ -133,25 +137,20 @@ public:
         return m_facets.surface;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
-        return m_facets.objectType == MeshLocation::Face
-                   ? const_cast<Dimension *>(&m_facets.entityDimension)
-                   : nullptr;
+        return const_cast<Dimension *>(&m_facets.entityDimension);
     }
 
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
     {
-        return m_facets.objectType == MeshLocation::Edge
-                   ? const_cast<Dimension *>(&m_facets.entityDimension)
-                   : nullptr;
+        return m_facets.vectorBasis;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
+    //! Declares the frame of vector/tensor values (Unknown for scalars).
+    void setVectorBasis(HydroCouple::Spatial::VectorBasis basis)
     {
-        return m_facets.objectType == MeshLocation::Node
-                   ? const_cast<Dimension *>(&m_facets.entityDimension)
-                   : nullptr;
+        m_facets.vectorBasis = basis;
     }
 
     [[nodiscard]] HydroCouple::IDimension *layerDimension() const override
@@ -249,25 +248,20 @@ public:
         return m_facets.surface;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *patchDimension() const override
+    [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
-        return m_facets.objectType == MeshLocation::Face
-                   ? const_cast<Dimension *>(&m_facets.entityDimension)
-                   : nullptr;
+        return const_cast<Dimension *>(&m_facets.entityDimension);
     }
 
-    [[nodiscard]] HydroCouple::IDimension *edgeDimension() const override
+    [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
     {
-        return m_facets.objectType == MeshLocation::Edge
-                   ? const_cast<Dimension *>(&m_facets.entityDimension)
-                   : nullptr;
+        return m_facets.vectorBasis;
     }
 
-    [[nodiscard]] HydroCouple::IDimension *vertexDimension() const override
+    //! Declares the frame of vector/tensor values (Unknown for scalars).
+    void setVectorBasis(HydroCouple::Spatial::VectorBasis basis)
     {
-        return m_facets.objectType == MeshLocation::Node
-                   ? const_cast<Dimension *>(&m_facets.entityDimension)
-                   : nullptr;
+        m_facets.vectorBasis = basis;
     }
 
     [[nodiscard]] HydroCouple::IDimension *layerDimension() const override

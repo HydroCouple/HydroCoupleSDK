@@ -23,6 +23,8 @@ add_executable(HydroCoupleSDKTests
     hydrocouplesdk/test_layereddataitem.cpp
     hydrocouplesdk/test_workflow.cpp
     hydrocouplesdk/test_differentiation.cpp
+    hydrocouplesdk/test_connectionvalidator.cpp
+    hydrocouplesdk/test_templatecompleteness.cpp
 )
 
 target_link_libraries(HydroCoupleSDKTests

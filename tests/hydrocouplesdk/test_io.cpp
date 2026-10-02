@@ -97,7 +97,12 @@ public:
         : AbstractModelComponent(id)
     {}
 
-    std::vector<std::string> validate() override { return {}; }
+    std::vector<std::string> validate() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Validating);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Valid);
+        return {};
+    }
     void prepare() override {}
     void update(const std::vector<HydroCouple::IOutput *> & = {}) override {}
     void finish() override {}
@@ -659,10 +664,21 @@ public:
         : AbstractModelComponent(id)
     {}
 
-    std::vector<std::string> validate() override { return {}; }
-    void prepare() override { ++prepared; }
+    std::vector<std::string> validate() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Validating);
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Valid);
+        return {};
+    }
+    void prepare() override
+    {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Preparing);
+        ++prepared;
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updated);
+    }
     void update(const std::vector<HydroCouple::IOutput *> & = {}) override
     {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Updating);
         using Status = HydroCouple::IModelComponent::ComponentStatus;
         if (failOnUpdate)
         {
@@ -676,6 +692,7 @@ public:
     }
     void finish() override
     {
+        setStatus(HydroCouple::IModelComponent::ComponentStatus::Finishing);
         setStatus(HydroCouple::IModelComponent::ComponentStatus::Finished);
     }
 

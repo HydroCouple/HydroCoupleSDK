@@ -36,9 +36,12 @@
 #include "hydrocouplesdk/data/sdkadaptedoutputfactory.h"
 #include "hydrocouplesdk/differentiation/differentiableworkflow.h"
 #include "hydrocouplesdk/differentiation/differentials.h"
+#include "hydrocouplesdk/temporal/temporalinterpolationadaptedoutput.h"
 
+#include <bit>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <random>
 #include <set>
@@ -67,8 +70,210 @@ struct Params
     std::vector<double> kC{0.40, 0.10, 0.30};
     double m = 0.8;
     double b = 0.3;
+    double lambda = 0.35;   //!< the relaxation factor, when the adapter relaxes
     std::vector<double> sA0{6.0, 2.0, 9.0};
     std::vector<double> sB0{1.0, 4.0, 3.0};
+};
+
+// ============================================================================
+// Adapters the gates need beyond the SDK's own (G2.4)
+// ============================================================================
+
+//! A relaxation whose checkpoint tokens carry a serial, so a test sees every
+//! token saved and not yet released, every use of a dead one, and how often
+//! its vjp() ran.
+class CountingRelaxation final : public RelaxationAdaptedOutput
+{
+public:
+    using RelaxationAdaptedOutput::RelaxationAdaptedOutput;
+
+    bool saveState(std::string &token, std::string &message) override
+    {
+        std::string inner;
+        if (!RelaxationAdaptedOutput::saveState(inner, message))
+            return false;
+        const long serial = m_next++;
+        m_live.insert(serial);
+        token = std::to_string(serial) + '|' + inner;
+        return true;
+    }
+    bool restoreState(const std::string &token, std::string &message) override
+    {
+        std::string inner;
+        if (!liveSerial(token, inner))
+        {
+            ++deadTokenUses;
+            message = "restore of a released token";
+            return false;
+        }
+        ++restores;
+        return RelaxationAdaptedOutput::restoreState(inner, message);
+    }
+    bool releaseState(const std::string &token, std::string &message) override
+    {
+        std::string inner;
+        if (!liveSerial(token, inner))
+        {
+            ++deadTokenUses;
+            message = "release of a released token";
+            return false;
+        }
+        m_live.erase(std::stol(token));
+        return RelaxationAdaptedOutput::releaseState(inner, message);
+    }
+    bool vjp(DifferentialSet seeds, DifferentialSet results, std::string *message) override
+    {
+        ++vjpCalls;
+        return RelaxationAdaptedOutput::vjp(seeds, results, message);
+    }
+
+    [[nodiscard]] int liveCheckpoints() const { return static_cast<int>(m_live.size()); }
+    int deadTokenUses = 0;
+    int restores = 0;
+    int vjpCalls = 0;
+
+private:
+    bool liveSerial(const std::string &token, std::string &inner) const
+    {
+        const size_t bar = token.find('|');
+        if (bar == std::string::npos || !m_live.count(std::stol(token.substr(0, bar))))
+            return false;
+        inner = token.substr(bar + 1);
+        return true;
+    }
+    long m_next = 1;
+    std::set<long> m_live;
+};
+
+//! The data plane every test adapter shares: rank-1 Float64 values pulled
+//! from a rank-1 Float64 adaptee.
+class TestAdapter : public AbstractAdaptedOutput
+{
+public:
+    TestAdapter(std::string_view id, IOutput *adaptee)
+        : AbstractAdaptedOutput(id, {}, nullptr, adaptee, SdkAdaptedOutputFactory::instance())
+    {}
+    void initialize() override
+    {
+        m_values.clear();
+        refresh();
+    }
+    void updateValues() override { refresh(); }
+    [[nodiscard]] std::vector<int64_t> shape() const override { return adaptee()->shape(); }
+    [[nodiscard]] DataKind dataKind() const override { return DataKind::Float64; }
+    [[nodiscard]] bool getValuesInto(const BufferDescriptor &destination,
+                                     std::span<const int64_t> start,
+                                     std::span<const int64_t> count,
+                                     std::string *message = nullptr) const override
+    {
+        const int64_t extent = static_cast<int64_t>(m_values.size());
+        return detail::readHyperslab<double>(m_values.data(),
+                                             std::span<const int64_t>(&extent, 1),
+                                             destination, start, count, message);
+    }
+    [[nodiscard]] bool setValuesFrom(const BufferDescriptor &, std::span<const int64_t>,
+                                     std::span<const int64_t>, std::string *message) override
+    {
+        if (message)
+            *message = "read-only";
+        return false;
+    }
+
+protected:
+    std::vector<double> pull() const
+    {
+        std::vector<double> x(static_cast<size_t>(adaptee()->shape()[0]));
+        const std::vector<int64_t> shape = adaptee()->shape(), start{0};
+        BufferDescriptor d = hostBuffer(x, shape);
+        EXPECT_TRUE(adaptee()->getValuesInto(d, start, shape));
+        return x;
+    }
+    void publish()
+    {
+        emitValueChanged({0}, {static_cast<int64_t>(m_values.size())});
+        refreshAdaptedOutputs();
+    }
+    std::vector<double> m_values;
+};
+
+//! Copies its adaptee: stateless, and not differentiable.
+class PlainCopy final : public TestAdapter
+{
+public:
+    using TestAdapter::TestAdapter;
+    void refresh() override
+    {
+        m_values = pull();
+        publish();
+    }
+};
+
+//! y <- (y + x) / 2: stateful and differentiable, but it cannot be
+//! checkpointed, so nothing can return it to an earlier step.
+class ForgetfulLag final : public TestAdapter, public virtual IDifferentiableAdaptedOutput
+{
+public:
+    using TestAdapter::TestAdapter;
+    void refresh() override
+    {
+        const std::vector<double> x = pull();
+        if (m_values.size() != x.size())
+            m_values = x;
+        else
+            for (size_t i = 0; i < x.size(); ++i)
+                m_values[i] = 0.5 * (m_values[i] + x[i]);
+        publish();
+    }
+    [[nodiscard]] std::vector<IComponentDataItem *> states() const override
+    {
+        return {const_cast<IComponentDataItem *>(itemOf<IComponentDataItem>(this))};
+    }
+    [[nodiscard]] std::vector<IArgument *> differentiableArguments() const override { return {}; }
+    [[nodiscard]] std::vector<IComponentDataItem *> differentiableStates() const override
+    {
+        return states();
+    }
+    bool vjp(DifferentialSet seeds, DifferentialSet results, std::string *message) override
+    {
+        const std::vector<int64_t> shape = this->shape();
+        std::vector<double> t(static_cast<size_t>(shape[0]), 0.0), seed;
+        for (const auto &e : seeds)
+        {
+            if (!readDifferential(e, shape, seed, message))
+                return false;
+            for (size_t i = 0; i < t.size(); ++i)
+                t[i] += seed[i];
+        }
+        for (auto &v : t)
+            v *= 0.5;
+        for (const auto &e : results)
+            if (!writeDifferential(e, shape, t, message))
+                return false;
+        return true;
+    }
+    bool jvp(DifferentialSet, DifferentialSet, std::string *message) override
+    {
+        if (message)
+            *message = "not needed";
+        return false;
+    }
+};
+
+enum class AdapterKind
+{
+    Linear,               //!< LinearTransformAdaptedOutput (m, b): stateless
+    Relaxation,           //!< RelaxationAdaptedOutput (λ): stateful, checkpointable
+    CountingRelaxation,   //!< the same, counting its tokens and vjp calls
+    Forgetful,            //!< stateful, differentiable, not checkpointable
+    Plain                 //!< not differentiable
+};
+
+//! The composition's shape: which adapter sits between A and B, and whether
+//! C reads the adapter too (A -> adapter -> {B, C}) instead of A directly.
+struct Config
+{
+    AdapterKind adapter = AdapterKind::Linear;
+    bool adapterFeedsC = false;
 };
 
 constexpr int kSteps = 8;
@@ -78,7 +283,7 @@ double observed(int step, int cell) { return 1.0 + 0.1 * step + 0.2 * cell; }
 
 struct Rig
 {
-    explicit Rig(const Params &p, bool adapterIsRelaxation = false)
+    explicit Rig(const Params &p, Config config = {}) : config(config)
     {
         A = std::make_unique<Reservoir>("A", true, true, /*forced=*/true);
         B = std::make_unique<Reservoir>("B");
@@ -90,15 +295,31 @@ struct Rig
         EXPECT_TRUE(workflow->addModelComponent(C.get(), nullptr, &msg)) << msg;
         workflow->initialize();
 
-        if (adapterIsRelaxation)
-            adapter = std::make_unique<RelaxationAdaptedOutput>(
-                "relax", A->out, SdkAdaptedOutputFactory::instance());
-        else
+        switch (config.adapter)
+        {
+        case AdapterKind::Linear:
             adapter = std::make_unique<LinearTransformAdaptedOutput>(
                 "unit", A->out, SdkAdaptedOutputFactory::instance());
+            break;
+        case AdapterKind::Relaxation:
+            adapter = std::make_unique<RelaxationAdaptedOutput>(
+                "relax", A->out, SdkAdaptedOutputFactory::instance());
+            break;
+        case AdapterKind::CountingRelaxation:
+            adapter = std::make_unique<CountingRelaxation>(
+                "relax", A->out, SdkAdaptedOutputFactory::instance());
+            break;
+        case AdapterKind::Forgetful:
+            adapter = std::make_unique<ForgetfulLag>("forgetful", A->out);
+            break;
+        case AdapterKind::Plain:
+            adapter = std::make_unique<PlainCopy>("copy", A->out);
+            break;
+        }
         A->out->addAdaptedOutput(adapter.get());
         connect(adapter.get(), B->in);
-        connect(A->out, C->in);
+        connect(config.adapterFeedsC ? static_cast<IOutput *>(adapter.get()) : A->out,
+                C->in);
 
         for (int i = 0; i < kCells; ++i)
         {
@@ -112,6 +333,8 @@ struct Rig
         workflow->prepare();
         setArgument(*adapter, "multiplier", p.m);
         setArgument(*adapter, "offset", p.b);
+        setArgument(*adapter, "relaxation_factor", p.lambda);
+        // A stateful adapter's state before step 1 is A's prepared outflow.
         adapter->initialize();
     }
 
@@ -162,30 +385,41 @@ struct Rig
         };
     }
 
+    Config config;
     std::unique_ptr<Reservoir> A, B, C;
     std::unique_ptr<AbstractAdaptedOutput> adapter;
     std::unique_ptr<DifferentiableWorkflow> workflow;
 };
 
-//! The loss by forward runs only.
-double lossAt(const Params &p)
+//! An output's values, read through the data plane.
+std::vector<double> valuesOf(const IOutput *output)
 {
-    Rig rig(p);
+    const std::vector<int64_t> shape = output->shape(), start(shape.size(), 0);
+    std::vector<double> v(static_cast<size_t>(elementCount(shape)));
+    const BufferDescriptor d = hostBuffer(v, shape);
+    EXPECT_TRUE(output->getValuesInto(d, start, shape));
+    return v;
+}
+
+//! The loss by forward runs only.
+double lossAt(const Params &p, Config config = {})
+{
+    Rig rig(p, config);
     return rig.run();
 }
 
 template <typename Setter>
-double centralDifference(Setter set, double eps = 1e-6)
+double centralDifference(Setter set, Config config = {}, double eps = 1e-6)
 {
     Params plus, minus;
     set(plus, +eps);
     set(minus, -eps);
-    return (lossAt(plus) - lossAt(minus)) / (2.0 * eps);
+    return (lossAt(plus, config) - lossAt(minus, config)) / (2.0 * eps);
 }
 
 struct Differentiated
 {
-    explicit Differentiated(const Params &p = {}) : rig(p)
+    explicit Differentiated(const Params &p = {}, Config config = {}) : rig(p, config)
     {
         loss = rig.run();
         std::string message;
@@ -282,14 +516,35 @@ TEST(DifferentiationTest, TheLinearTransformAdjointMatchesFiniteDifferences)
     source.out->removeAdaptedOutput(&adapted);
 }
 
-TEST(DifferentiationTest, TheStatefulAdaptersDoNotClaimTheContract)
+TEST(DifferentiationTest, EachAdapterSaysWhetherItCarriesState)
 {
+    // As an engine sees them (G2.4): the relaxation carries its own previous
+    // values and offers both contracts; the interpolation adapter carries a
+    // record that grows, and offers neither; the linear transform carries
+    // nothing.
     Reservoir source("source");
     source.initialize();
-    RelaxationAdaptedOutput relax("relax", source.out,
-                                  SdkAdaptedOutputFactory::instance());
-    IAdaptedOutput *adapted = &relax;   // as an engine sees it
+    RelaxationAdaptedOutput relax("relax", source.out, SdkAdaptedOutputFactory::instance());
+    IAdaptedOutput *adapted = &relax;
+    ASSERT_NE(dynamic_cast<IDifferentiableAdaptedOutput *>(adapted), nullptr);
+    ASSERT_NE(dynamic_cast<ICheckpointableAdaptedOutput *>(adapted), nullptr);
+    const std::vector<IComponentDataItem *> itself{const_cast<IComponentDataItem *>(
+        itemOf<IComponentDataItem>(adapted))};
+    EXPECT_EQ(adapted->states(), itself);
+    EXPECT_EQ(dynamic_cast<IDifferentiableAdaptedOutput *>(adapted)->differentiableStates(),
+              itself);
+
+    HydroCouple::SDK::Temporal::TemporalInterpolationAdaptedOutput record(
+        "record", source.out, SdkAdaptedOutputFactory::instance());
+    adapted = &record;
     EXPECT_EQ(dynamic_cast<IDifferentiableAdaptedOutput *>(adapted), nullptr);
+    EXPECT_EQ(dynamic_cast<ICheckpointableAdaptedOutput *>(adapted), nullptr);
+    ASSERT_EQ(adapted->states().size(), 1u);
+    EXPECT_EQ(adapted->states()[0]->shape(), (std::vector<int64_t>{0, 2}));
+
+    LinearTransformAdaptedOutput unit("unit", source.out, SdkAdaptedOutputFactory::instance());
+    EXPECT_TRUE(static_cast<IAdaptedOutput &>(unit).states().empty());
+    EXPECT_TRUE(unit.differentiableStates().empty());
 }
 
 // ============================================================================
@@ -389,6 +644,9 @@ TEST(DifferentiationTest, BackwardLeavesTheCompositionWhereItFoundIt)
         EXPECT_DOUBLE_EQ((*d.rig.B->out)[i], (*reference.B->out)[i]);
         EXPECT_DOUBLE_EQ((*d.rig.A->storage)[i], (*reference.A->storage)[i]);
     }
+    // The adapter too: a stateless one shows its adaptee's restored values,
+    // not those of the last step the pass replayed.
+    EXPECT_EQ(valuesOf(d.rig.adapter.get()), valuesOf(reference.adapter.get()));
     // ...and the run continues as if backward() had never happened.
     d.rig.step(kSteps + 1);
     reference.step(kSteps + 1);
@@ -430,15 +688,18 @@ TEST(DifferentiationTest, AFeedbackLoopIsRefused)
     EXPECT_NE(msg.find("feedback loop"), std::string::npos) << msg;
 }
 
-TEST(DifferentiationTest, AStatefulAdapterOnTheConnectionIsRefusedByName)
+TEST(DifferentiationTest, ANonDifferentiableAdapterOnTheConnectionIsRefusedByName)
 {
-    Rig rig(Params{}, /*adapterIsRelaxation=*/true);
+    Rig rig(Params{}, {AdapterKind::Plain});
     rig.run();
     Gradients g;
     std::string msg;
+    const int callsBefore = rig.B->vjpCalls;
     EXPECT_FALSE(rig.workflow->backward(rig.seeds(), g, msg));
-    EXPECT_NE(msg.find("'relax'"), std::string::npos) << msg;
-    EXPECT_NE(msg.find("not differentiable"), std::string::npos) << msg;
+    EXPECT_NE(msg.find("adapted output 'copy' on the connection into 'B.in' is not "
+                       "differentiable"),
+              std::string::npos) << msg;
+    EXPECT_EQ(rig.B->vjpCalls, callsBefore) << "refused up front, before any derivative work";
 }
 
 TEST(DifferentiationTest, ANonDifferentiableComponentIsRefused)
@@ -880,8 +1141,12 @@ TEST(DifferentiationTest, RewindWorksUnderTheLadder)
 
 TEST(DifferentiationTest, ARewoundRunWithNewArgumentsDifferentiatesAsAFreshOne)
 {
+    // Components and adapters read their arguments at every update or
+    // refresh, so changing them after a rewind -- the adapter's too, with no
+    // initialize() -- runs exactly as a fresh composition would.
     Params changed;
     changed.kB = {0.12, 0.44, 0.27};
+    changed.m = 1.1;
     Differentiated fresh(changed);
 
     Rig rig(Params{});
@@ -890,9 +1155,573 @@ TEST(DifferentiationTest, ARewoundRunWithNewArgumentsDifferentiatesAsAFreshOne)
     ASSERT_TRUE(rig.workflow->rewind(message)) << message;
     for (int i = 0; i < kCells; ++i)
         (*rig.B->k)[i] = changed.kB[i];
+    setArgument(*rig.adapter, "multiplier", changed.m);
     const double loss = rig.run();
     EXPECT_EQ(loss, fresh.loss);
     Gradients g;
     ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
     EXPECT_EQ(flatten(g), flatten(fresh.gradients));
+}
+
+// ============================================================================
+// G2.4: stateful adapters -- the relaxation's own adjoint and checkpoint, and
+// the engine carrying an adapter's state through time and through replays
+// ============================================================================
+
+namespace {
+
+DifferentialEntry entry(const IComponentDataItem *item, R role, std::vector<double> &values,
+                        const std::vector<int64_t> &shape)
+{
+    DifferentialEntry e;
+    e.item = item;
+    e.role = role;
+    e.value = hostBuffer(values, shape);
+    return e;
+}
+
+//! A source reservoir and a relaxation of its outflow, initialized at x0.
+struct Relaxed
+{
+    Relaxed(const std::vector<double> &x0, double lambda)
+    {
+        source.initialize();   // creates source.out
+        source.validate();
+        source.prepare();
+        adapter = std::make_unique<RelaxationAdaptedOutput>(
+            "relax", source.out, SdkAdaptedOutputFactory::instance());
+        setArgument(relax(), "relaxation_factor", lambda);
+        set(x0);
+        relax().initialize();   // y0 = x0: the first refresh passes through
+    }
+    RelaxationAdaptedOutput &relax() { return *adapter; }
+    void set(const std::vector<double> &x)
+    {
+        for (int i = 0; i < kCells; ++i)
+            (*source.out)[i] = x[i];
+    }
+    void refreshAt(const std::vector<double> &x)
+    {
+        set(x);
+        relax().refresh();
+    }
+    Reservoir source{"source"};
+    std::unique_ptr<RelaxationAdaptedOutput> adapter;
+};
+
+//! One relaxation refresh from scratch: y1 = (1 - λ) x0 + λ x1.
+std::vector<double> relaxOnce(const std::vector<double> &x0, const std::vector<double> &x1,
+                              double lambda)
+{
+    Relaxed r(x0, lambda);
+    r.refreshAt(x1);
+    return valuesOf(&r.relax());
+}
+
+const std::vector<double> kX0{2.0, -1.0, 0.5}, kX1{0.7, 3.0, -2.0}, kX2{-1.2, 0.4, 1.9};
+
+} // namespace
+
+TEST(DifferentiationTest, TheRelaxationAdjointMatchesFiniteDifferences)
+{
+    const double lambda = 0.35;
+    Relaxed r(kX0, lambda);
+    r.refreshAt(kX1);
+
+    const auto *self = itemOf<IComponentDataItem>(&r.relax());
+    IArgument *factor = r.relax().differentiableArguments().at(0);
+    const std::vector<int64_t> shape{kCells}, scalar{1};
+    std::vector<double> outBar{0.3, -1.1, 2.0}, stateBar{-0.4, 0.8, 0.25};
+    std::vector<double> xbar(kCells), ybar(kCells), lbar(1);
+    const DifferentialEntry seeds[] = {entry(self, R::Output, outBar, shape),
+                                       entry(self, R::StateAfter, stateBar, shape)};
+    const DifferentialEntry results[] = {entry(itemOf(r.source.out), R::Input, xbar, shape),
+                                         entry(self, R::StateBefore, ybar, shape),
+                                         entry(itemOf(factor), R::Argument, lbar, scalar)};
+    std::string message;
+    ASSERT_TRUE(r.relax().vjp(seeds, results, &message)) << message;
+
+    // The output and the state it carries forward are the same values, so
+    // the loss sees them through both cotangents.
+    auto f = [&](const std::vector<double> &a0, const std::vector<double> &a1, double l) {
+        const std::vector<double> y = relaxOnce(a0, a1, l);
+        double sum = 0.0;
+        for (int i = 0; i < kCells; ++i)
+            sum += (outBar[i] + stateBar[i]) * y[i];
+        return sum;
+    };
+    const double eps = 1e-6;
+    for (int i = 0; i < kCells; ++i)
+    {
+        auto p0 = kX0, m0 = kX0, p1 = kX1, m1 = kX1;
+        p0[i] += eps;
+        m0[i] -= eps;
+        p1[i] += eps;
+        m1[i] -= eps;
+        EXPECT_NEAR(ybar[i], (f(p0, kX1, lambda) - f(m0, kX1, lambda)) / (2 * eps), 1e-8)
+            << "state before[" << i << "]";
+        EXPECT_NEAR(xbar[i], (f(kX0, p1, lambda) - f(kX0, m1, lambda)) / (2 * eps), 1e-8)
+            << "adaptee[" << i << "]";
+    }
+    EXPECT_NEAR(lbar[0], (f(kX0, kX1, lambda + eps) - f(kX0, kX1, lambda - eps)) / (2 * eps),
+                1e-8);
+
+    // Adjointness: <ȳ, J v> = <Jᵀ ȳ, v>; the jvp writes the output and the
+    // state after alike.
+    std::vector<double> vx{0.2, 0.7, -0.3}, vy{-0.5, 0.1, 0.9}, vl{0.6};
+    std::vector<double> outDot(kCells), stateDot(kCells);
+    const DifferentialEntry tseeds[] = {entry(itemOf(r.source.out), R::Input, vx, shape),
+                                        entry(self, R::StateBefore, vy, shape),
+                                        entry(itemOf(factor), R::Argument, vl, scalar)};
+    const DifferentialEntry tresults[] = {entry(self, R::Output, outDot, shape),
+                                          entry(self, R::StateAfter, stateDot, shape)};
+    ASSERT_TRUE(r.relax().jvp(tseeds, tresults, &message)) << message;
+    EXPECT_EQ(outDot, stateDot);
+    double lhs = 0.0, rhs = lbar[0] * vl[0];
+    for (int i = 0; i < kCells; ++i)
+    {
+        lhs += outBar[i] * outDot[i] + stateBar[i] * stateDot[i];
+        rhs += xbar[i] * vx[i] + ybar[i] * vy[i];
+    }
+    EXPECT_NEAR(lhs, rhs, 1e-12);
+}
+
+TEST(DifferentiationTest, ARelaxationsFirstRefreshIsAPassthrough)
+{
+    // Right after initialize() there is no history: y = x, so the whole
+    // cotangent reaches the adaptee and none the state or the factor.
+    Relaxed r(kX0, 0.35);
+    const auto *self = itemOf<IComponentDataItem>(&r.relax());
+    IArgument *factor = r.relax().differentiableArguments().at(0);
+    const std::vector<int64_t> shape{kCells}, scalar{1};
+    std::vector<double> t{1.5, -2.0, 0.25}, xbar(kCells), ybar(kCells, 9.0), lbar{9.0};
+    const DifferentialEntry seeds[] = {entry(self, R::Output, t, shape)};
+    const DifferentialEntry results[] = {entry(itemOf(r.source.out), R::Input, xbar, shape),
+                                         entry(self, R::StateBefore, ybar, shape),
+                                         entry(itemOf(factor), R::Argument, lbar, scalar)};
+    std::string message;
+    ASSERT_TRUE(r.relax().vjp(seeds, results, &message)) << message;
+    EXPECT_EQ(xbar, t);
+    EXPECT_EQ(ybar, std::vector<double>(kCells, 0.0));
+    EXPECT_EQ(lbar[0], 0.0);
+}
+
+TEST(DifferentiationTest, ARelaxationCheckpointRestoresItExactly)
+{
+    Relaxed r(kX0, 0.35);
+    r.refreshAt(kX1);
+    const std::vector<double> saved = valuesOf(&r.relax());
+    std::string token, message;
+    ASSERT_TRUE(r.relax().saveState(token, message)) << message;
+
+    r.refreshAt(kX2);
+    const std::vector<double> next = valuesOf(&r.relax());
+    ASSERT_NE(next, saved);
+
+    // Restored: the values it held, and no refresh to differentiate until
+    // the next one -- which then lands exactly where the first one did.
+    ASSERT_TRUE(r.relax().restoreState(token, message)) << message;
+    EXPECT_EQ(valuesOf(&r.relax()), saved);
+    std::vector<double> t(kCells, 1.0), xbar(kCells);
+    const std::vector<int64_t> shape{kCells};
+    const DifferentialEntry seeds[] = {
+        entry(itemOf<IComponentDataItem>(&r.relax()), R::Output, t, shape)};
+    const DifferentialEntry results[] = {entry(itemOf(r.source.out), R::Input, xbar, shape)};
+    EXPECT_FALSE(r.relax().vjp(seeds, results, &message));
+    r.refreshAt(kX2);
+    EXPECT_EQ(valuesOf(&r.relax()), next);
+
+    // The token is the state: another adapter (another process) restores it.
+    Relaxed other(kX2, 0.9);
+    ASSERT_TRUE(other.relax().restoreState(token, message)) << message;
+    EXPECT_EQ(valuesOf(&other.relax()), saved);
+
+    EXPECT_TRUE(r.relax().releaseState(token, message));
+}
+
+TEST(DifferentiationTest, ARelaxationTokenIsExactAndRefusesWhatItCannotRestore)
+{
+    // Bit for bit, whatever the values: a replay restores a diverged state
+    // as faithfully as an ordinary one.
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const std::vector<double> odd{std::numeric_limits<double>::infinity(), nan,
+                                  std::numeric_limits<double>::denorm_min()};
+    Relaxed r(odd, 0.35);   // y0 = the adaptee's values
+    std::string token, message;
+    ASSERT_TRUE(r.relax().saveState(token, message)) << message;
+    Relaxed other(kX0, 0.35);
+    ASSERT_TRUE(other.relax().restoreState(token, message)) << message;
+    const std::vector<double> back = valuesOf(&other.relax());
+    ASSERT_EQ(back.size(), odd.size());
+    for (size_t i = 0; i < odd.size(); ++i)
+        EXPECT_EQ(std::bit_cast<uint64_t>(back[i]), std::bit_cast<uint64_t>(odd[i])) << i;
+
+    // What it cannot restore it refuses -- without throwing, and without
+    // touching its state.
+    const std::vector<double> before = valuesOf(&other.relax());
+    for (const std::string bad :
+         {std::string("something else"), std::string("relaxation-v1"),
+          std::string("relaxation-v1 -1"), std::string("relaxation-v1 18446744073709551615"),
+          std::string("relaxation-v1 3 3ff0000000000000"),
+          std::string("relaxation-v1 2 3ff0000000000000 3ff0000000000000"),
+          std::string("relaxation-v1 3 3ff0000000000000 3ff0000000000000 zz"),
+          token + " 3ff0000000000000"})
+    {
+        bool restored = true;
+        EXPECT_NO_THROW(restored = other.relax().restoreState(bad, message)) << bad;
+        EXPECT_FALSE(restored) << bad;
+        EXPECT_FALSE(message.empty()) << bad;
+        EXPECT_EQ(std::bit_cast<uint64_t>(valuesOf(&other.relax())[0]),
+                  std::bit_cast<uint64_t>(before[0])) << bad;
+    }
+    // An empty state -- no history yet -- restores anywhere.
+    EXPECT_TRUE(other.relax().restoreState("relaxation-v1 0", message)) << message;
+}
+
+namespace {
+
+//! The gradients a relaxation composition reports, each checked against
+//! finite differences of full forward runs. The adapter's state before
+//! step 1 is A's prepared outflow, y0 = kA * sA0 -- a dependence the engine
+//! leaves to the caller -- so its gradient is chained into kA and sA0 here,
+//! analytically, exactly as a caller would.
+void expectRelaxedGradientsMatch(Config config)
+{
+    const Params p;
+    Differentiated d(p, config);
+    ASSERT_TRUE(d.ok);
+    EXPECT_NEAR(d.loss, lossAt(p, config), 1e-12);
+
+    Rig &rig = d.rig;
+    IArgument *factor =
+        dynamic_cast<IDifferentiableAdaptedOutput &>(*rig.adapter).differentiableArguments().at(0);
+    const auto kA = d.argument(rig.A.get(), rig.A->k);
+    const auto kB = d.argument(rig.B.get(), rig.B->k);
+    const auto kC = d.argument(rig.C.get(), rig.C->k);
+    const auto lambda = d.argument(rig.adapter.get(), factor);
+    const StateGradient *sA0 = d.gradients.findState(rig.A.get(), rig.A->storage.get());
+    const StateGradient *sB0 = d.gradients.findState(rig.B.get(), rig.B->storage.get());
+    const StateGradient *y0 =
+        d.gradients.findState(rig.adapter.get(), itemOf<IComponentDataItem>(rig.adapter.get()));
+    ASSERT_EQ(kA.size(), size_t(kCells));
+    ASSERT_EQ(kB.size(), size_t(kCells));
+    ASSERT_EQ(kC.size(), size_t(kCells));
+    ASSERT_EQ(lambda.size(), 1u);
+    ASSERT_NE(sA0, nullptr);
+    ASSERT_NE(sB0, nullptr);
+    ASSERT_NE(y0, nullptr) << "the adapter's initial state has a gradient";
+    EXPECT_EQ(y0->adapter, rig.adapter.get());
+    EXPECT_EQ(y0->component, nullptr);
+
+    const double tol = 1e-5;
+    for (int i = 0; i < kCells; ++i)
+    {
+        EXPECT_NE(y0->values[i], 0.0) << "y0[" << i << "]";
+        const double chainedKA = kA[i] + y0->values[i] * p.sA0[i];
+        const double chainedSA0 = sA0->values[i] + y0->values[i] * p.kA[i];
+        EXPECT_NEAR(chainedKA,
+                    centralDifference([i](Params &q, double e) { q.kA[i] += e; }, config),
+                    tol * (1 + std::abs(chainedKA))) << "kA[" << i << "]";
+        EXPECT_NEAR(chainedSA0,
+                    centralDifference([i](Params &q, double e) { q.sA0[i] += e; }, config),
+                    tol * (1 + std::abs(chainedSA0))) << "sA0[" << i << "]";
+        EXPECT_NEAR(kB[i], centralDifference([i](Params &q, double e) { q.kB[i] += e; }, config),
+                    tol * (1 + std::abs(kB[i]))) << "kB[" << i << "]";
+        EXPECT_NEAR(kC[i], centralDifference([i](Params &q, double e) { q.kC[i] += e; }, config),
+                    tol * (1 + std::abs(kC[i]))) << "kC[" << i << "]";
+        EXPECT_NEAR(sB0->values[i],
+                    centralDifference([i](Params &q, double e) { q.sB0[i] += e; }, config),
+                    tol * (1 + std::abs(sB0->values[i]))) << "sB0[" << i << "]";
+    }
+    EXPECT_NEAR(lambda[0], centralDifference([](Params &q, double e) { q.lambda += e; }, config),
+                tol * (1 + std::abs(lambda[0]))) << "relaxation factor";
+}
+
+} // namespace
+
+TEST(DifferentiationTest, ThroughARelaxationEveryGradientMatchesFiniteDifferences)
+{
+    //   A ──► relax (λ) ──► B ──► loss,   A ──► C ──► loss
+    expectRelaxedGradientsMatch({AdapterKind::Relaxation});
+}
+
+TEST(DifferentiationTest, ARelaxationFeedingTwoConsumersIsReversedOncePerStep)
+{
+    //   A ──► relax (λ) ──┬──► B ──► loss
+    //                     └──► C ──► loss
+    // B and C both add to the adapter's cotangent, and its vjp must run once
+    // per step with the sum (and its state) -- not once per consumer.
+    expectRelaxedGradientsMatch({AdapterKind::Relaxation, /*adapterFeedsC=*/true});
+    Differentiated d(Params{}, {AdapterKind::CountingRelaxation, /*adapterFeedsC=*/true});
+    ASSERT_TRUE(d.ok);
+    EXPECT_EQ(dynamic_cast<CountingRelaxation &>(*d.rig.adapter).vjpCalls, kSteps);
+}
+
+TEST(DifferentiationTest, TheLadderGivesExactlyTheSameGradientsThroughARelaxation)
+{
+    const Config config{AdapterKind::Relaxation, /*adapterFeedsC=*/true};
+    Differentiated reference(Params{}, config);
+    Rig rig(Params{}, config);
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    rig.run();
+    Gradients g;
+    std::string message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    ASSERT_FALSE(flatten(g).empty());
+    EXPECT_EQ(flatten(g), flatten(reference.gradients));
+    EXPECT_LT(rig.workflow->storedCheckpoints(), kSteps);
+}
+
+TEST(DifferentiationTest, AdapterCheckpointsAreReleasedExactlyOnce)
+{
+    Rig rig(Params{}, {AdapterKind::CountingRelaxation});
+    auto &relax = dynamic_cast<CountingRelaxation &>(*rig.adapter);
+    rig.workflow->setCheckpointPolicy(CheckpointPolicy::Logarithmic);
+    for (int n = 1; n <= kSteps; ++n)
+    {
+        rig.step(n);
+        EXPECT_EQ(relax.liveCheckpoints(), rig.workflow->storedCheckpoints()) << "after step " << n;
+    }
+    Gradients g;
+    std::string message;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    EXPECT_GT(relax.restores, 0) << "the replays restored the adapter";
+    EXPECT_EQ(relax.liveCheckpoints(), rig.workflow->storedCheckpoints())
+        << "a temporary or the final state was not released";
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    rig.workflow->finish();
+    EXPECT_EQ(relax.liveCheckpoints(), 0);
+    EXPECT_EQ(relax.deadTokenUses, 0);
+    EXPECT_EQ(rig.workflow->refusedReleases(), 0);
+}
+
+TEST(DifferentiationTest, RewindReturnsTheRelaxationToo)
+{
+    Rig rig(Params{}, {AdapterKind::Relaxation});
+    const double first = rig.run();
+    std::string message;
+    ASSERT_TRUE(rig.workflow->rewind(message)) << message;
+    EXPECT_EQ(rig.run(), first);
+}
+
+TEST(DifferentiationTest, ARewoundRunWithANewFactorDifferentiatesAsAFreshOne)
+{
+    // λ is read at every refresh, so a training loop can change it between
+    // runs without re-initializing the adapter (which would lose its state).
+    Params changed;
+    changed.lambda = 0.8;
+    Differentiated fresh(changed, {AdapterKind::Relaxation});
+
+    Rig rig(Params{}, {AdapterKind::Relaxation});
+    rig.run();
+    std::string message;
+    ASSERT_TRUE(rig.workflow->rewind(message)) << message;
+    setArgument(*rig.adapter, "relaxation_factor", changed.lambda);
+    EXPECT_EQ(rig.run(), fresh.loss);
+    Gradients g;
+    ASSERT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    EXPECT_EQ(flatten(g), flatten(fresh.gradients));
+}
+
+TEST(DifferentiationTest, AStatefulAdapterThatCannotBeCheckpointedIsRefusedByName)
+{
+    Rig rig(Params{}, {AdapterKind::Forgetful});
+    rig.step(1);
+    Gradients g;
+    std::string message;
+    // One step needs no replay, exactly as for a component without
+    // Capability::Checkpointing ...
+    EXPECT_TRUE(rig.workflow->backward(rig.seeds(), g, message)) << message;
+    EXPECT_NE(g.findState(rig.adapter.get(), itemOf<IComponentDataItem>(rig.adapter.get())),
+              nullptr);
+    // ... but two do, and nothing can return the adapter to the first.
+    rig.step(2);
+    const int callsBefore = rig.B->vjpCalls;
+    EXPECT_FALSE(rig.workflow->backward(rig.seeds(), g, message));
+    EXPECT_NE(message.find("adapted output 'forgetful' carries state but is not an "
+                           "ICheckpointableAdaptedOutput"),
+              std::string::npos) << message;
+    EXPECT_EQ(rig.B->vjpCalls, callsBefore) << "refused up front, before any derivative work";
+}
+
+TEST(DifferentiationTest, AStatefulAdapterOffTheDifferentiatedPathStillBlocksReplay)
+{
+    // No derivative crosses it, but every replay refreshes it: an adapter
+    // whose state ran on would serve the replay the wrong record.
+    Rig rig(Params{});
+    HydroCouple::SDK::Temporal::TemporalInterpolationAdaptedOutput record(
+        "record", rig.C->out, SdkAdaptedOutputFactory::instance());
+    rig.C->out->addAdaptedOutput(&record);
+    record.initialize();
+    rig.run();
+    Gradients g;
+    std::string message;
+    EXPECT_FALSE(rig.workflow->backward(rig.seeds(), g, message));
+    EXPECT_NE(message.find("adapted output 'record' carries state"), std::string::npos)
+        << message;
+}
+
+TEST(DifferentiationTest, AnAdapterThatJoinedAfterACheckpointCannotBeReplayedThrough)
+{
+    Rig rig(Params{});
+    rig.run();
+    RelaxationAdaptedOutput late("late", rig.C->out, SdkAdaptedOutputFactory::instance());
+    rig.C->out->addAdaptedOutput(&late);
+    late.initialize();
+    Gradients g;
+    std::string message;
+    EXPECT_FALSE(rig.workflow->backward(rig.seeds(), g, message));
+    EXPECT_NE(message.find("'late' carries state but joined the composition after the "
+                           "checkpoint"),
+              std::string::npos) << message;
+    // ... and the composition is still where the forward run left it.
+    Rig reference(Params{});
+    reference.run();
+    for (int i = 0; i < kCells; ++i)
+        EXPECT_DOUBLE_EQ((*rig.B->out)[i], (*reference.B->out)[i]);
+}
+
+TEST(DifferentiationTest, AfterBackwardEveryAdapterShowsTheStateItWasLeftIn)
+{
+    // A -> relax -> B: the relaxation is restored from its token, and the
+    // stateless adapters' refresh at restore must not move it.
+    const Config config{AdapterKind::Relaxation, /*adapterFeedsC=*/true};
+    Differentiated d(Params{}, config);
+    ASSERT_TRUE(d.ok);
+    Rig reference(Params{}, config);
+    reference.run();
+    EXPECT_EQ(valuesOf(d.rig.adapter.get()), valuesOf(reference.adapter.get()));
+    d.rig.step(kSteps + 1);
+    reference.step(kSteps + 1);
+    EXPECT_EQ(valuesOf(d.rig.B->out), valuesOf(reference.B->out));
+}
+
+TEST(DifferentiationTest, AnAdapterOnAConnectionFromOutsideTheWorkflowIsDifferentiated)
+{
+    // U (not in the workflow) -> unit (m, b) -> B -> loss. U's outflow is a
+    // constant, but the adapter's coefficients still reach the loss.
+    auto build = [](double m, double b, std::vector<double> kB, Gradients *g) {
+        Reservoir U("U"), B("B");
+        U.initialize();
+        U.validate();
+        U.prepare();
+        for (int i = 0; i < kCells; ++i)
+            (*U.out)[i] = 1.0 + 0.5 * i;
+        DifferentiableWorkflow workflow("outside");
+        std::string msg;
+        EXPECT_TRUE(workflow.addModelComponent(&B, nullptr, &msg)) << msg;
+        workflow.initialize();
+        LinearTransformAdaptedOutput unit("unit", U.out, SdkAdaptedOutputFactory::instance());
+        U.out->addAdaptedOutput(&unit);
+        connect(&unit, B.in);
+        for (int i = 0; i < kCells; ++i)
+            (*B.k)[i] = kB[i];
+        EXPECT_TRUE(workflow.validate().empty());
+        workflow.prepare();
+        setArgument(unit, "multiplier", m);
+        setArgument(unit, "offset", b);
+        unit.initialize();
+        double loss = 0.0;
+        for (int n = 1; n <= kSteps; ++n)
+        {
+            workflow.update();
+            for (int i = 0; i < kCells; ++i)
+            {
+                const double r = (*B.out)[i] - observed(n, i);
+                loss += r * r;
+            }
+        }
+        if (g)
+        {
+            auto seeds = [&](int n, Seeds &s) {
+                std::vector<double> gb(kCells);
+                for (int i = 0; i < kCells; ++i)
+                    gb[i] = 2.0 * ((*B.out)[i] - observed(n, i));
+                EXPECT_TRUE(s.add(B.out, gb));
+            };
+            EXPECT_TRUE(workflow.backward(seeds, *g, msg)) << msg;
+            auto args = unit.differentiableArguments();
+            const ArgumentGradient *gm = g->find(&unit, args[0]);
+            const ArgumentGradient *gbias = g->find(&unit, args[1]);
+            EXPECT_NE(gm, nullptr) << "the adapter's multiplier reached nothing";
+            EXPECT_NE(gbias, nullptr);
+            if (gm && gbias)
+                *g = Gradients{{*gm, *gbias}, {}};
+        }
+        workflow.finish();
+        U.out->removeAdaptedOutput(&unit);
+        return loss;
+    };
+    const std::vector<double> kB{0.25, 0.35, 0.15};
+    Gradients g;
+    build(0.8, 0.3, kB, &g);
+    ASSERT_EQ(g.arguments.size(), 2u);
+    const double eps = 1e-6;
+    const double dm = (build(0.8 + eps, 0.3, kB, nullptr) - build(0.8 - eps, 0.3, kB, nullptr)) / (2 * eps);
+    const double db = (build(0.8, 0.3 + eps, kB, nullptr) - build(0.8, 0.3 - eps, kB, nullptr)) / (2 * eps);
+    EXPECT_NEAR(g.arguments[0].values[0], dm, 1e-5 * (1 + std::abs(dm)));
+    EXPECT_NEAR(g.arguments[1].values[0], db, 1e-5 * (1 + std::abs(db)));
+}
+
+TEST(DifferentiationTest, ALaggedSelfCouplingIsRefusedByName)
+{
+    // B reads its own outflow -- through a relaxation, or directly. The
+    // schedule has no self-edges, so it is no feedback loop to it, but the
+    // input sees the previous step's value: a lag the sweep does not model.
+    for (const bool throughAdapter : {true, false})
+    {
+        Reservoir b("b");
+        DifferentiableWorkflow workflow("self");
+        std::string msg;
+        ASSERT_TRUE(workflow.addModelComponent(&b, nullptr, &msg)) << msg;
+        workflow.initialize();
+        RelaxationAdaptedOutput relax("relax", b.out, SdkAdaptedOutputFactory::instance());
+        if (throughAdapter)
+        {
+            b.out->addAdaptedOutput(&relax);
+            connect(&relax, b.in);
+        }
+        else
+        {
+            connect(b.out, b.in);
+        }
+        ASSERT_TRUE(workflow.validate().empty());
+        workflow.prepare();
+        if (throughAdapter)
+            relax.initialize();
+        workflow.update();
+        workflow.update();
+        Gradients g;
+        auto seeds = [&](int, Seeds &s) {
+            EXPECT_TRUE(s.add(b.out, std::vector<double>(kCells, 1.0)));
+        };
+        EXPECT_FALSE(workflow.backward(seeds, g, msg));
+        EXPECT_NE(msg.find("'b.in' reads 'b''s own output 'out': a lagged self-coupling"),
+                  std::string::npos) << msg;
+        workflow.finish();
+        if (throughAdapter)
+            b.out->removeAdaptedOutput(&relax);
+    }
+}
+
+TEST(DifferentiationTest, ASeedOnANonDifferentiableAdapterIsRefusedByName)
+{
+    // Nothing differentiable reads through the copy, so only a seed can put
+    // a cotangent on it -- and a silent zero would read as "no sensitivity".
+    Rig rig(Params{});
+    PlainCopy copy("copy", rig.C->out);
+    rig.C->out->addAdaptedOutput(&copy);
+    copy.initialize();
+    rig.run();
+    const SeedFunction base = rig.seeds();
+    Gradients g;
+    std::string message;
+    EXPECT_FALSE(rig.workflow->backward(
+        [&](int n, Seeds &s) {
+            base(n, s);
+            EXPECT_TRUE(s.add(&copy, std::vector<double>(kCells, 1.0)));
+        },
+        g, message));
+    EXPECT_NE(message.find("a cotangent reached adapted output 'copy'"), std::string::npos)
+        << message;
 }

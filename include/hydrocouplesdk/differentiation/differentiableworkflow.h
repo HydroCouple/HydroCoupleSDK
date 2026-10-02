@@ -14,28 +14,43 @@
  *  - a component's vjp() receives the cotangents that have reached its
  *    outputs (from the caller's loss, and from every consumer downstream)
  *    and the cotangent of its state carried back from the following step;
- *  - the cotangents it returns for its inputs travel back along each input's
- *    connection -- through every adapted output on the way, by that
- *    adapter's own vjp() -- to the provider's root output, where they are
- *    ADDED to whatever else that output fed;
- *  - argument cotangents are summed over steps into the gradients returned;
- *  - the state cotangent it returns is carried to the previous step, and
- *    after the first step it is the gradient with respect to the initial
- *    state.
+ *  - the cotangents it returns for its inputs are ADDED to the output each
+ *    input reads -- a provider's root output, or an adapted output on the
+ *    way to it;
+ *  - before a component's own vjp(), the adapted outputs hanging off its
+ *    outputs are reversed, leaves first: each adapter's vjp() runs once per
+ *    step, seeded with the cotangent its consumers added and the cotangent
+ *    of its state carried back from the following step, and ADDS the
+ *    cotangent it returns for its adaptee to that adaptee (G2.4);
+ *  - argument cotangents (of components and adapters) are summed over steps
+ *    into the gradients returned;
+ *  - the state cotangent a component or a stateful adapter returns is
+ *    carried to the previous step, and after the first step it is the
+ *    gradient with respect to the initial state.
  *
- * The interface differentiates the most recent update(), so every step but
- * the last is replayed first: every component is restored to its checkpoint
- * from before that step and the step is run again. When backward() returns,
- * the composition is restored to where the forward run left it.
+ * The interface differentiates the most recent update() and refresh(), so
+ * every step but the last is replayed first: every component, and every
+ * adapter that carries state (IAdaptedOutput::states()), is restored to its
+ * checkpoint from before that step and the step is run again. When
+ * backward() returns, the composition is restored to where the forward run
+ * left it.
  *
  * Refused, with a message naming the offender, rather than guessed:
- * feedback loops (iterative coupling is Phase G2b); a component that is not
+ * feedback loops (iterative coupling is Phase G2b), including a component
+ * that reads its own output, directly or through adapters (a lagged
+ * self-coupling); a component that is not
  * differentiable; an adapted connection through an adapter that is not
- * (the stateful relaxation and interpolation adapters among them); an input
+ * (the interpolation adapter, whose record grows, among them); an input
  * whose provider's output the provider does not differentiate; multi-inputs;
- * more than one recorded step without Capability::Checkpointing; and a
- * component that finished before the others, which would change what a
- * step meant.
+ * more than one recorded step with a component lacking
+ * Capability::Checkpointing, or with an adapter that carries state but is
+ * not an ICheckpointableAdaptedOutput; a stateful adapter on a connection
+ * from a provider outside the workflow (nothing replays its refreshes); a
+ * seed on an output that a non-differentiable adapter stands between; and
+ * a component that finished before the others, which would change what a
+ * step meant. An adapter between a provider outside the workflow and a
+ * managed consumer is differentiated at its latest refresh, as a constant
+ * function of its arguments.
  *
  * Memory (G2.2). With CheckpointPolicy::EveryStep a run of N steps holds N
  * composition checkpoints and replays N - 1 steps. With
@@ -47,13 +62,16 @@
  * O(log N) and replays as O(N log N); the gradients are identical, because
  * every step is still differentiated at exactly its own linearization point.
  *
- * Releasing (ICheckpointableModelComponent::releaseState). Every checkpoint
- * this workflow saves is released exactly once, as soon as nothing can
- * restore it: a rung the ladder drops, a bisection temporary when its half
- * is done, the final state backward() returns to once it is back, and every
- * remaining rung on clearRecording(), prepare() and finish(). The workflow's
- * destructor does NOT release (the components may already be gone): finish
- * the workflow, or call clearRecording(), before destroying it.
+ * Releasing (ICheckpointableModelComponent::releaseState and its adapter
+ * counterpart). Every checkpoint this workflow saves is released exactly
+ * once, as soon as nothing can restore it: a rung the ladder drops, a
+ * bisection temporary when its half is done, the final state backward()
+ * returns to once it is back, and every remaining rung on clearRecording(),
+ * prepare() and finish(). The one exception is the token of an adapter that
+ * has since left the composition: the adapter may be gone, so its token is
+ * dropped unreleased. The workflow's destructor does NOT release (the
+ * components may already be gone): finish the workflow, or call
+ * clearRecording(), before destroying it.
  *
  * Float64 items only in G2.1. Nothing here depends on LibTorch: this is the
  * Torch-free floor; the optional Torch layer (G2.3) sits on top of it.
@@ -87,10 +105,18 @@ struct ArgumentGradient
 
 /*!
  * \brief d(loss)/d(state before the first recorded step).
+ * \details The state belongs to a model component or, for a stateful
+ *          adapter (G2.4), to an adapted output; exactly one of
+ *          \c component and \c adapter is set, and \c owner is that one.
+ *          An adapter's state before step 1 is what its initialize() made
+ *          of its adaptee's prepared values, which the engine does not
+ *          differentiate: a caller who wants that dependence chains it.
  */
 struct StateGradient
 {
+    const HydroCouple::IIdentity *owner = nullptr;
     HydroCouple::IModelComponent *component = nullptr;
+    HydroCouple::IAdaptedOutput *adapter = nullptr;
     HydroCouple::IComponentDataItem *state = nullptr;
     std::vector<int64_t> shape;
     std::vector<double> values;
@@ -109,9 +135,10 @@ struct HYDROCOUPLESDK_EXPORT Gradients
     find(const HydroCouple::IIdentity *owner,
          const HydroCouple::IArgument *argument) const;
 
-    //! The gradient of one component's initial state item, or nullptr.
+    //! The gradient of one initial state item of a model component or an
+    //! adapted output, or nullptr.
     [[nodiscard]] const StateGradient *
-    findState(const HydroCouple::IModelComponent *component,
+    findState(const HydroCouple::IIdentity *owner,
               const HydroCouple::IComponentDataItem *state) const;
 };
 
@@ -194,7 +221,8 @@ public:
     void clearRecording();
 
     /*!
-     * \brief Returns every component to the state before the first recorded
+     * \brief Returns every component (and every adapter that carries state)
+     *        to the state before the first recorded
      *        step and forgets the record (releasing its checkpoints), so the
      *        same run can be repeated -- with new argument values, say, in a
      *        training loop -- without preparing again, which the workflow
@@ -207,8 +235,8 @@ public:
     //! Releases the record, then finishes as a TimeSteppedWorkflow does.
     void finish() override;
 
-    //! Checkpoint tokens released so far (one per component per checkpoint),
-    //! and how many of those releases a component refused.
+    //! Checkpoint tokens released so far (one per checkpointed component or
+    //! adapter per checkpoint), and how many of those releases were refused.
     [[nodiscard]] int releasedTokens() const noexcept;
     [[nodiscard]] int refusedReleases() const noexcept;
 
@@ -233,12 +261,31 @@ private:
         //! Components the step actually updated.
         std::vector<bool> updated;
     };
+    //! A token one checkpointable adapter gave. The id guards against a
+    //! different adapter that has since been made at the same address.
+    struct AdapterToken
+    {
+        HydroCouple::IAdaptedOutput *adapter = nullptr;
+        std::string id;
+        std::string token;
+    };
+    //! One composition checkpoint: a token per component in schedule order
+    //! (empty for one without Capability::Checkpointing) and a token per
+    //! checkpointable adapter.
+    struct Checkpoint
+    {
+        std::vector<std::string> components;
+        std::vector<AdapterToken> adapters;
+    };
     struct Pass;   //!< the working state of one backward(), in the .cpp
 
     [[nodiscard]] std::vector<HydroCouple::IModelComponent *> scheduleOrder() const;
-    bool saveAll(std::vector<std::string> &tokens, std::string &message);
-    bool restoreAll(const std::vector<std::string> &tokens, std::string &message);
-    void releaseAll(const std::vector<std::string> &tokens);
+    //! Every adapted output hanging, at any depth, off an output of a managed
+    //! component -- each once, parents before children.
+    [[nodiscard]] std::vector<HydroCouple::IAdaptedOutput *> managedAdapters() const;
+    bool saveAll(Checkpoint &checkpoint, std::string &message);
+    bool restoreAll(const Checkpoint &checkpoint, std::string &message);
+    void releaseAll(const Checkpoint &checkpoint);
     void thinLadder();
     void notePeak(int extra);
     bool replayStep(int step, std::string &message);
@@ -248,9 +295,8 @@ private:
 
     std::vector<Record> m_records;
     //! Composition checkpoints: key k is the state after k recorded steps
-    //! (before step k + 1); one token per component in schedule order, empty
-    //! for a component without Capability::Checkpointing.
-    std::map<int, std::vector<std::string>> m_checkpoints;
+    //! (before step k + 1).
+    std::map<int, Checkpoint> m_checkpoints;
     CheckpointPolicy m_policy = CheckpointPolicy::EveryStep;
     int m_linearizedAt = -1;   //!< 1-based step whose update() is the latest
     int m_replays = 0;
