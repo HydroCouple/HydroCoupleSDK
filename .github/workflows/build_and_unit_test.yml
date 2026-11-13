@@ -77,6 +77,7 @@ jobs:
           -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
           -DUSE_GDAL=OFF -DUSE_NETCDF=ON -DUSE_HDF5=ON -DUSE_GEOPACKAGE=ON -DUSE_OPENMP=OFF
           -DBUILD_TOOLS=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+          -DMESHKIT_REQUIRE_PINNED=ON
 
       - name: Build
         run: cmake --build build --parallel

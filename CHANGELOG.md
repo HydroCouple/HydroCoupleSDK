@@ -77,6 +77,10 @@ component built on the SDK must be rebuilt.
   loop. The caveat in `meshprogress.h` that insertion could not be
   interrupted is gone.
 - `Tools::QuadMesher` is unchanged (it never used the CDT library).
+- The configure step checks the MeshKit it gets against the pinned tag: a
+  fetched tag that does not carry its own version stops the configure, a local
+  checkout of another version is reported, and `-DMESHKIT_REQUIRE_PINNED=ON`
+  (used by CI) ignores local checkouts and always fetches `MESHKIT_GIT_TAG`.
 
 ### Fixed
 
