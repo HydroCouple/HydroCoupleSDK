@@ -36,6 +36,28 @@ void ValueDefinition::setValueKind(HydroCouple::ValueKind kind)
     emitPropertyChanged("ValueKind");
 }
 
+std::string ValueDefinition::standardName() const
+{
+    return m_standardName;
+}
+
+void ValueDefinition::setStandardName(std::string_view name)
+{
+    m_standardName = name;
+    emitPropertyChanged("StandardName");
+}
+
+std::string ValueDefinition::conceptURI() const
+{
+    return m_conceptURI;
+}
+
+void ValueDefinition::setConceptURI(std::string_view uri)
+{
+    m_conceptURI = uri;
+    emitPropertyChanged("ConceptURI");
+}
+
 double ValueDefinition::missingValue() const
 {
     return m_missingValue;
@@ -66,6 +88,12 @@ nlohmann::json ValueDefinition::toJson() const
     j["missingValue"] = m_missingValue;
     j["defaultValue"] = m_defaultValue;
     j["valueKind"]    = static_cast<int>(m_valueKind);
+    // Written only when declared, so documents of undeclared definitions
+    // read exactly as before.
+    if (!m_standardName.empty())
+        j["standardName"] = m_standardName;
+    if (!m_conceptURI.empty())
+        j["conceptURI"] = m_conceptURI;
     return j;
 }
 
@@ -81,6 +109,10 @@ void ValueDefinition::fromJson(const nlohmann::json &j)
         m_defaultValue = j["defaultValue"].get<double>();
     if (j.contains("valueKind"))
         m_valueKind = static_cast<HydroCouple::ValueKind>(j["valueKind"].get<int>());
+    if (j.contains("standardName"))
+        m_standardName = j["standardName"].get<std::string>();
+    if (j.contains("conceptURI"))
+        m_conceptURI = j["conceptURI"].get<std::string>();
 }
 
 DataKind ValueDefinition::dataKindForType(const std::type_info &type)
@@ -111,6 +143,8 @@ ValueDefinition *ValueDefinition::copy(const HydroCouple::IValueDefinition *src)
     result->setMissingValue(src->missingValue());
     result->setDefaultValue(src->defaultValue());
     result->setValueKind(src->valueKind());
+    result->setStandardName(src->standardName());
+    result->setConceptURI(src->conceptURI());
     return result;
 }
 
@@ -182,6 +216,8 @@ Quality *Quality::copy(const HydroCouple::IQuality *src)
     result->setMissingValue(src->missingValue());
     result->setDefaultValue(src->defaultValue());
     result->setValueKind(src->valueKind());
+    result->setStandardName(src->standardName());
+    result->setConceptURI(src->conceptURI());
     result->setIsOrdered(src->isOrdered());
     return result;
 }
@@ -238,6 +274,10 @@ nlohmann::json Quantity::toJson() const
             {"conversionFactorToSI", m_unit->conversionFactorToSI()},
             {"offsetToSI", m_unit->offsetToSI()},
         };
+        if (!m_unit->symbol().empty())
+            j["unit"]["symbol"] = m_unit->symbol();
+        if (!m_unit->ucumCode().empty())
+            j["unit"]["ucumCode"] = m_unit->ucumCode();
     }
     return j;
 }
@@ -253,44 +293,65 @@ void Quantity::fromJson(const nlohmann::json &j)
 
 // ── Factory helpers ───────────────────────────────────────────────────────
 
+namespace {
+
+//! Declares a factory quantity's QUDT quantity kind as its concept URI. The
+//! kind is what these generic quantities honestly know; a component that
+//! means something narrower (channel discharge, not any volume flow rate)
+//! sets its own conceptURI() and standardName().
+Quantity *ofKind(Quantity *quantity, const char *qudtQuantityKind)
+{
+    quantity->setConceptURI(std::string("http://qudt.org/vocab/quantitykind/") +
+                            qudtQuantityKind);
+    return quantity;
+}
+
+} // namespace
+
 Quantity *Quantity::flowInCMS()
 {
-    return new Quantity("Flow (m³/s)", typeid(double), Unit::flowInCMS());
+    return ofKind(new Quantity("Flow (m³/s)", typeid(double), Unit::flowInCMS()),
+                  "VolumeFlowRate");
 }
 
 Quantity *Quantity::flowInCFS()
 {
-    return new Quantity("Flow (ft³/s)", typeid(double), Unit::flowInCFS());
+    return ofKind(new Quantity("Flow (ft³/s)", typeid(double), Unit::flowInCFS()),
+                  "VolumeFlowRate");
 }
 
 Quantity *Quantity::lengthInMeters()
 {
-    return new Quantity("Length (m)", typeid(double), Unit::lengthInMeters());
+    return ofKind(new Quantity("Length (m)", typeid(double), Unit::lengthInMeters()),
+                  "Length");
 }
 
 Quantity *Quantity::lengthInFeet()
 {
-    return new Quantity("Length (ft)", typeid(double), Unit::lengthInFeet());
+    return ofKind(new Quantity("Length (ft)", typeid(double), Unit::lengthInFeet()),
+                  "Length");
 }
 
 Quantity *Quantity::areaInSquareMeters()
 {
-    return new Quantity("Area (m²)", typeid(double), Unit::areaInSquareMeters());
+    return ofKind(new Quantity("Area (m²)", typeid(double), Unit::areaInSquareMeters()),
+                  "Area");
 }
 
 Quantity *Quantity::volumeInCubicMeters()
 {
-    return new Quantity("Volume (m³)", typeid(double), Unit::volumeInCubicMeters());
+    return ofKind(new Quantity("Volume (m³)", typeid(double), Unit::volumeInCubicMeters()),
+                  "Volume");
 }
 
 Quantity *Quantity::timeInDays()
 {
-    return new Quantity("Time (days)", typeid(double), Unit::timeInDays());
+    return ofKind(new Quantity("Time (days)", typeid(double), Unit::timeInDays()), "Time");
 }
 
 Quantity *Quantity::timeInSeconds()
 {
-    return new Quantity("Time (s)", typeid(double), Unit::timeInSeconds());
+    return ofKind(new Quantity("Time (s)", typeid(double), Unit::timeInSeconds()), "Time");
 }
 
 Quantity *Quantity::unitLess(std::string_view caption)
@@ -309,6 +370,8 @@ Quantity *Quantity::copy(const HydroCouple::IQuantity *src)
     result->setMissingValue(src->missingValue());
     result->setDefaultValue(src->defaultValue());
     result->setValueKind(src->valueKind());
+    result->setStandardName(src->standardName());
+    result->setConceptURI(src->conceptURI());
     result->setMinValue(src->minValue());
     result->setMaxValue(src->maxValue());
     return result;

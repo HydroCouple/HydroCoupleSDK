@@ -364,6 +364,93 @@ TEST_F(ExchangeItemTest, OutputJsonRoundTrip)
     EXPECT_EQ(restored[1], 8);
 }
 
+// ── Vocabulary binding (ABI 5) ────────────────────────────────────────────
+
+// A quantity's standard name and concept URI, and a unit's UDUNITS/UCUM codes,
+// survive a copy and a JSON round trip; the stock units declare their codes.
+TEST(VocabularyBindingTest, NamesAndCodesSurviveCopiesAndJson)
+{
+    // Quantity borrows its unit, so the test owns each one.
+    std::unique_ptr<Unit> cfs(Unit::flowInCFS());
+    Quantity flow("Flow", typeid(double), cfs.get());
+    flow.setStandardName("water_volume_transport_in_river_channel");
+    flow.setConceptURI("http://qudt.org/vocab/quantitykind/VolumeFlowRate");
+    EXPECT_EQ(flow.unit()->symbol(), "ft3 s-1");
+    EXPECT_EQ(flow.unit()->ucumCode(), "[ft_i]3/s");
+
+    std::unique_ptr<Quantity> copied(Quantity::copy(&flow));
+    std::unique_ptr<HydroCouple::IUnit> copiedUnit(copied->unit());
+    EXPECT_EQ(copied->standardName(), flow.standardName());
+    EXPECT_EQ(copied->conceptURI(), flow.conceptURI());
+    EXPECT_EQ(copied->unit()->symbol(), "ft3 s-1");
+    EXPECT_EQ(copied->unit()->ucumCode(), "[ft_i]3/s");
+
+    const nlohmann::json written = flow.toJson();
+    EXPECT_EQ(written["unit"]["symbol"], "ft3 s-1");
+    std::unique_ptr<Unit> readUnit(Unit::flowInCFS());
+    Quantity read("", typeid(double), readUnit.get());
+    read.fromJson(written);
+    EXPECT_EQ(read.standardName(), "water_volume_transport_in_river_channel");
+    EXPECT_EQ(read.conceptURI(), "http://qudt.org/vocab/quantitykind/VolumeFlowRate");
+
+    // Undeclared names stay out of the document, which reads as before.
+    std::unique_ptr<Unit> cms(Unit::flowInCMS());
+    Quantity plain("Plain", typeid(double), cms.get());
+    EXPECT_FALSE(plain.toJson().contains("standardName"));
+    EXPECT_FALSE(plain.toJson().contains("conceptURI"));
+}
+
+// The ready-made quantities declare their QUDT quantity kind, which is what a
+// generic "Flow (m³/s)" honestly knows; CMS and CFS flows therefore match.
+TEST(VocabularyBindingTest, FactoryQuantitiesDeclareTheirQuantityKind)
+{
+    const std::string qudt = "http://qudt.org/vocab/quantitykind/";
+    const std::pair<Quantity *(*)(), const char *> factories[] = {
+        {&Quantity::flowInCMS, "VolumeFlowRate"},  {&Quantity::flowInCFS, "VolumeFlowRate"},
+        {&Quantity::lengthInMeters, "Length"},     {&Quantity::lengthInFeet, "Length"},
+        {&Quantity::areaInSquareMeters, "Area"},   {&Quantity::volumeInCubicMeters, "Volume"},
+        {&Quantity::timeInDays, "Time"},           {&Quantity::timeInSeconds, "Time"},
+    };
+    for (const auto &[make, kind] : factories)
+    {
+        std::unique_ptr<Quantity> quantity(make());
+        std::unique_ptr<HydroCouple::IUnit> unit(quantity->unit()); // borrowed by the quantity
+        EXPECT_EQ(quantity->conceptURI(), qudt + kind) << quantity->caption();
+        EXPECT_TRUE(quantity->standardName().empty()) << quantity->caption();
+        EXPECT_FALSE(unit->symbol().empty()) << quantity->caption();
+        EXPECT_FALSE(unit->ucumCode().empty()) << quantity->caption();
+    }
+}
+
+// ── Output consumers ──────────────────────────────────────────────────────
+
+// An input's id() is unique only within its component, so the output must
+// tell two components' "inflow" inputs apart. Keyed by id(), the second
+// silently replaced the first.
+TEST(OutputConsumersTest, InputsSharingAnIdFromDifferentComponentsBothConsume)
+{
+    std::unique_ptr<Unit> unit(Unit::flowInCMS());
+    Quantity quantity("q", typeid(double), unit.get());
+    Dimension dimension("i", "Index");
+    Output1DDouble out("out", &dimension, 3, &quantity, nullptr);
+    Input1DDouble first("inflow", &dimension, 3, &quantity, nullptr);
+    Input1DDouble second("inflow", &dimension, 3, &quantity, nullptr);
+
+    out.addConsumer(&first);
+    out.addConsumer(&second);
+    out.addConsumer(&first); // already connected: no duplicate
+    const auto consumers = out.consumers();
+    ASSERT_EQ(consumers.size(), 2u);
+    EXPECT_EQ(consumers[0], static_cast<HydroCouple::IInput *>(&first));
+    EXPECT_EQ(consumers[1], static_cast<HydroCouple::IInput *>(&second));
+
+    EXPECT_TRUE(out.removeConsumer(&first));
+    EXPECT_EQ(first.provider(), nullptr);
+    EXPECT_EQ(second.provider(), static_cast<HydroCouple::IOutput *>(&out));
+    ASSERT_EQ(out.consumers().size(), 1u);
+    EXPECT_EQ(out.consumers()[0], static_cast<HydroCouple::IInput *>(&second));
+}
+
 // ── UnitDimensions ────────────────────────────────────────────────────────
 
 // Every fundamental dimension the standard names has its own slot: set, read

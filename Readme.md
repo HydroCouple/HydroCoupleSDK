@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/HydroCouple/HydroCoupleSDK/blob/master/License)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
-HydroCoupleSDK is a software development kit that simplifies model component development for the [HydroCouple](https://github.com/HydroCouple/HydroCouple) component-based modeling interface definitions (v2.0.0-alpha.2). It provides concrete base implementations of the core interfaces — the typed hyperslab data plane, component lifecycle machinery, JSON argument IO, and temporal and spatial data structures — so component authors implement only their model-specific logic.
+HydroCoupleSDK is a software development kit that simplifies model component development for the [HydroCouple](https://github.com/HydroCouple/HydroCouple) component-based modeling interface definitions (v2.0.0-beta.1). It provides concrete base implementations of the core interfaces — the typed hyperslab data plane, component lifecycle machinery, JSON argument IO, and temporal and spatial data structures — so component authors implement only their model-specific logic.
 
 The SDK is dependency-lean C++20 with no Qt dependence. Implementation classes live in `namespace HydroCouple::SDK`; headers are organized by domain under `include/hydrocouplesdk/` (`core/`, `component/`, `data/`, `temporal/`, `spatial/`, `spatiotemporal/`, `io/`, `distributed/`, `device/`, `tools/`). Dependencies are managed with vcpkg and the build with CMake, following the same conventions as [openswmm.engine](https://github.com/HydroCouple/openswmm.engine).
 

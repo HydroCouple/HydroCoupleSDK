@@ -102,8 +102,9 @@ void AbstractWorkflowComponent::initialize()
 std::vector<std::string> AbstractWorkflowComponent::validate()
 {
     if (m_status != WorkflowStatus::Initialized &&
-        m_status != WorkflowStatus::Validated)
-        return {"validate() requires the Initialized state (current: " +
+        m_status != WorkflowStatus::Validated &&
+        m_status != WorkflowStatus::Invalid)
+        return {"validate() requires the Initialized, Validated or Invalid state (current: " +
                 statusToString(m_status) + ")"};
 
     setStatus(WorkflowStatus::Validating);
@@ -142,10 +143,12 @@ std::vector<std::string> AbstractWorkflowComponent::validate()
         problems.push_back(finding.message);
     }
 
+    // Problems leave the composition Invalid, not Failed: the caller can fix
+    // it and validate again without re-initializing.
     if (problems.empty())
         setStatus(WorkflowStatus::Validated);
     else
-        setStatus(WorkflowStatus::Failed,
+        setStatus(WorkflowStatus::Invalid,
                   "composition validation found " +
                       std::to_string(problems.size()) + " problem(s)");
     return problems;
@@ -411,6 +414,7 @@ std::string AbstractWorkflowComponent::statusToString(WorkflowStatus status)
         case WorkflowStatus::Finishing:    return "Finishing";
         case WorkflowStatus::Finished:     return "Finished";
         case WorkflowStatus::Failed:       return "Failed";
+        case WorkflowStatus::Invalid:      return "Invalid";
     }
     return "Unknown";
 }

@@ -62,12 +62,16 @@ public:
     [[nodiscard]] std::vector<HydroCouple::IInput *> consumers() const override;
 
     /*!
-     * \brief Adds a consumer and registers this output as the consumer's provider.
+     * \brief Adds a consumer and registers this output as the consumer's provider
+     * (IMultiInput::addProvider() with \p providerRole for a multi-input,
+     * IInput::setProvider() otherwise).
      */
-    void addConsumer(HydroCouple::IInput *consumer) override;
+    void addConsumer(HydroCouple::IInput *consumer,
+                     const HydroCouple::IIdentity *providerRole = nullptr) override;
 
     /*!
-     * \brief Removes a consumer.
+     * \brief Removes a consumer (IMultiInput::removeProvider() for a multi-input,
+     * IInput::setProvider(nullptr) otherwise).
      * \return true if the consumer was found and removed.
      */
     bool removeConsumer(HydroCouple::IInput *consumer) override;
@@ -116,7 +120,10 @@ public:
     virtual void initializeAdaptedOutputs();
 
 private:
-    std::unordered_map<std::string, HydroCouple::IInput *>         m_consumers;
+    //! In connection order, identified by object: an input's id() is unique
+    //! only within its own component, so two components' "inflow" inputs can
+    //! both consume this output.
+    std::vector<HydroCouple::IInput *>                             m_consumers;
     std::unordered_map<std::string, HydroCouple::IAdaptedOutput *> m_adaptedOutputs;
 };
 

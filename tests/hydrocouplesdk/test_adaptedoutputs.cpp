@@ -20,6 +20,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -681,6 +682,18 @@ TEST_F(AdaptedChainTest, SerializeReproducesTheAdaptedChainAndMultiInputRoles)
                 dynamic_cast<HydroCouple::IAdaptedOutput *>(provider))
             tail = adapted;
     ASSERT_NE(tail, nullptr);
+
+    // Wired through IOutput::addConsumer() with the role (ABI 5): each
+    // provider lists the multi-input among its consumers, which the old
+    // direct addProvider() call never told it.
+    for (HydroCouple::IOutput *provider : sink.operands->providers())
+    {
+        const auto consumers = provider->consumers();
+        EXPECT_NE(std::find(consumers.begin(), consumers.end(),
+                            static_cast<HydroCouple::IInput *>(sink.operands)),
+                  consumers.end())
+            << provider->id() << " does not know the multi-input consumes it";
+    }
     for (HydroCouple::IArgument *argument : tail->arguments())
         if (argument && argument->id() == "multiplier")
             ASSERT_TRUE(argument->initialize(R"({"values": [7.0]})", AT::JSON,

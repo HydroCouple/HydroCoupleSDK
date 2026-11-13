@@ -336,6 +336,43 @@ TEST(ConnectionValidatorTest, ADimensionlessUnitAgainstADimensionedOneIsAWarning
 
 // ── Dimension roles ───────────────────────────────────────────────────────
 
+// ── Quantity names (ABI 5 vocabulary binding) ─────────────────────────────
+
+TEST(ConnectionValidatorTest, DifferentlyNamedQuantitiesAreOnlyAWarning)
+{
+    OwnedQuantity produced(Unit::flowInCMS(), ValueKind::Flux);
+    OwnedQuantity expected(Unit::flowInCMS(), ValueKind::Flux);
+    produced.quantity->setStandardName("water_volume_transport_in_river_channel");
+    expected.quantity->setStandardName("surface_runoff_flux");
+    Link1D link(produced.quantity.get(), expected.quantity.get());
+    const auto findings = link.check();
+    EXPECT_TRUE(has(findings, Diagnostic::QuantityNameMismatch, Severity::Warning))
+        << dump(findings);
+    EXPECT_FALSE(hasConnectionError(findings)) << dump(findings);
+}
+
+TEST(ConnectionValidatorTest, ConceptUrisDecideOverStandardNames)
+{
+    OwnedQuantity produced(Unit::flowInCMS(), ValueKind::Flux);
+    OwnedQuantity expected(Unit::flowInCMS(), ValueKind::Flux);
+    const char *uri = "http://qudt.org/vocab/quantitykind/VolumeFlowRate";
+    produced.quantity->setConceptURI(uri);
+    expected.quantity->setConceptURI(uri);
+    produced.quantity->setStandardName("water_volume_transport_in_river_channel");
+    expected.quantity->setStandardName("surface_runoff_flux");
+    Link1D link(produced.quantity.get(), expected.quantity.get());
+    EXPECT_EQ(countOf(link.check(), Diagnostic::QuantityNameMismatch, Severity::Warning), 0);
+}
+
+TEST(ConnectionValidatorTest, AnUndeclaredQuantityNameSaysNothing)
+{
+    OwnedQuantity produced(Unit::flowInCMS(), ValueKind::Flux);
+    OwnedQuantity expected(Unit::flowInCMS(), ValueKind::Flux);
+    produced.quantity->setStandardName("water_volume_transport_in_river_channel");
+    Link1D link(produced.quantity.get(), expected.quantity.get());
+    EXPECT_EQ(countOf(link.check(), Diagnostic::QuantityNameMismatch, Severity::Warning), 0);
+}
+
 TEST(ConnectionValidatorTest, AnAxisThatMeansDifferentThingsIsAnError)
 {
     OwnedQuantity flow(Unit::flowInCMS());
@@ -689,7 +726,7 @@ TEST(WorkflowConnectionTest, AContradictoryLinkFailsValidationWithItsCode)
     const auto problems = workflow.validate();
     ASSERT_EQ(problems.size(), 1u);
     EXPECT_NE(problems[0].find("link 'out' -> 'in'"), std::string::npos) << problems[0];
-    EXPECT_EQ(workflow.status(), WStatus::Failed);
+    EXPECT_EQ(workflow.status(), WStatus::Invalid);
 
     const auto units = entriesWithCode(workflow.errors(), Diagnostic::UnitMismatch);
     ASSERT_EQ(units.size(), 1u);

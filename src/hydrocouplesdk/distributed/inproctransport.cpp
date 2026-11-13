@@ -5,6 +5,7 @@
 #include "hydrocouplesdk/distributed/inproctransport.h"
 #include "hydrocouplesdk/distributed/valuepacker.h"
 
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
@@ -92,6 +93,36 @@ struct InProcHub::Impl
         }
     }
 
+    /*!
+     * Blocking match bounded by \p timeoutSeconds; false when it elapses
+     * before a matching message arrives.
+     */
+    bool waitMatchFor(int32_t rank, int32_t sourceRank, int32_t tag,
+                      double timeoutSeconds, Message &out)
+    {
+        Mailbox &mailbox = *mailboxes[static_cast<size_t>(rank)];
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::duration<double>(timeoutSeconds);
+        std::unique_lock<std::mutex> lock(mailbox.mutex);
+        for (;;)
+        {
+            for (auto it = mailbox.messages.begin();
+                 it != mailbox.messages.end(); ++it)
+            {
+                if (it->tag == tag &&
+                    (sourceRank < 0 || it->sourceRank == sourceRank))
+                {
+                    out = std::move(*it);
+                    mailbox.messages.erase(it);
+                    return true;
+                }
+            }
+            if (std::chrono::steady_clock::now() >= deadline)
+                return false;
+            mailbox.arrived.wait_until(lock, deadline);
+        }
+    }
+
     void deliver(int32_t rank, Message message)
     {
         Mailbox &mailbox = *mailboxes[static_cast<size_t>(rank)];
@@ -146,6 +177,7 @@ public:
     }
     bool test() override { return true; }
     void wait() override {}
+    [[nodiscard]] bool waitFor(double) override { return true; }
     // Cancellation is not supported by this request: report whether the
     // operation has already completed (true) or is still pending (false).
     [[nodiscard]] bool cancel() override { return test(); }
@@ -195,6 +227,18 @@ public:
         if (m_complete)
             return;
         finish(m_impl.waitMatch(m_rank, m_sourceRank, m_tag));
+    }
+
+    [[nodiscard]] bool waitFor(double timeoutSeconds) override
+    {
+        if (m_complete || timeoutSeconds <= 0.0)
+            return test();
+        InProcHub::Impl::Message message;
+        if (!m_impl.waitMatchFor(m_rank, m_sourceRank, m_tag, timeoutSeconds,
+                                 message))
+            return false;
+        finish(std::move(message));
+        return true;
     }
 
     // Cancellation is not supported by this request: report whether the

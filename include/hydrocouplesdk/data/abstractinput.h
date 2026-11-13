@@ -150,6 +150,8 @@ public:
 
     /*!
      * \brief Adds a provider to the given role slot (or any free slot if role is nullptr).
+     * \details Called by IOutput::addConsumer(), which has already checked
+     * canConsume() for the role; orchestrators wire through the output.
      */
     bool addProvider(HydroCouple::IOutput *provider,
                      const HydroCouple::IIdentity *providerRoleIdentifier = nullptr) override;

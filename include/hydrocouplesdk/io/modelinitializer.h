@@ -127,8 +127,8 @@ public:
      * live output to IArgument::initialize(const IComponentDataItem&);
      * then the component's initialize() runs and must reach
      * ComponentStatus::Initialized. Connections are wired afterwards via
-     * IInput::setProvider(), with IMultiInput::addProvider() used when the
-     * target is a multi-input. Validation of the whole document happens
+     * IOutput::addConsumer(), which carries the provider role when the target
+     * is a multi-input. Validation of the whole document happens
      * before anything is applied.
      */
     [[nodiscard]] bool initialize(const nlohmann::json &document,

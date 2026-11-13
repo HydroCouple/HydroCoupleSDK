@@ -236,11 +236,16 @@ TEST(WorkflowBaseTest, ValidateFailsWhileRequiredRoleEmpty)
     const auto problems = workflow.validate();
     ASSERT_FALSE(problems.empty());
     EXPECT_NE(problems[0].find("driver"), std::string::npos);
-    EXPECT_EQ(workflow.status(), WStatus::Failed);
+    // A composition with problems is Invalid, not Failed (ABI 5): each
+    // problem is queued at Error, and the caller may validate again.
+    EXPECT_EQ(workflow.status(), WStatus::Invalid);
 
     const auto errors = workflow.errors();
     ASSERT_FALSE(errors.empty());
-    EXPECT_EQ(errors.back().severity, ErrorEntry::Severity::Fatal);
+    EXPECT_EQ(errors.back().severity, ErrorEntry::Severity::Error);
+
+    EXPECT_FALSE(workflow.validate().empty());
+    EXPECT_EQ(workflow.status(), WStatus::Invalid);
 }
 
 TEST(WorkflowBaseTest, LifecycleEnforcesPhaseOrder)

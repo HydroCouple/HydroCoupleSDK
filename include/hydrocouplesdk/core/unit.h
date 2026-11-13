@@ -143,6 +143,27 @@ public:
      */
     void setOffsetToSI(double offset);
 
+    /*!
+     * \brief The unit as a UDUNITS-2 string (e.g. "m3 s-1"); empty when not declared.
+     */
+    [[nodiscard]] std::string symbol() const override;
+
+    /*!
+     * \brief Sets the UDUNITS-2 symbol and fires propertyChanged("Symbol").
+     */
+    void setSymbol(std::string_view symbol);
+
+    /*!
+     * \brief The unit as a case-sensitive UCUM code (e.g. "m3/s"); empty when
+     *        not declared.
+     */
+    [[nodiscard]] std::string ucumCode() const override;
+
+    /*!
+     * \brief Sets the UCUM code and fires propertyChanged("UcumCode").
+     */
+    void setUcumCode(std::string_view code);
+
     // ── Factory helpers ───────────────────────────────────────────────────
 
     /*! \brief Unit for metres (m). */
@@ -175,6 +196,8 @@ private:
     UnitDimensions *m_dimensions            = nullptr;
     double          m_conversionFactorToSI  = 1.0;
     double          m_offsetToSI            = 0.0;
+    std::string     m_symbol;
+    std::string     m_ucumCode;
 };
 
 } // namespace HydroCouple::SDK

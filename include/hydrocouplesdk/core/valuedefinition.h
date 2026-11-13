@@ -84,6 +84,27 @@ public:
     void setValueKind(HydroCouple::ValueKind kind);
 
     /*!
+     * \brief The CF standard name of the quantity; empty when not declared.
+     */
+    [[nodiscard]] std::string standardName() const override;
+
+    /*!
+     * \brief Sets the CF standard name and fires propertyChanged("StandardName").
+     */
+    void setStandardName(std::string_view name);
+
+    /*!
+     * \brief A URI naming the quantity in a published vocabulary; empty when
+     *        not declared.
+     */
+    [[nodiscard]] std::string conceptURI() const override;
+
+    /*!
+     * \brief Sets the concept URI and fires propertyChanged("ConceptURI").
+     */
+    void setConceptURI(std::string_view uri);
+
+    /*!
      * \brief Returns the sentinel value representing missing data
      *        (numeric DataKinds only).
      */
@@ -139,6 +160,8 @@ protected:
 private:
     double m_missingValue = -999999.0;
     double m_defaultValue = 0.0;
+    std::string m_standardName;
+    std::string m_conceptURI;
 };
 
 
@@ -271,6 +294,10 @@ public:
     void fromJson(const nlohmann::json &j)         override;
 
     // ── Factory helpers ───────────────────────────────────────────────────
+    //
+    // Each declares its QUDT quantity kind as conceptURI() (VolumeFlowRate,
+    // Length, Area, Volume, Time) and no CF standard name; unitLess() declares
+    // neither. Set narrower names on the returned quantity when you know them.
 
     /*! \brief Returns a \c double Quantity for flow in m³/s. */
     [[nodiscard]] static Quantity *flowInCMS();

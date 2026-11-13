@@ -1,6 +1,6 @@
 {
   "name": "hydrocouplesdk",
-  "version-semver": "2.0.0-alpha.2",
+  "version-semver": "2.0.0-beta.1",
   "description": "HydroCouple SDK \u2014 concrete base implementations of the HydroCouple v2 component-based modeling interfaces (typed hyperslab data plane, JSON/YAML argument IO, temporal and spatial data items).",
   "license": "MIT",
   "homepage": "https://www.hydrocouple.org",

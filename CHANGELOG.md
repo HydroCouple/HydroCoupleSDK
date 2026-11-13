@@ -11,7 +11,62 @@ MAJOR.MINOR must match the interface headers it is built against
 
 ## [Unreleased]
 
-## [2.0.0-alpha.2] — 2026-10-02
+## [2.0.0-beta.1] — 2026-11-13
+
+Built against HydroCouple 2.0.0-beta.1 (interface ABI 5). Implements the
+interface's release-readiness round and its vocabulary binding; every
+component built on the SDK must be rebuilt.
+
+### Changed — wiring goes through the output (breaking)
+
+- `AbstractOutput::addConsumer()` and `AbstractAdaptedOutput::addConsumer()`
+  take the provider role (`const IIdentity *providerRole = nullptr`). A
+  multi-input is wired through `canConsume(this, message, role)` and
+  `addProvider(this, role)`, any other input through `setProvider()`; a role
+  given for a plain input is refused. `removeConsumer()` calls
+  `removeProvider()` on a multi-input.
+- `ModelInitializer` wires every connection, multi-inputs included, through
+  `addConsumer(input, role)`. It used to call `IMultiInput::addProvider()`
+  directly, so an output never listed the multi-inputs it fed in
+  `consumers()`.
+- Outputs keep their consumers in connection order and tell them apart by
+  object. They were keyed by `id()`, which is unique only within a
+  component: a second component's input with the same id silently replaced
+  the first. Re-adding a connected input is a no-op.
+
+### Changed — workflow validation (breaking)
+
+- `AbstractWorkflowComponent::validate()` leaves a composition with
+  problems `Invalid` (each problem queued at `Error`), not `Failed`, and may
+  be called again from `Invalid` after the composition is fixed. `Failed`
+  remains for unrecoverable errors.
+
+### Added
+
+- `ValueDefinition::standardName()` / `setStandardName()` and
+  `conceptURI()` / `setConceptURI()`; `Unit::symbol()` / `setSymbol()`
+  (UDUNITS-2) and `ucumCode()` / `setUcumCode()`. All survive `copy()` and the
+  JSON form (written only when declared, so existing documents read the
+  same). The stock units declare their codes (`flowInCFS()` is `ft3 s-1` /
+  `[ft_i]3/s`, and so on), and the stock quantities their QUDT quantity kind
+  as `conceptURI()` (`flowInCMS()` and `flowInCFS()` are
+  `quantitykind/VolumeFlowRate`, so the two match); `unitLess()` declares
+  none.
+- Connection diagnostic **1113 `QuantityNameMismatch`**: both ends name
+  their quantity and the names differ — concept URIs when both declare one,
+  otherwise CF standard names. Always a warning.
+- `waitFor(timeoutSeconds)` on every exchange request: the in-process
+  transport waits on its mailbox with a deadline; the MPI transport and the
+  halo exchange poll. `MpiTransport` documents that it cannot detect a lost
+  peer.
+
+### Fixed
+
+- The interface-version check reads the interface's generated
+  `hydrocoupleversion.h` (it was `version.h`, whose pattern also never
+  matched a pre-release version and silently fell back to the interface's
+  CMakeLists).
+
 
 Built against HydroCouple 2.0.0-alpha.2 (interface ABI 4). MAJOR.MINOR stay
 in lockstep with the interface, so this is a 2.0 pre-release rather than the
@@ -570,6 +625,7 @@ build system, and execution layers against HydroCouple v2.0.0-alpha.1.
 - Device fast paths for `ValuePacker` and a direct GPU-aware-MPI path are
   deferred; device-resident fields exchange through staged copies today.
 
-[Unreleased]: https://github.com/cbuahin/HydroCoupleSDK/compare/v2.0.0-alpha.2...HEAD
+[Unreleased]: https://github.com/cbuahin/HydroCoupleSDK/compare/v2.0.0-beta.1...HEAD
+[2.0.0-beta.1]: https://github.com/cbuahin/HydroCoupleSDK/releases/tag/v2.0.0-beta.1
 [2.0.0-alpha.2]: https://github.com/cbuahin/HydroCoupleSDK/releases/tag/v2.0.0-alpha.2
 [2.0.0-alpha.1]: https://github.com/cbuahin/HydroCoupleSDK/releases/tag/v2.0.0-alpha.1

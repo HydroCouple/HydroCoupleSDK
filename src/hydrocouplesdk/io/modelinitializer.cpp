@@ -798,52 +798,38 @@ bool ModelInitializer::applyConnections(std::string &message)
         if (!effective)
             return false;
 
-        bool wired = false;
-        if (auto *multi = dynamic_cast<HydroCouple::IMultiInput *>(input))
+        // A multi-input's role is resolved here and travels with the call.
+        HydroCouple::IIdentity *role = nullptr;
+        if (auto *multi = dynamic_cast<HydroCouple::IMultiInput *>(input);
+            multi && !link.role.empty())
         {
-            HydroCouple::IIdentity *role = nullptr;
-            if (!link.role.empty())
+            for (HydroCouple::IIdentity *label : multi->providerLabels())
             {
-                for (HydroCouple::IIdentity *label : multi->providerLabels())
+                if (label && label->id() == link.role)
                 {
-                    if (label && label->id() == link.role)
-                    {
-                        role = label;
-                        break;
-                    }
-                }
-                if (!role)
-                {
-                    message = context + ": input \"" + link.input +
-                              "\" has no provider role \"" + link.role + "\"";
-                    return false;
+                    role = label;
+                    break;
                 }
             }
-            wired = multi->addProvider(effective, role);
-        }
-        else
-        {
-            // IOutput::addConsumer() is the single wiring entry point: it
-            // checks canConsume(), records the consumer and sets its provider.
-            try
+            if (!role)
             {
-                effective->addConsumer(input);
-                wired = true;
-            }
-            catch (const std::exception &e)
-            {
-                message = context + ": " + e.what();
+                message = context + ": input \"" + link.input +
+                          "\" has no provider role \"" + link.role + "\"";
                 return false;
             }
         }
 
-        if (!wired)
+        // IOutput::addConsumer() is the single wiring entry point for every
+        // input: it checks canConsume(), records the consumer and calls
+        // setProvider() -- or addProvider() with the role for a multi-input,
+        // so the output's consumers() lists the multi-input too.
+        try
         {
-            std::string why;
-            (void)input->canConsume(effective, why);
-            message = context + ": input \"" + link.input +
-                      "\" rejected output \"" + effective->id() + "\"" +
-                      (why.empty() ? "" : (": " + why));
+            effective->addConsumer(input, role);
+        }
+        catch (const std::exception &e)
+        {
+            message = context + ": " + e.what();
             return false;
         }
         ++index;

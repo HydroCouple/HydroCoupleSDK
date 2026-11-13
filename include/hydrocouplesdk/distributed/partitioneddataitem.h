@@ -33,10 +33,13 @@
 #include "hydrocoupledistributed.h"
 #include "hydrocouplehelpers.h"
 
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <memory>
 #include <span>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace HydroCouple::SDK::Distributed {
@@ -159,6 +162,21 @@ public:
                 if (!m_exchanger->end(message))
                     m_failure = message;
                 m_complete = true;
+            }
+            [[nodiscard]] bool waitFor(double timeoutSeconds) override
+            {
+                // The exchanger has no timed end(): poll test() to the deadline.
+                const auto deadline =
+                    std::chrono::steady_clock::now() +
+                    std::chrono::duration<double>(std::max(0.0, timeoutSeconds));
+                for (;;)
+                {
+                    if (test())
+                        return true;
+                    if (std::chrono::steady_clock::now() >= deadline)
+                        return false;
+                    std::this_thread::sleep_for(std::chrono::microseconds(50));
+                }
             }
             // Cancellation is not supported by this request: report whether the
             // operation has already completed (true) or is still pending (false).

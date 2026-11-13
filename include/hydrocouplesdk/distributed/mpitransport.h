@@ -92,6 +92,11 @@ private:
  * Wire format: every message is one ValuePacker block (kind + shape header
  * followed by raw elements) sent as MPI bytes, identical to
  * InProcTransport — the two backends are interchangeable behind the seam.
+ *
+ * Lost peers: this transport cannot detect them. Under MPI's default error
+ * handler a lost rank aborts the job; a pending operation with it is never
+ * completed as failed. Callers that must not hang bound their waits with the
+ * asynchronous operations and IExchangeRequest::waitFor(), which polls.
  */
 class HYDROCOUPLESDK_EXPORT MpiTransport final
     : public Identity,

@@ -7,6 +7,9 @@
 
 #include <mpi.h>
 
+#include <algorithm>
+#include <chrono>
+#include <thread>
 #include <vector>
 
 namespace HydroCouple::SDK::Distributed {
@@ -26,6 +29,25 @@ std::string mpiErrorText(int code)
 }
 
 /*!
+ * Bounded wait by polling test(): MPI has no timed wait. A non-positive
+ * timeout tests once.
+ */
+bool pollForCompletion(HydroCouple::Distributed::IExchangeRequest &request,
+                       double timeoutSeconds)
+{
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::duration<double>(std::max(0.0, timeoutSeconds));
+    for (;;)
+    {
+        if (request.test())
+            return true;
+        if (std::chrono::steady_clock::now() >= deadline)
+            return false;
+        std::this_thread::sleep_for(std::chrono::microseconds(50));
+    }
+}
+
+/*!
  * Already-completed request carrying an optional failure.
  */
 class CompletedRequest final
@@ -38,6 +60,7 @@ public:
     }
     bool test() override { return true; }
     void wait() override {}
+    [[nodiscard]] bool waitFor(double) override { return true; }
     // Cancellation is not supported by this request: report whether the
     // operation has already completed (true) or is still pending (false).
     [[nodiscard]] bool cancel() override { return test(); }
@@ -102,6 +125,11 @@ public:
         if (code != MPI_SUCCESS)
             m_failure = "MpiTransport::sendAsync: " + mpiErrorText(code);
         m_complete = true;
+    }
+
+    [[nodiscard]] bool waitFor(double timeoutSeconds) override
+    {
+        return pollForCompletion(*this, timeoutSeconds);
     }
 
     // Cancellation is not supported by this request: report whether the
@@ -174,6 +202,11 @@ public:
             return;
         }
         finish();
+    }
+
+    [[nodiscard]] bool waitFor(double timeoutSeconds) override
+    {
+        return pollForCompletion(*this, timeoutSeconds);
     }
 
     // Cancellation is not supported by this request: report whether the

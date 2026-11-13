@@ -77,7 +77,8 @@ public:
     // ── IOutput ───────────────────────────────────────────────────────────
 
     [[nodiscard]] std::vector<HydroCouple::IInput *>         consumers()      const override;
-    void addConsumer(HydroCouple::IInput *consumer)                                 override;
+    void addConsumer(HydroCouple::IInput *consumer,
+                     const HydroCouple::IIdentity *providerRole = nullptr)          override;
     bool removeConsumer(HydroCouple::IInput *consumer)                              override;
 
     [[nodiscard]] std::vector<HydroCouple::IAdaptedOutput *> adaptedOutputs() const override;
@@ -190,7 +191,10 @@ private:
     HydroCouple::IAdaptedOutputFactory   *m_adaptedOutputFactory;
     HydroCouple::IInput                  *m_input = nullptr;
 
-    std::unordered_map<std::string, HydroCouple::IInput *>         m_consumers;
+    //! In connection order, identified by object: an input's id() is unique
+    //! only within its own component, so two components' "inflow" inputs can
+    //! both consume this output.
+    std::vector<HydroCouple::IInput *>                             m_consumers;
     std::unordered_map<std::string, HydroCouple::IAdaptedOutput *> m_adaptedOutputs;
     std::unordered_map<std::string, AbstractArgument *>            m_arguments;
 };

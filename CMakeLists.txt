@@ -20,7 +20,7 @@ project(
 
 # Pre-release suffix — appended to PROJECT_VERSION wherever the full version
 # string is used (packaging, docs). Mirrors the HydroCouple interface repo.
-set(HYDROCOUPLESDK_VERSION_SUFFIX "-alpha.2")
+set(HYDROCOUPLESDK_VERSION_SUFFIX "-beta.1")
 set(HYDROCOUPLESDK_FULL_VERSION "${PROJECT_VERSION}${HYDROCOUPLESDK_VERSION_SUFFIX}")
 
 # ── Language standard ─────────────────────────────────────────────────────
@@ -98,19 +98,19 @@ endif()
 # The SDK versions in lockstep with the HydroCouple interface: MAJOR.MINOR
 # must match the interface headers this build compiles against.
 #
-# The interface's generated include/version.h is the source of truth when a
-# built or installed tree is used. A plain source checkout (what CI does)
-# only carries version.h.in, so fall back to the version declared in the
-# interface's own CMakeLists.txt — otherwise the check silently skips
-# exactly where it matters most.
+# The interface's generated include/hydrocoupleversion.h is the source of
+# truth when a built or installed tree is used. A plain source checkout (what
+# CI does) only carries hydrocoupleversion.h.in, so fall back to the version
+# declared in the interface's own CMakeLists.txt — otherwise the check
+# silently skips exactly where it matters most.
 set(HYDROCOUPLE_INTERFACE_VERSION "")
-if(EXISTS "${HYDROCOUPLE_INCLUDE_DIR}/version.h")
-    file(STRINGS "${HYDROCOUPLE_INCLUDE_DIR}/version.h" _hc_version_line
-         REGEX "#define PROJECT_VERSION \"[0-9]+\\.[0-9]+\\.[0-9]+\"")
-    if(_hc_version_line MATCHES "\"([0-9]+)\\.([0-9]+)\\.([0-9]+)\"")
+if(EXISTS "${HYDROCOUPLE_INCLUDE_DIR}/hydrocoupleversion.h")
+    file(STRINGS "${HYDROCOUPLE_INCLUDE_DIR}/hydrocoupleversion.h" _hc_version_line
+         REGEX "#define HYDROCOUPLE_VERSION \"[0-9]+\\.[0-9]+\\.[0-9]+")
+    if(_hc_version_line MATCHES "\"([0-9]+)\\.([0-9]+)\\.([0-9]+)")
         set(HYDROCOUPLE_INTERFACE_VERSION
             "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
-        set(_hc_version_source "${HYDROCOUPLE_INCLUDE_DIR}/version.h")
+        set(_hc_version_source "${HYDROCOUPLE_INCLUDE_DIR}/hydrocoupleversion.h")
     endif()
 endif()
 
@@ -149,7 +149,7 @@ if(HYDROCOUPLE_INTERFACE_VERSION)
 else()
     message(WARNING
         "Could not determine the HydroCouple interface version from "
-        "${HYDROCOUPLE_INCLUDE_DIR} (no version.h, and no project(HydroCouple "
+        "${HYDROCOUPLE_INCLUDE_DIR} (no hydrocoupleversion.h, and no project(HydroCouple "
         "VERSION ...) nearby); skipping the version-alignment check.")
 endif()
 

@@ -276,6 +276,29 @@ TEST_F(InProcTransportTest, AsyncReceiveCompletesViaTestAndWait)
     EXPECT_DOUBLE_EQ(received[1], 8.0);
 }
 
+TEST_F(InProcTransportTest, WaitForIsBoundedThenCompletes)
+{
+    const std::array<int64_t, 1> shape{1};
+    std::array<double, 1> received{};
+    auto request = m_t1->receiveAsync(
+        {"inproc", 0}, 4,
+        hostBuffer(received.data(), DataKind::Float64, shape));
+    ASSERT_NE(request, nullptr);
+    EXPECT_FALSE(request->waitFor(0.01)); // nothing sent: returns, not a hang
+    EXPECT_FALSE(request->waitFor(0.0));  // non-positive tests once
+
+    std::array<double, 1> payload{5.0};
+    std::string message;
+    ASSERT_TRUE(m_t0->send({"inproc", 1}, 4,
+                           hostBuffer(payload.data(), DataKind::Float64,
+                                      shape),
+                           &message));
+    EXPECT_TRUE(request->waitFor(5.0));
+    std::string failure;
+    EXPECT_FALSE(request->failed(failure)) << failure;
+    EXPECT_DOUBLE_EQ(received[0], 5.0);
+}
+
 TEST_F(InProcTransportTest, TypeMismatchSurfacesOnReceive)
 {
     std::array<int32_t, 2> payload{1, 2};

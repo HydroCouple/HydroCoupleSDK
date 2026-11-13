@@ -65,6 +65,11 @@ inline constexpr int32_t LayeringMismatch = 1111;
 //! An axis means different things on the two sides (Time vs Entity, ...).
 inline constexpr int32_t DimensionRoleMismatch = 1112;
 
+//! Both sides name their quantity and the names differ: concept URIs when both
+//! declare one, otherwise CF standard names. Always a warning — one model's
+//! outflow is legitimately another's inflow.
+inline constexpr int32_t QuantityNameMismatch = 1113;
+
 } // namespace HydroCouple::SDK::Diagnostic
 
 #endif // HYDROCOUPLESDK_DIAGNOSTICCODES_H

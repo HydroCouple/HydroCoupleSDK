@@ -84,10 +84,34 @@ void Unit::setOffsetToSI(double offset)
     emitPropertyChanged("OffsetToSI");
 }
 
+std::string Unit::symbol() const
+{
+    return m_symbol;
+}
+
+void Unit::setSymbol(std::string_view symbol)
+{
+    m_symbol = symbol;
+    emitPropertyChanged("Symbol");
+}
+
+std::string Unit::ucumCode() const
+{
+    return m_ucumCode;
+}
+
+void Unit::setUcumCode(std::string_view code)
+{
+    m_ucumCode = code;
+    emitPropertyChanged("UcumCode");
+}
+
 Unit *Unit::copy(const HydroCouple::IUnit *src)
 {
     if (!src) return nullptr;
     auto *u = new Unit(src->caption(), src->conversionFactorToSI(), src->offsetToSI());
+    u->m_symbol   = src->symbol();
+    u->m_ucumCode = src->ucumCode();
     if (src->dimensions()) {
         delete u->m_dimensions;
         u->m_dimensions = UnitDimensions::copy(src->dimensions());
@@ -100,6 +124,8 @@ Unit *Unit::copy(const HydroCouple::IUnit *src)
 Unit *Unit::lengthInMeters()
 {
     auto *u = new Unit("metres", 1.0, 0.0);
+    u->m_symbol   = "m";
+    u->m_ucumCode = "m";
     u->dimensionsInternal()->setPower(Dim::Length, 1.0);
     return u;
 }
@@ -107,6 +133,8 @@ Unit *Unit::lengthInMeters()
 Unit *Unit::lengthInFeet()
 {
     auto *u = new Unit("feet", 0.3048, 0.0);
+    u->m_symbol   = "ft";
+    u->m_ucumCode = "[ft_i]";
     u->dimensionsInternal()->setPower(Dim::Length, 1.0);
     return u;
 }
@@ -114,6 +142,8 @@ Unit *Unit::lengthInFeet()
 Unit *Unit::areaInSquareMeters()
 {
     auto *u = new Unit("square metres", 1.0, 0.0);
+    u->m_symbol   = "m2";
+    u->m_ucumCode = "m2";
     u->dimensionsInternal()->setPower(Dim::Length, 2.0);
     return u;
 }
@@ -121,6 +151,8 @@ Unit *Unit::areaInSquareMeters()
 Unit *Unit::volumeInCubicMeters()
 {
     auto *u = new Unit("cubic metres", 1.0, 0.0);
+    u->m_symbol   = "m3";
+    u->m_ucumCode = "m3";
     u->dimensionsInternal()->setPower(Dim::Length, 3.0);
     return u;
 }
@@ -128,6 +160,8 @@ Unit *Unit::volumeInCubicMeters()
 Unit *Unit::flowInCMS()
 {
     auto *u = new Unit("m³/s", 1.0, 0.0);
+    u->m_symbol   = "m3 s-1";
+    u->m_ucumCode = "m3/s";
     u->dimensionsInternal()->setPower(Dim::Length, 3.0);
     u->dimensionsInternal()->setPower(Dim::Time, -1.0);
     return u;
@@ -136,6 +170,8 @@ Unit *Unit::flowInCMS()
 Unit *Unit::flowInCFS()
 {
     auto *u = new Unit("ft³/s", 0.0283168, 0.0);
+    u->m_symbol   = "ft3 s-1";
+    u->m_ucumCode = "[ft_i]3/s";
     u->dimensionsInternal()->setPower(Dim::Length, 3.0);
     u->dimensionsInternal()->setPower(Dim::Time, -1.0);
     return u;
@@ -144,6 +180,8 @@ Unit *Unit::flowInCFS()
 Unit *Unit::timeInDays()
 {
     auto *u = new Unit("days", 86400.0, 0.0);
+    u->m_symbol   = "d";
+    u->m_ucumCode = "d";
     u->dimensionsInternal()->setPower(Dim::Time, 1.0);
     return u;
 }
@@ -151,13 +189,18 @@ Unit *Unit::timeInDays()
 Unit *Unit::timeInSeconds()
 {
     auto *u = new Unit("seconds", 1.0, 0.0);
+    u->m_symbol   = "s";
+    u->m_ucumCode = "s";
     u->dimensionsInternal()->setPower(Dim::Time, 1.0);
     return u;
 }
 
 Unit *Unit::unitlessCoefficient()
 {
-    return new Unit("unitless", 1.0, 0.0);
+    auto *u = new Unit("unitless", 1.0, 0.0);
+    u->m_symbol   = "1";
+    u->m_ucumCode = "1";
+    return u;
 }
 
 } // namespace HydroCouple::SDK

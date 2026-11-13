@@ -268,6 +268,29 @@ void checkValueDefinitions(const HydroCouple::IOutput &provider,
                            ", consumer expects " + name(expectedKind));
     }
 
+    // What the quantity is (ABI 5's vocabulary binding). Matched by concept
+    // URI when both declare one, otherwise by CF standard name; a difference
+    // is only a warning, and an undeclared name says nothing.
+    const std::string producedURI = produced->conceptURI();
+    const std::string expectedURI = expected->conceptURI();
+    if (!producedURI.empty() && !expectedURI.empty())
+    {
+        if (producedURI != expectedURI)
+            findings.warning(Diagnostic::QuantityNameMismatch,
+                             "provider measures <" + producedURI +
+                                 ">, consumer expects <" + expectedURI + ">");
+    }
+    else
+    {
+        const std::string producedName = produced->standardName();
+        const std::string expectedName = expected->standardName();
+        if (!producedName.empty() && !expectedName.empty() &&
+            producedName != expectedName)
+            findings.warning(Diagnostic::QuantityNameMismatch,
+                             "provider measures '" + producedName +
+                                 "', consumer expects '" + expectedName + "'");
+    }
+
     const auto *producedQuantity = dynamic_cast<HydroCouple::IQuantity *>(produced);
     const auto *expectedQuantity = dynamic_cast<HydroCouple::IQuantity *>(expected);
     const auto *producedQuality  = dynamic_cast<HydroCouple::IQuality *>(produced);
