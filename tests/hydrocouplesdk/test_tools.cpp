@@ -378,6 +378,56 @@ TEST(TriangulatorTest, ConstraintSegmentsAreConformedTo)
                                            message));
 }
 
+TEST(TriangulatorTest, CrossingBreaklinesAreSplitAtTheirCrossing)
+{
+    // MeshKit recovers only non-crossing constraints, so the tools node
+    // crossing segments first, as the CDT library they replaced did.
+    TriangulationInput input;
+    input.boundary = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};
+    input.constraintSegments.push_back({Point{1.0, 1.0}, Point{3.0, 3.0}});
+    input.constraintSegments.push_back({Point{1.0, 3.0}, Point{3.0, 1.0}});
+
+    IO::MeshDefinition mesh;
+    std::string message;
+    ASSERT_TRUE(Triangulator::triangulate(input, mesh, message)) << message;
+    ASSERT_TRUE(mesh.validate(message)) << message;
+
+    bool crossing = false;
+    for (size_t n = 0; n < mesh.nodeX.size(); ++n)
+        crossing = crossing || (std::abs(mesh.nodeX[n] - 2.0) < 1e-12 &&
+                                std::abs(mesh.nodeY[n] - 2.0) < 1e-12);
+    EXPECT_TRUE(crossing) << "no node at the crossing (2, 2)";
+
+    // A simply connected domain: V − E + F = 1.
+    EXPECT_EQ(mesh.nodeCount() - undirectedEdgeCount(mesh) + mesh.faceCount(), 1);
+    for (int64_t f = 0; f < mesh.faceCount(); ++f)
+        EXPECT_GT(faceSignedArea(mesh, f), 0.0);
+}
+
+TEST(TriangulatorTest, VertexInsertionCanBeCancelled)
+{
+    // The phase the CDT library could not interrupt: MeshKit asks between
+    // batches of vertices, so a stop asked for during it lands there.
+    TriangulationInput input;
+    input.boundary = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+    for (int i = 1; i < 100; ++i)
+        for (int j = 1; j < 100; ++j)
+            input.interiorPoints.push_back({i + 0.25 * (j % 3), j + 0.25 * (i % 3)});
+
+    int insertionCalls = 0;
+    IO::MeshDefinition mesh;
+    std::string message;
+    EXPECT_FALSE(Triangulator::triangulate(
+        input, mesh, message, [&](double, const char *stage) {
+            if (std::string(stage) != "inserting vertices")
+                return true;
+            return ++insertionCalls < 2; // stop at the first report from inside
+        }));
+    EXPECT_EQ(message, "cancelled");
+    EXPECT_EQ(mesh.faceCount(), 0);
+    EXPECT_GE(insertionCalls, 2) << "insertion never reported from inside";
+}
+
 // ── Quad-dominant meshing ─────────────────────────────────────────────────
 
 TEST(QuadMesherTest, StructuredTrianglePairsMergeToQuads)

@@ -29,9 +29,8 @@ namespace HydroCouple::SDK::Tools {
  *
  * \param fraction How far through the run's *phases* it is, in [0, 1].
  *        Deliberately not a measure of work remaining: the phases are not
- *        equal in cost and CDT's insertion reports nothing from inside, so
- *        a caller drawing a bar from this should show the stage beside it
- *        rather than let the bar imply a measurement.
+ *        equal in cost, so a caller drawing a bar from this should show the
+ *        stage beside it rather than let the bar imply a measurement.
  * \param stage The phase under way, as a short lower-case English phrase
  *        ("inserting edges"). Never null, and valid only for the duration
  *        of the call.
@@ -41,13 +40,10 @@ namespace HydroCouple::SDK::Tools {
  *          rather than half a mesh.
  *
  * \par What can be cancelled
- * Cancellation is offered where the tools' own loops run — densification,
- * candidate scoring, merging, extraction — and at every phase boundary.
- * **The CDT insertion phases cannot be interrupted**: they are one call into
- * the library, which offers no hook, so a cancellation asked for while one
- * is running takes effect when it returns. On a large domain that is the
- * longest wait a user can be made to sit through, and a caller must not
- * promise a cancel that lands sooner than it does.
+ * Every phase: densification, candidate scoring, merging and extraction are
+ * the tools' own loops, edge insertion is too, and MeshKit's vertex insertion
+ * asks between batches of 4,096 vertices. A cancellation therefore lands
+ * within one batch or one loop step of being asked for.
  */
 using MeshProgress = std::function<bool(double fraction, const char *stage)>;
 

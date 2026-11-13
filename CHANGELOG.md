@@ -60,6 +60,24 @@ component built on the SDK must be rebuilt.
   halo exchange poll. `MpiTransport` documents that it cannot detect a lost
   peer.
 
+### Changed — the mesh tools run on MeshKit
+
+- `Tools::Triangulator` is implemented on MeshKit's constrained Delaunay
+  kernel (Apache-2.0), the library the OpenSWMM GUI meshes with, instead of
+  the CDT library; its API, node order and progress stages are unchanged.
+  MeshKit is fetched by CMake at a release tag (`cmake/FetchMeshKit.cmake`:
+  `MESHKIT_SOURCE_DIR`, then a sibling `../MeshKit` checkout, then GitHub at
+  `MESHKIT_GIT_TAG`, default `v0.2.0`), linked privately into the shared tools
+  library, and its LICENSE and NOTICE are installed beside the SDK's. The
+  vcpkg `tools` feature no longer pulls `cdt`.
+- Crossing constraint segments are split at their crossing before insertion
+  (MeshKit leaves noding to its caller; the CDT library did it itself).
+- Every meshing phase can now be cancelled: MeshKit's vertex insertion asks
+  between batches of 4,096 vertices, and edge insertion is the tools' own
+  loop. The caveat in `meshprogress.h` that insertion could not be
+  interrupted is gone.
+- `Tools::QuadMesher` is unchanged (it never used the CDT library).
+
 ### Fixed
 
 - The interface-version check reads the interface's generated

@@ -436,19 +436,10 @@ target_compile_options(HydroCoupleSDK PRIVATE
 
 # ── Tools library (optional): mesh generation (plan §7b) ──────────────────
 if(BUILD_TOOLS)
-    # CDT (MPL-2.0 AND BSD-3-Clause, header-only) provides the constrained
-    # Delaunay engine:
-    # vcpkg config first, plain include directory as the fallback.
-    find_package(CDT CONFIG QUIET)
-    if(NOT CDT_FOUND)
-        set(CDT_INCLUDE_DIR "" CACHE PATH
-            "Directory containing CDT.h (artem-ogre/CDT single headers)")
-        if(NOT EXISTS "${CDT_INCLUDE_DIR}/CDT.h")
-            message(FATAL_ERROR
-                "BUILD_TOOLS requires CDT: enable the vcpkg 'tools' feature "
-                "or set CDT_INCLUDE_DIR to a directory containing CDT.h")
-        endif()
-    endif()
+    # MeshKit (Apache-2.0) provides the constrained Delaunay engine: the same
+    # library the OpenSWMM GUI meshes with, fetched at a release tag (see
+    # cmake/FetchMeshKit.cmake for the local-checkout overrides).
+    include(FetchMeshKit)
 
     add_library(HydroCoupleTools SHARED
         src/hydrocoupletools/sigmagrid.cpp
@@ -467,11 +458,9 @@ if(BUILD_TOOLS)
             $<INSTALL_INTERFACE:include>
     )
     target_link_libraries(HydroCoupleTools PUBLIC HydroCoupleSDK)
-    if(CDT_FOUND)
-        target_link_libraries(HydroCoupleTools PRIVATE CDT::CDT)
-    else()
-        target_include_directories(HydroCoupleTools PRIVATE ${CDT_INCLUDE_DIR})
-    endif()
+    # Static and position-independent: absorbed into the shared tools library,
+    # so it is not part of the exported interface.
+    target_link_libraries(HydroCoupleTools PRIVATE meshkit::core)
 endif()
 
 

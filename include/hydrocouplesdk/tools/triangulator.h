@@ -5,8 +5,9 @@
  * \file   triangulator.h
  * \author Caleb Buahin
  * \version 2.0.0-alpha.1
- * \brief  Constrained Delaunay triangulation (plan §7b.1) over the CDT
- *         library (MPL-2.0 AND BSD-3-Clause).
+ * \brief  Constrained Delaunay triangulation (plan §7b.1) over MeshKit's
+ *         constrained Delaunay kernel (Apache-2.0), the one the OpenSWMM GUI
+ *         meshes with.
  *
  * Triangulates a boundary polygon with optional holes, constraint
  * segments, and interior (Steiner) points. Boundary and constraint edges
@@ -52,7 +53,8 @@ struct HYDROCOUPLETOOLS_EXPORT TriangulationInput
 
     /*!
      * Constraint segments the triangulation must conform to (breaklines,
-     * channels, levees).
+     * channels, levees). Segments that cross each other, or a ring, are
+     * split at the crossing, which becomes a node.
      */
     std::vector<std::array<Spatial::Point, 2>> constraintSegments;
 
@@ -69,7 +71,7 @@ struct HYDROCOUPLETOOLS_EXPORT TriangulationInput
 };
 
 /*!
- * \brief Constrained Delaunay triangulator (CDT-backed).
+ * \brief Constrained Delaunay triangulator (MeshKit-backed).
  */
 class HYDROCOUPLETOOLS_EXPORT Triangulator
 {

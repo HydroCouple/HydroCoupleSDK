@@ -67,10 +67,8 @@
       ]
     },
     "tools": {
-      "description": "Mesh generation tools: constrained Delaunay triangulation, quad-dominant meshing, curvilinear and terrain-following sigma grids (BUILD_TOOLS=ON)",
-      "dependencies": [
-        "cdt"
-      ]
+      "description": "Mesh generation tools: constrained Delaunay triangulation (MeshKit, fetched by CMake), quad-dominant meshing, curvilinear and terrain-following sigma grids (BUILD_TOOLS=ON)",
+      "dependencies": []
     },
     "geopackage": {
       "description": "GeoPackage result persistence (USE_GEOPACKAGE=ON)",
