@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrocouple.org/schema/run-1.0.json",
+  "title": "HydroCouple Run Manifest v1",
+  "description": "Describes one executed composition: what ran, with which versions, how it ended, and a catalog mapping each recorded data item to the artifact holding its values. The manifest is the index that lets analysis and visualization tools reopen a run without any model binary.",
+  "type": "object",
+  "required": ["schema_version", "run", "results"],
+  "properties": {
+    "$schema": { "type": "string" },
+
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "default": "1.0"
+    },
+
+    "run": {
+      "type": "object",
+      "required": ["id", "status"],
+      "properties": {
+        "id":       { "type": "string", "minLength": 1 },
+        "caption":  { "type": "string" },
+        "started":  { "type": "string", "format": "date-time" },
+        "finished": { "type": "string", "format": "date-time" },
+        "wall_seconds": { "type": "number", "minimum": 0 },
+        "status": {
+          "enum": ["completed", "failed", "stopped"],
+          "description": "How the run ended. Results of a failed or stopped run remain readable; the status records what happened."
+        },
+        "host": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "versions": {
+      "type": "object",
+      "properties": {
+        "sdk":       { "type": "string" },
+        "interface": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "composition": {
+      "type": "object",
+      "description": "The composition that produced this run: referenced by path (with an optional hash so drift is detectable), embedded outright, or both.",
+      "properties": {
+        "path":     { "type": "string" },
+        "sha256":   { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "embedded": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id":           { "type": "string", "minLength": 1 },
+          "caption":      { "type": "string" },
+          "final_status": { "type": "string" },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "results": {
+      "type": "array",
+      "description": "The results catalog: one entry per recorded data item.",
+      "items": { "$ref": "#/$defs/resultEntry" }
+    }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "resultEntry": {
+      "type": "object",
+      "required": ["item", "artifact", "format", "kind", "shape"],
+      "properties": {
+        "component": {
+          "type": "string",
+          "description": "Component that produced the item (empty for items recorded without a component)."
+        },
+        "item": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IIdentity::id() of the recorded data item."
+        },
+        "artifact": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Artifact file, relative to the manifest."
+        },
+        "format": {
+          "enum": ["csv", "hdf5_ugrid", "netcdf_ugrid", "geopackage"],
+          "description": "Selects the reader that can serve this entry."
+        },
+        "variable": {
+          "type": "string",
+          "description": "Name within the artifact (dataset, variable, or variables.name row)."
+        },
+        "kind": {
+          "enum": ["Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32",
+                   "Int64", "UInt64", "Float32", "Float64", "Boolean"],
+          "description": "DataKind of the stored elements."
+        },
+        "shape": {
+          "type": "array",
+          "description": "Full extent of the stored variable, row-major, including the time dimension when present.",
+          "items": { "type": "integer", "minimum": 0 },
+          "minItems": 1
+        },
+        "dimensions": {
+          "type": "array",
+          "description": "Names of each dimension, parallel to shape (e.g. [\"time\", \"face\"]).",
+          "items": { "type": "string" }
+        },
+        "units":       { "type": "string" },
+        "description": { "type": "string" },
+
+        "mesh": {
+          "type": "string",
+          "description": "UGRID mesh this field is attached to, when any."
+        },
+        "location": {
+          "enum": ["node", "edge", "face"],
+          "description": "Mesh location of the values."
+        },
+
+        "time": {
+          "type": "object",
+          "description": "Time coordinate of the leading dimension. Recorded explicitly so readers never guess a calendar.",
+          "properties": {
+            "count": { "type": "integer", "minimum": 0 },
+            "start": { "type": "number" },
+            "end":   { "type": "number" },
+            "units": {
+              "type": "string",
+              "default": "julian_day",
+              "description": "SDK convention is julian_day."
+            }
+          },
+          "additionalProperties": false
+        },
+
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Optional artifact hash; a mismatch is reported rather than serving wrong numbers."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

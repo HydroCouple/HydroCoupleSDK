@@ -1,0 +1,250 @@
+name: Build and Unit Test
+
+on:
+  push:
+    branches: [ "master", "dev", "removing_qt" ]
+    tags: [ "v*.*.*" ]
+  pull_request:
+    branches: [ "master", "dev" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Cross-platform matrix with the IO feature set: the release configuration
+  # every packaged build must satisfy.
+  build_and_test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout SDK
+        uses: actions/checkout@v4
+
+      - name: Checkout HydroCouple interface headers
+        uses: actions/checkout@v4
+        with:
+          repository: HydroCouple/HydroCouple
+          ref: dev
+          path: HydroCouple
+
+      # Ninja needs cl.exe/link.exe on PATH; the Visual Studio generator used
+      # to supply them implicitly. Without this the runner's MinGW g++ is
+      # picked up instead, and it is handed MSVC flags (/utf-8) by the
+      # MSVC-built vcpkg packages -- which it reads as a missing input file.
+      # Runs before run-vcpkg so the vcpkg root that step exports is not
+      # overwritten by vcvars64, which also sets VCPKG_ROOT.
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # macOS: the default arm64-osx triplet builds hdf5/netcdf as static
+      # archives, so each is absorbed twice -- once into
+      # libHydroCoupleSDK.dylib (which re-exports every symbol it pulled from
+      # a prebuilt C archive) and once into the test executable. The
+      # executable's netcdf then binds its H5 calls to the dylib's copy while
+      # the direct H5 tests use its own, and the split library state makes
+      # nc_open fail with NC_EHDFERR on files the SDK just wrote. Dynamic
+      # linkage leaves one instance per process, as on Windows.
+      - name: Use dynamic vcpkg linkage (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          triplet="$(uname -m | sed 's/x86_64/x64/')-osx-dynamic"
+          echo "VCPKG_TRIPLET_OPTION=-DVCPKG_TARGET_TRIPLET=$triplet" >> "$GITHUB_ENV"
+
+      - name: Setup vcpkg (manifest mode, tests feature)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          ${{ env.VCPKG_TRIPLET_OPTION }}
+          "-DVCPKG_MANIFEST_FEATURES=tests;hdf5;geopackage;netcdf;tools"
+          -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
+          -DUSE_GDAL=OFF -DUSE_NETCDF=ON -DUSE_HDF5=ON -DUSE_GEOPACKAGE=ON -DUSE_OPENMP=OFF
+          -DBUILD_TOOLS=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+          -DMESHKIT_REQUIRE_PINNED=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run the serial example, then reopen its run for analysis
+        shell: bash
+        run: |
+          cd build/examples
+          ./serial_coupling composition.json example-output
+          # Reads the run manifest with no model components linked.
+          ./analysis_reopen example-output/run.json
+
+      - name: Set up Python for schema validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate documents against the shipped JSON Schemas
+        shell: bash
+        run: |
+          python -m pip install --quiet jsonschema
+          python - <<'PY'
+          import json, sys
+          from jsonschema import Draft202012Validator
+          checks = [
+              ("share/schema/composition-1.0.json",
+               ["examples/serial_coupling/composition.json"]),
+              ("share/schema/run-1.0.json",
+               ["build/examples/example-output/run.json"]),
+          ]
+          failed = False
+          for schema_path, documents in checks:
+              schema = json.load(open(schema_path))
+              Draft202012Validator.check_schema(schema)
+              validator = Draft202012Validator(schema)
+              for document in documents:
+                  errors = [e.message for e in validator.iter_errors(
+                      json.load(open(document)))]
+                  print(f"{document}: {'ok' if not errors else errors}")
+                  failed = failed or bool(errors)
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Install and consume the package from an external project
+        shell: bash
+        run: |
+          cmake --install build --prefix "$PWD/install-prefix"
+          # nlohmann/json.hpp is included by the SDK's public headers, so it
+          # is a genuine usage requirement and the package resolves it with
+          # find_dependency(). A real consumer satisfies that from its own
+          # vcpkg tree; this standalone build has no manifest of its own, so
+          # point it at the one the SDK was built against. (The IO backends
+          # deliberately do NOT need this - they are private to the shared
+          # library and no longer appear in the package config.)
+          triplet_dir=$(echo "$PWD"/build/vcpkg_installed/*-*/ | cut -d' ' -f1)
+          # CMAKE_PREFIX_PATH is a ';'-separated list, and MSYS leaves such an
+          # argument alone -- it reads the ';' as proof the value is already in
+          # Windows form. Git Bash's "/d/a/..." would therefore reach CMake
+          # verbatim, so convert each entry ourselves. cygpath is a no-op
+          # elsewhere because it only exists on Windows runners.
+          native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
+          prefix_path="$(native "$PWD/install-prefix");$(native "${triplet_dir%/}")"
+          echo "Resolving the package and its public dependencies from: $prefix_path"
+          cmake -S examples/serial_coupling -B build-standalone -G Ninja \
+            -DCMAKE_PREFIX_PATH="$prefix_path" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake --build build-standalone
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-${{ matrix.os }}
+          path: tests/artifacts/
+          if-no-files-found: ignore
+
+  # Distributed backend: the protocol suite runs over InProcTransport in the
+  # matrix above; this job additionally exercises MpiTransport under mpirun.
+  mpi:
+    name: ${{ matrix.os }} (MPI)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout SDK
+        uses: actions/checkout@v4
+
+      - name: Checkout HydroCouple interface headers
+        uses: actions/checkout@v4
+        with:
+          repository: HydroCouple/HydroCouple
+          ref: dev
+          path: HydroCouple
+
+      - name: Install OpenMPI and Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenmpi-dev openmpi-bin ninja-build
+
+      # Microsoft MPI: the runtime (msmpisetup.exe) provides mpiexec, the SDK
+      # (msmpisdk.msi) provides mpi.h and msmpi.lib. Both are needed -- the
+      # runtime alone cannot build. See
+      # https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi
+      - name: Install Microsoft MPI (Windows)
+        if: runner.os == 'Windows'
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: msmpi
+
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Setup vcpkg (manifest mode)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+
+      # --oversubscribe packs more ranks than cores, which the runners need.
+      # It is an OpenMPI spelling; MS-MPI's mpiexec rejects unknown flags, and
+      # oversubscribes by default anyway, so Windows passes none.
+      - name: Configure
+        run: |
+          preflags=""
+          if [ "$RUNNER_OS" = "Linux" ]; then preflags="--oversubscribe"; fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            "-DVCPKG_MANIFEST_FEATURES=tests" \
+            -DHYDROCOUPLE_INCLUDE_DIR="${{ github.workspace }}/HydroCouple/include" \
+            -DUSE_MPI=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON \
+            "-DMPIEXEC_PREFLAGS=$preflags"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test (in-process protocol suite)
+        run: ctest --test-dir build --output-on-failure
+
+      # Launched through the mpiexec CMake found, so this works with both
+      # OpenMPI's mpirun and MS-MPI's mpiexec without spelling either here.
+      - name: Test (MPI transport, 3 ranks)
+        run: ctest --test-dir build --output-on-failure -R MpiTransportSuite
+
+      # Both OpenMPI and MS-MPI ship an `mpiexec`; only OpenMPI understands
+      # --oversubscribe, and only Windows appends .exe.
+      - name: Run the distributed example (4 ranks)
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            mpiexec -n 4 ./build/examples/distributed_coupling.exe
+          else
+            mpiexec --oversubscribe -n 4 ./build/examples/distributed_coupling
+          fi

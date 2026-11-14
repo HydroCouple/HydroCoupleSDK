@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2014-2026 Caleb Buahin
+#
+# Two-component serial coupling: a catchment produces runoff on three
+# reaches, a channel consumes it and routes flow. One schema serves YAML
+# and JSON — the SDK converts YAML to JSON at the boundary, so this file
+# and its .json sibling initialize identically.
+
+components:
+  - id: catchment
+    arguments:
+      # Runoff coefficient per reach (the component's only argument).
+      coefficients:
+        values: [0.35, 0.20, 0.55]
+
+  - id: channel
+    arguments:
+      # Muskingum-style routing weight per reach.
+      routing_weight:
+        values: [0.25, 0.25, 0.25]
+
+connections:
+  - from: { component: catchment, output: runoff }
+    to:   { component: channel,   input:  lateral_inflow }

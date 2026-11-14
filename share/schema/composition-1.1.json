@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrocouple.org/schema/composition-1.1.json",
+  "title": "HydroCouple Composition Specification v1.1",
+  "description": "A coupled model composition: components, their arguments, the connections between them, how execution is orchestrated, and where results are written. JSON and YAML documents share this schema (YAML converts to JSON at the boundary).",
+  "type": "object",
+  "required": [
+    "components"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Specification version. This SDK reads 1.x.",
+      "pattern": "^1\\.[0-9]+$",
+      "default": "1.1"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional provenance.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "caption": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sdk_version": {
+          "type": "string"
+        },
+        "interface_version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "components": {
+      "type": "array",
+      "description": "Component instances taking part in the composition.",
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "connections": {
+      "type": "array",
+      "description": "Provider output to consumer input links.",
+      "items": {
+        "$ref": "#/$defs/connection"
+      }
+    },
+    "workflow": {
+      "$ref": "#/$defs/workflow"
+    },
+    "writers": {
+      "type": "array",
+      "description": "Output writers to construct for the run.",
+      "items": {
+        "$ref": "#/$defs/writer"
+      }
+    },
+    "run": {
+      "type": "object",
+      "description": "Run recording configuration.",
+      "properties": {
+        "manifest": {
+          "type": "string",
+          "description": "Path of the run manifest to write at finish(). Relative paths resolve against the document."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "component": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Component identifier, unique within the composition."
+        },
+        "caption": {
+          "type": "string"
+        },
+        "info": {
+          "type": "object",
+          "description": "Optional instantiation hint so a UI can round-trip a composition without a code-side resolver. Naming a library makes the document executable content: hosts must treat loading as opt-in and allow-listed.",
+          "properties": {
+            "library": {
+              "type": "string"
+            },
+            "component_info_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "execution": {
+          "type": "object",
+          "description": "What this component should do when the composition is initialized.",
+          "properties": {
+            "mode": {
+              "enum": [
+                "run",
+                "open",
+                "resume"
+              ],
+              "default": "run",
+              "description": "run: compute normally, never silently reuse results. open: load recorded results and finish. resume: restart from a checkpoint (reserved)."
+            },
+            "results": {
+              "type": "string",
+              "description": "Run manifest supplying recorded results; required when mode is \"open\"."
+            }
+          },
+          "additionalProperties": false,
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "open"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "results"
+            ]
+          }
+        },
+        "arguments": {
+          "type": "object",
+          "description": "Argument payloads keyed by argument id. Each payload is passed verbatim to IArgument::initialize() (including sidecar @ref blocks), unless it is an @from binding, which the initializer resolves against the named provider output before the consumer initializes.",
+          "additionalProperties": {
+            "if": {
+              "type": "object",
+              "required": [
+                "@from"
+              ]
+            },
+            "then": {
+              "$ref": "#/$defs/argumentBinding"
+            },
+            "else": true
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "connection": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "object",
+          "required": [
+            "component"
+          ],
+          "properties": {
+            "component": {
+              "type": "string",
+              "minLength": 1
+            },
+            "output": {
+              "type": "string"
+            },
+            "adapted_outputs": {
+              "type": "array",
+              "description": "Ordered adaptation chain applied to the provider before the consumer sees it.",
+              "items": {
+                "$ref": "#/$defs/adaptedOutput"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "to": {
+          "type": "object",
+          "required": [
+            "component"
+          ],
+          "properties": {
+            "component": {
+              "type": "string",
+              "minLength": 1
+            },
+            "input": {
+              "type": "string"
+            },
+            "role": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Provider role identifier when the consumer is an IMultiInput."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "adaptedOutput": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "factory": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "description": "Orchestration configuration.",
+      "properties": {
+        "strategy": {
+          "enum": [
+            "none",
+            "pull_driven",
+            "time_stepped"
+          ],
+          "default": "none",
+          "description": "none: the host drives components. pull_driven: OpenMI request-reply from a declared trigger. time_stepped: schedule derived from the connection graph."
+        },
+        "id": {
+          "type": "string",
+          "default": "workflow"
+        },
+        "trigger": {
+          "type": "object",
+          "description": "The most-downstream input that starts each pull chain. Required for pull_driven.",
+          "properties": {
+            "component": {
+              "type": "string"
+            },
+            "input": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "iterations_per_group": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Sweeps per cyclic (feedback) group; 1 is time-lagged, >1 fixed-point."
+        },
+        "max_steps": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Cap on orchestration steps; 0 means run until Done."
+        }
+      },
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "strategy": {
+            "const": "pull_driven"
+          }
+        },
+        "required": [
+          "strategy"
+        ]
+      },
+      "then": {
+        "required": [
+          "trigger"
+        ]
+      }
+    },
+    "writer": {
+      "type": "object",
+      "required": [
+        "type",
+        "path"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "csv",
+            "hdf5_ugrid",
+            "netcdf_ugrid",
+            "geopackage"
+          ],
+          "description": "Writer kind. Non-CSV writers require the matching SDK build feature."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "simulation": {
+          "type": "string",
+          "description": "GeoPackage simulation name."
+        },
+        "mesh": {
+          "description": "Mesh name or inline mesh definition for UGRID writers."
+        },
+        "fields": {
+          "type": "array",
+          "description": "Optional per-item metadata enrichment.",
+          "items": {
+            "type": "object",
+            "required": [
+              "item"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "units": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "argumentBinding": {
+      "type": "object",
+      "description": "An argument bound to another component's output: the provider runs to Finished before this component initializes, and the named output is handed to IArgument::initialize(const IComponentDataItem&). The document round-trips the reference, never the produced value.",
+      "required": [
+        "@from"
+      ],
+      "properties": {
+        "@from": {
+          "type": "object",
+          "required": [
+            "component",
+            "output"
+          ],
+          "properties": {
+            "component": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Provider component id, declared in components[]."
+            },
+            "output": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Provider output id."
+            },
+            "selector": {
+              "type": "null",
+              "description": "Reserved: a selector into the output. Must be null; the SDK diagnoses a value as not yet implemented."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

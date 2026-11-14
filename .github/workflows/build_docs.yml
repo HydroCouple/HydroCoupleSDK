@@ -1,0 +1,110 @@
+name: Documentation
+
+# Builds and deploys the SDK's Doxygen docs to GitHub Pages, mirroring the
+# HydroCouple interface repository's documentation pipeline (doxygen-awesome
+# theme, pinned Doxygen release).
+
+on:
+  push:
+    branches: [ "master", "dev" ]
+    tags: [ "v*.*.*" ]
+    paths:
+      - 'docs/**'
+      - 'include/**'
+      - 'src/**'
+      - '**/*.md'
+      - '.github/workflows/build_docs.yml'
+  pull_request:
+    branches: [ "master" ]
+    paths:
+      - 'docs/**'
+      - 'include/**'
+      - 'src/**'
+      - '**/*.md'
+      - '.github/workflows/build_docs.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build_doxygen_docs:
+    name: Build C++ Docs (Doxygen)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SDK
+        uses: actions/checkout@v4
+
+      - name: Checkout HydroCouple interface headers
+        uses: actions/checkout@v4
+        with:
+          repository: HydroCouple/HydroCouple
+          ref: dev
+          path: HydroCouple
+
+      - name: Install Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz wget tar
+
+      - name: Install Doxygen 1.13.2
+        # Pinned to the same release as the interface repo's pipeline.
+        run: |
+          wget -q https://github.com/doxygen/doxygen/releases/download/Release_1_13_2/doxygen-1.13.2.linux.bin.tar.gz
+          tar -xzf doxygen-1.13.2.linux.bin.tar.gz
+          sudo cp doxygen-1.13.2/bin/doxygen /usr/local/bin/
+          doxygen --version
+
+      - name: Configure (docs only)
+        run: >
+          cmake -S . -B build
+          -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_TOOLS=OFF
+          -DUSE_GDAL=OFF -DUSE_NETCDF=OFF -DUSE_HDF5=OFF -DUSE_OPENMP=OFF
+          -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
+
+      - name: Build Doxygen docs
+        run: cmake --build build --target docs
+
+      - name: Upload Doxygen docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: doxygen-docs
+          path: build/docs/doxygen/html/
+          retention-days: 1
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build_doxygen_docs
+    if: |
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Doxygen docs
+        uses: actions/download-artifact@v4
+        with:
+          name: doxygen-docs
+          path: site/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

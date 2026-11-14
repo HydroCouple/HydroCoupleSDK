@@ -1,0 +1,66 @@
+PROJECT_NAME           = "@PROJECT_NAME@"
+PROJECT_NUMBER         = "@HYDROCOUPLESDK_FULL_VERSION@"
+PROJECT_BRIEF          = "HydroCouple C++ Modeling Framework SDK"
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/doxygen
+CREATE_SUBDIRS         = YES
+OUTPUT_LANGUAGE        = English
+DOXYFILE_ENCODING      = UTF-8
+
+# ── Extraction ────────────────────────────────────────────────────────────
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_PACKAGE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+BRIEF_MEMBER_DESC      = YES
+REPEAT_BRIEF           = YES
+INHERIT_DOCS           = YES
+SORT_MEMBER_DOCS       = YES
+
+# ── Input ─────────────────────────────────────────────────────────────────
+INPUT                  = @CMAKE_SOURCE_DIR@/include \
+                         @CMAKE_SOURCE_DIR@/src \
+                         @CMAKE_SOURCE_DIR@/README.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
+FILE_PATTERNS          = *.h *.cpp *.c *.md
+
+IGNORE_PREFIX          = I Abstract
+
+# ── Warnings ─────────────────────────────────────────────────────────────
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+
+# ── HTML output ───────────────────────────────────────────────────────────
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+
+# ── doxygen-awesome theme (mirrors the HydroCouple interface repo) ────────
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+HTML_HEADER            = @CMAKE_CURRENT_SOURCE_DIR@/custom/html/header.html
+HTML_EXTRA_STYLESHEET  = @CMAKE_CURRENT_SOURCE_DIR@/custom/css/doxygen-awesome.css
+HTML_EXTRA_FILES       = @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-darkmode-toggle.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-fragment-copy-button.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-interactive-toc.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-paragraph-link.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom/js/doxygen-awesome-tabs.js
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 174
+HTML_COLORSTYLE_GAMMA  = 84
+
+# ── Additional lists ──────────────────────────────────────────────────────
+GENERATE_TODOLIST      = YES
+GENERATE_TESTLIST      = YES
+GENERATE_BUGLIST       = YES
+GENERATE_DEPRECATEDLIST = YES
+
+# ── Custom aliases ────────────────────────────────────────────────────────
+ALIASES                = "threadsafety=\par Thread Safety\n" \
+                         "license=\par License\nMIT — see LICENSE in the repository root.\n"
+
+# ── LaTeX (disabled) ─────────────────────────────────────────────────────
+GENERATE_LATEX         = NO
