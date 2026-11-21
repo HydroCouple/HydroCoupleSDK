@@ -245,6 +245,12 @@ public:
 
     ~LineStringAdapter() override = default;
 
+    // Owns its point adapters, so it is not copyable. Declared explicitly because MSVC
+    // instantiates every implicit member of an exported class, and the implicit copy of the
+    // vector of unique_ptr below does not compile.
+    LineStringAdapter(const LineStringAdapter &) = delete;
+    LineStringAdapter &operator=(const LineStringAdapter &) = delete;
+
     /*!
      * \brief The wrapped line value.
      */
@@ -310,6 +316,10 @@ public:
         HydroCouple::Spatial::ISpatialReferenceSystem *srs = nullptr);
 
     ~PolygonAdapter() override = default;
+
+    // Owns its ring adapters, so it is not copyable (see LineStringAdapter).
+    PolygonAdapter(const PolygonAdapter &) = delete;
+    PolygonAdapter &operator=(const PolygonAdapter &) = delete;
 
     /*!
      * \brief The wrapped polygon value.
