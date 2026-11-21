@@ -6,7 +6,9 @@ name: Documentation
 
 on:
   push:
-    branches: [ "master", "dev" ]
+    # removing_qt is the working branch: build its manual on every push; only
+    # master and dev deploy (see the deploy job).
+    branches: [ "master", "dev", "removing_qt" ]
     tags: [ "v*.*.*" ]
     paths:
       - 'docs/**'
@@ -15,7 +17,7 @@ on:
       - '**/*.md'
       - '.github/workflows/build_docs.yml'
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "dev" ]
     paths:
       - 'docs/**'
       - 'include/**'
