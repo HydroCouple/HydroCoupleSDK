@@ -65,7 +65,7 @@ public:
      *
      * \param[in]  triangleMesh Triangle mesh (all faces 3-node).
      * \param[in]  minQuality   Merge threshold in [0, 1].
-     * \param[out] out          Mixed mesh; left empty if cancelled.
+     * \param[out] out          Mixed mesh; left empty if canceled.
      * \param[out] message      Failure or cancellation description.
      * \param[in]  progress     Returning false abandons the merge.
      */

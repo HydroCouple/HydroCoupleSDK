@@ -44,7 +44,7 @@ namespace HydroCouple::SDK::IO {
 /*!
  * \brief Reads one UGRID mesh into \p mesh.
  *
- * Honours the conventions' \c start_index (a 1-based file is converted to
+ * Honors the conventions' \c start_index (a 1-based file is converted to
  * 0-based here, once, rather than by every caller) and drops the
  * \c _FillValue padding a rectangular connectivity array carries for faces
  * with fewer nodes than the widest one.
@@ -76,7 +76,7 @@ struct VerticalCoordinate
      */
     std::vector<double> interfaceSigma;
 
-    //! Sigma at the layer centres, as \c formula_terms names it.
+    //! Sigma at the layer centers, as \c formula_terms names it.
     std::vector<double> layerSigma;
 
     //! Bed depth per face, positive down.
@@ -94,7 +94,7 @@ struct VerticalCoordinate
     /*!
      * \brief Whether the interfaces were derived rather than read.
      *
-     * True when the file carried only layer centres. Midpointing them is
+     * True when the file carried only layer centers. Midpointing them is
      * exact for a uniform distribution and an approximation for a stretched
      * one, so a caller that cares — a volume calculation, as opposed to a
      * picture — can tell the difference.
@@ -119,7 +119,7 @@ struct VerticalCoordinate
  * and depth variables it is built from. Interfaces come from a CF \c bounds
  * attribute when there is one; failing that, from a variable dimensioned one
  * longer than the layers whose values run 0 to -1, which is what an
- * interface sigma *is*; failing that, from the layer centres.
+ * interface sigma *is*; failing that, from the layer centers.
  *
  * \param[in]  path      File to read.
  * \param[in]  meshName  Mesh to read; empty takes the first.

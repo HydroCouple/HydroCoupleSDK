@@ -200,7 +200,7 @@ TEST_F(UriResolverTest, AFileUriOnAnotherMachineIsNotThisMachinesDisk)
     EXPECT_NE(message.find("fileserver"), std::string::npos) << message;
 }
 
-// The old behaviour was to ifstream the URL and report "Cannot open file",
+// The old behavior was to ifstream the URL and report "Cannot open file",
 // which sends the reader looking for a file that was never meant to exist.
 TEST_F(UriResolverTest, ARemoteUriWithNoResolverSaysThatRatherThanBlamingAFile)
 {

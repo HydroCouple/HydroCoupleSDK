@@ -620,7 +620,7 @@ TEST(MeshProgressTest, StoppingAfterTheMeshIsBuiltStillHandsBackNothing)
     // The last chance to stop comes after CDT has done the expensive part,
     // and taking it must still leave nothing behind: a caller that abandoned
     // a run and then read the mesh anyway would get geometry from a run the
-    // user cancelled.
+    // user canceled.
     ProgressRecorder recorder;
     recorder.stopAt = "extracting";
 

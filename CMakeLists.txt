@@ -427,7 +427,7 @@ target_precompile_headers(HydroCoupleSDK PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/src/stdafx.h>"
 )
 
-# ── Portable optimisation flags ───────────────────────────────────────────
+# ── Portable optimization flags ───────────────────────────────────────────
 check_cxx_compiler_flag("-ftree-vectorize" HAS_TREE_VECTORIZE)
 target_compile_options(HydroCoupleSDK PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/O2,-O3>>

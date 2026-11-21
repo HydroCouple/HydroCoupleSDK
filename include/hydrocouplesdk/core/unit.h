@@ -48,7 +48,7 @@ public:
     /*!
      * \brief Returns the power exponent for the given fundamental dimension.
      * \param dimension  The fundamental unit dimension.
-     * \return           The exponent (e.g. 1 for Length in metres, 2 for area).
+     * \return           The exponent (e.g. 1 for Length in meters, 2 for area).
      */
     [[nodiscard]] double power(
         HydroCouple::IUnitDimensions::FundamentalUnitDimension dimension) const override;
@@ -166,15 +166,15 @@ public:
 
     // ── Factory helpers ───────────────────────────────────────────────────
 
-    /*! \brief Unit for metres (m). */
+    /*! \brief Unit for meters (m). */
     [[nodiscard]] static Unit *lengthInMeters();
     /*! \brief Unit for feet (ft). */
     [[nodiscard]] static Unit *lengthInFeet();
-    /*! \brief Unit for square metres (m²). */
+    /*! \brief Unit for square meters (m²). */
     [[nodiscard]] static Unit *areaInSquareMeters();
-    /*! \brief Unit for cubic metres (m³). */
+    /*! \brief Unit for cubic meters (m³). */
     [[nodiscard]] static Unit *volumeInCubicMeters();
-    /*! \brief Unit for cubic metres per second (m³/s). */
+    /*! \brief Unit for cubic meters per second (m³/s). */
     [[nodiscard]] static Unit *flowInCMS();
     /*! \brief Unit for cubic feet per second (ft³/s). */
     [[nodiscard]] static Unit *flowInCFS();

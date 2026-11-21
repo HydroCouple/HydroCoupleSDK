@@ -94,7 +94,7 @@ public:
     /*!
      * \brief Returns a string / JSON representation of the current argument value.
      *
-     * Pure virtual — subclasses serialise their typed value.
+     * Pure virtual — subclasses serialize their typed value.
      */
     [[nodiscard]] std::string toString() const override = 0;
 
@@ -131,7 +131,7 @@ public:
     currentArgumentInputType() const override;
 
     /*!
-     * \brief Initialises the argument from a string, JSON, XML, file path, or URL.
+     * \brief Initializes the argument from a string, JSON, XML, file path, or URL.
      *
      * Pure virtual — subclasses parse the value according to \p argType.
      *
@@ -157,7 +157,7 @@ public:
                     std::string &message) override = 0;
 
     /*!
-     * \brief Serialises the current argument value to the requested
+     * \brief Serializes the current argument value to the requested
      *        representation (v2 write-side counterpart of initialize()).
      *
      * The base implementation supports String (via toString()) and JSON

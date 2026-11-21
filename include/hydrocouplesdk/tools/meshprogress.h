@@ -35,11 +35,11 @@ namespace HydroCouple::SDK::Tools {
  *        ("inserting edges"). Never null, and valid only for the duration
  *        of the call.
  * \returns True to carry on. **Returning false abandons the run**: the tool
- *          returns false, sets its message to say it was cancelled, and
- *          leaves its output empty — a cancelled run hands back nothing
+ *          returns false, sets its message to say it was canceled, and
+ *          leaves its output empty — a canceled run hands back nothing
  *          rather than half a mesh.
  *
- * \par What can be cancelled
+ * \par What can be canceled
  * Every phase: densification, candidate scoring, merging and extraction are
  * the tools' own loops, edge insertion is too, and MeshKit's vertex insertion
  * asks between batches of 4,096 vertices. A cancellation therefore lands

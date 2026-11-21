@@ -9,7 +9,7 @@
  *
  * Argument2D<T> combines AbstractArgument with ComponentDataItem2D<T> and
  * implements the v2 typed hyperslab data plane by delegating to the storage
- * mixin. Values serialise as a rectangular JSON array-of-arrays (rows);
+ * mixin. Values serialize as a rectangular JSON array-of-arrays (rows);
  * initialize() accepts that form directly, an object with a "values" key,
  * or a file/URL containing either.
  */
@@ -98,7 +98,7 @@ public:
 
     /*!
      * \brief Writes the current values back to the input file, if one was
-     *        set via File/URL initialisation.
+     *        set via File/URL initialization.
      */
     void saveData() override
     {

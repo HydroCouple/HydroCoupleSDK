@@ -392,7 +392,7 @@ TEST(ResultsReopenTest, CarriesMetadataAndTimeAxis)
     EXPECT_DOUBLE_EQ(times.front(), 1000.0);
     EXPECT_DOUBLE_EQ(times.back(), 1000.0 + kSteps - 1);
 
-    // Dimensions are labelled from the catalog so a UI can name axes.
+    // Dimensions are labeled from the catalog so a UI can name axes.
     IComponentDataItem *flow = reopened->results()[0];
     ASSERT_EQ(flow->dimensions().size(), 2u);
     EXPECT_EQ(flow->dimensions()[0]->id(), "time");

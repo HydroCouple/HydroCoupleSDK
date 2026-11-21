@@ -404,7 +404,7 @@ void checkTemporal(const HydroCouple::IOutput &provider,
                                " vs " + std::to_string(b) + " days)");
     }
 
-    // Interpolation: the provider's behaviour must be one the consumer
+    // Interpolation: the provider's behavior must be one the consumer
     // accepts. A provider that never fabricates (None) is acceptable to any
     // consumer; otherwise the methods must match. Both undeclared is an
     // error by the interface's own rule (TimeInterpolation::Unknown).

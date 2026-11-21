@@ -11,7 +11,7 @@
  * and IIdBasedComponentDataItem, implementing the v2 typed hyperslab data
  * plane with the identifier dimension as dimension 0.
  *
- * Values serialise as a JSON object mapping identifier to value
+ * Values serialize as a JSON object mapping identifier to value
  * (\c {"nodeA": 1.5, "nodeB": 2.0}); initialize() accepts that form,
  * an object with "identifiers"/"values" arrays, or a file/URL containing
  * either.
@@ -117,7 +117,7 @@ public:
 
     /*!
      * \brief Writes the current values back to the input file, if one was
-     *        set via File/URL initialisation.
+     *        set via File/URL initialization.
      */
     void saveData() override
     {

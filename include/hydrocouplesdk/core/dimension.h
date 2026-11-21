@@ -24,7 +24,7 @@ namespace HydroCouple::SDK {
  * whether the size along this axis is fixed (Static) or may change
  * at runtime (Dynamic).
  *
- * \threadsafety Not thread-safe on its own. Callers must synchronise
+ * \threadsafety Not thread-safe on its own. Callers must synchronize
  * concurrent mutations.
  */
 class HYDROCOUPLESDK_EXPORT Dimension

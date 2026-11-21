@@ -127,7 +127,7 @@ void AbstractComponentDataItem::addComment(const std::string &comment)
     emitPropertyChanged("Comments");
 }
 
-// ── Serialisation ─────────────────────────────────────────────────────────
+// ── Serialization ─────────────────────────────────────────────────────────
 
 void AbstractComponentDataItem::readData(const nlohmann::json &j)
 {

@@ -181,7 +181,7 @@ LineStringAdapter::LineStringAdapter(
 
 void LineStringAdapter::rebuildPoints()
 {
-    // Materialised once, because the interface hands out IPoint pointers and
+    // Materialized once, because the interface hands out IPoint pointers and
     // a temporary built per call would dangle the moment it returned.
     m_points.clear();
     m_points.reserve(static_cast<size_t>(m_line.pointCount()));

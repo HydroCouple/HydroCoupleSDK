@@ -450,7 +450,7 @@ int NetCDFUGRIDWriter::initialize()
 
     if (impl.layered())
     {
-        // Layer centres are the midpoints of the interfaces, which is what
+        // Layer centers are the midpoints of the interfaces, which is what
         // the bounds attribute written above says they are.
         std::vector<double> centres;
         centres.reserve(impl.interfaceSigma.size() - 1);

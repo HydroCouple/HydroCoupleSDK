@@ -8,7 +8,7 @@
  * ErrorEntry::code is implementation-defined. Codes below 1000 are left to
  * components (the SDK's own ResultsModelComponent uses 1–4); the SDK's
  * framework-level diagnostics live at 1000 and above so a consumer of
- * errors() can recognise them without parsing message text.
+ * errors() can recognize them without parsing message text.
  */
 
 #ifndef HYDROCOUPLESDK_DIAGNOSTICCODES_H

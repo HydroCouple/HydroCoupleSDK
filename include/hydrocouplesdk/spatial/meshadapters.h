@@ -194,7 +194,7 @@ private:
  * \note The quad-edge navigation the interface defines (rot, sym, origNext,
  *       …) needs the topological structure a quad-edge mesh keeps, and the
  *       SDK's Network stores plain endpoint pairs. Those accessors report
- *       nullptr rather than a wrong neighbour; orig(), dest() and index() —
+ *       nullptr rather than a wrong neighbor; orig(), dest() and index() —
  *       everything a viewer or a writer reads — are real.
  */
 class HYDROCOUPLESDK_EXPORT EdgeAdapter final
@@ -378,7 +378,7 @@ public:
      * \brief The polygons bounding \p polygon.
      *
      * \note Needs adjacency the SDK's PolyhedralSurface does not keep;
-     *       reports nullptr rather than a wrong neighbourhood.
+     *       reports nullptr rather than a wrong neighborhood.
      */
     [[nodiscard]] std::unique_ptr<HydroCouple::Spatial::IMultiPolygon> boundingPolygons(
         const HydroCouple::Spatial::IPolygon *) const override

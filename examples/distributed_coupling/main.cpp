@@ -14,7 +14,7 @@
  * 1. MpiTransport behind the standard's ITransport seam (the same code
  *    runs over InProcTransport in the test suite — no protocol change);
  * 2. PartitionedDataItem<double> holding this rank's owned reaches
- *    followed by its virtual (halo) mirrors of neighbouring ranks'
+ *    followed by its virtual (halo) mirrors of neighboring ranks'
  *    reaches, in one contiguous typed array;
  * 3. HaloExchanger building the exchange pattern once at prepare() and
  *    running begin → overlap compute → end each step, so communication
@@ -24,7 +24,7 @@
  *    the mirrors from their owners.
  *
  * The domain is a chain of reaches split contiguously across ranks: each
- * rank mirrors its upstream and downstream neighbours' boundary reaches.
+ * rank mirrors its upstream and downstream neighbors' boundary reaches.
  *
  * Run:
  * \code
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     }
 
     // ── 1. Decomposition: owned reaches, plus halo mirrors of the
-    //       neighbours' boundary reaches. ───────────────────────────────
+    //       neighbors' boundary reaches. ───────────────────────────────
     const Block block = blockFor(rank, size);
 
     std::vector<int64_t> owned;
@@ -110,12 +110,12 @@ int main(int argc, char **argv)
     std::vector<int32_t> virtualOwners;
     if (block.first > 0)
     {
-        virtualReaches.push_back(block.first - 1); // upstream neighbour
+        virtualReaches.push_back(block.first - 1); // upstream neighbor
         virtualOwners.push_back(ownerOf(block.first - 1, size));
     }
     if (block.last < kGlobalReachCount)
     {
-        virtualReaches.push_back(block.last); // downstream neighbour
+        virtualReaches.push_back(block.last); // downstream neighbor
         virtualOwners.push_back(ownerOf(block.last, size));
     }
 

@@ -79,11 +79,11 @@ private:
  *
  * Both signals share the same blockSignals(bool) gate.
  *
- * Serialisation
+ * Serialization
  * -------------
  * readData() / writeData() use nlohmann::json for argument persistence.
  * The default implementations read/write caption and comments.
- * Subclasses may extend them for typed value serialisation.
+ * Subclasses may extend them for typed value serialization.
  *
  * \threadsafety Not thread-safe on its own. The signals are individually
  * thread-safe (std::shared_mutex), but the data arrays are not.
@@ -209,16 +209,16 @@ public:
      */
     void addComment(const std::string &comment);
 
-    // ── Serialisation ─────────────────────────────────────────────────────
+    // ── Serialization ─────────────────────────────────────────────────────
 
     /*!
-     * \brief Deserialises caption, description, and comments from a JSON object.
+     * \brief Deserializes caption, description, and comments from a JSON object.
      * \param j  JSON object (may be {}).
      */
     virtual void readData(const nlohmann::json &j);
 
     /*!
-     * \brief Serialises caption, description, and comments to a JSON object.
+     * \brief Serializes caption, description, and comments to a JSON object.
      * \return JSON object containing at least "caption" and "comments".
      */
     [[nodiscard]] virtual nlohmann::json writeData() const;

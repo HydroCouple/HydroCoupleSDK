@@ -54,7 +54,7 @@ public:
     // ── IAdaptedOutput ────────────────────────────────────────────────────
 
     /*!
-     * \brief One-time initialisation before use. No-op.
+     * \brief One-time initialization before use. No-op.
      */
     void initialize() override;
 

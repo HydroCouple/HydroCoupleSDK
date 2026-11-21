@@ -129,7 +129,7 @@ public:
     // ── JSON persistence ──────────────────────────────────────────────────
 
     /*!
-     * \brief Serialise this value definition to a JSON object.
+     * \brief Serialize this value definition to a JSON object.
      */
     [[nodiscard]] virtual nlohmann::json toJson() const;
 
@@ -303,7 +303,7 @@ public:
     [[nodiscard]] static Quantity *flowInCMS();
     /*! \brief Returns a \c double Quantity for flow in ft³/s. */
     [[nodiscard]] static Quantity *flowInCFS();
-    /*! \brief Returns a \c double Quantity for length in metres. */
+    /*! \brief Returns a \c double Quantity for length in meters. */
     [[nodiscard]] static Quantity *lengthInMeters();
     /*! \brief Returns a \c double Quantity for length in feet. */
     [[nodiscard]] static Quantity *lengthInFeet();

@@ -454,7 +454,7 @@ TEST(OutputConsumersTest, InputsSharingAnIdFromDifferentComponentsBothConsume)
 // ── UnitDimensions ────────────────────────────────────────────────────────
 
 // Every fundamental dimension the standard names has its own slot: set, read
-// back, copied, and untouched by its neighbours. PlaneAngle was added to the
+// back, copied, and untouched by its neighbors. PlaneAngle was added to the
 // standard after the storage was sized, and for a while read and wrote one
 // element past the end of it.
 TEST(UnitDimensionsTest, HoldEveryFundamentalDimension)

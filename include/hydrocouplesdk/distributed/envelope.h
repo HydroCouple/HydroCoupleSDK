@@ -36,7 +36,7 @@ namespace HydroCouple::SDK::Distributed {
 enum class OpCode : uint8_t
 {
     Hello      = 0,  //!< Handshake: worker announces readiness.
-    Ack        = 1,  //!< Positive acknowledgement of the tagged request.
+    Ack        = 1,  //!< Positive acknowledgment of the tagged request.
     Initialize = 2,  //!< Drive the remote component's initialize().
     Validate   = 3,  //!< Drive validate().
     Prepare    = 4,  //!< Drive prepare().

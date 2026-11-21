@@ -24,7 +24,7 @@
  *
  * SIMD notes
  * ----------
- * bulkGet/bulkSet use std::copy which auto-vectorises under -O2 or higher.
+ * bulkGet/bulkSet use std::copy which auto-vectorizes under -O2 or higher.
  * For strided access wrap the loop in a #pragma omp simd at the call site.
  */
 
@@ -178,7 +178,7 @@ public:
     /*!
      * \brief Copies \p count elements starting at \p offset into \p out.
      *
-     * Uses std::copy which the compiler auto-vectorises under -O2/-O3.
+     * Uses std::copy which the compiler auto-vectorizes under -O2/-O3.
      *
      * \param offset  Start index in the internal array.
      * \param count   Number of elements to copy.

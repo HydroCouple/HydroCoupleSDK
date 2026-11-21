@@ -238,7 +238,7 @@ bool carryOn(const MeshProgress &progress, double fraction, const char *stage)
     return !progress || progress(fraction, stage);
 }
 
-//! What a cancelled run leaves behind: nothing, and a reason.
+//! What a canceled run leaves behind: nothing, and a reason.
 bool cancelled(IO::MeshDefinition &out, std::string &message)
 {
     out     = IO::MeshDefinition{};

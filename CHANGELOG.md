@@ -72,7 +72,7 @@ component built on the SDK must be rebuilt.
   vcpkg `tools` feature no longer pulls `cdt`.
 - Crossing constraint segments are split at their crossing before insertion
   (MeshKit leaves noding to its caller; the CDT library did it itself).
-- Every meshing phase can now be cancelled: MeshKit's vertex insertion asks
+- Every meshing phase can now be canceled: MeshKit's vertex insertion asks
   between batches of 4,096 vertices, and edge insertion is the tools' own
   loop. The caveat in `meshprogress.h` that insertion could not be
   interrupted is gone.
@@ -92,7 +92,7 @@ component built on the SDK must be rebuilt.
 
 Built against HydroCouple 2.0.0-alpha.2 (interface ABI 4). MAJOR.MINOR stay
 in lockstep with the interface, so this is a 2.0 pre-release rather than the
-2.1.0 this section was provisionally labelled.
+2.1.0 this section was provisionally labeled.
 
 ### Added — gradients through stateful adapters (G2.4, 2026-10-02)
 
@@ -241,7 +241,7 @@ the first verification step** (see the hand-off's checklist).
   with prognostic state). `AbstractArgument::role()/setRole()`.
 - `MeshLocation` replaces `MeshDataObjectType`/`NetworkDataObjectType`
   everywhere (`Cell`→`Face`, `Vertex`→`Node`); entity-dimension ids are now
-  `"faces"`/`"nodes"` (**remap persisted catalogues**). `entityDimension()`
+  `"faces"`/`"nodes"` (**remap persisted catalogs**). `entityDimension()`
   and `vectorBasis()` replace `patchDimension()/edgeDimension()/vertexDimension()`.
 - Temporal semantics (`timeKind`, `intervalLength`, `timeInterpolation`,
   `timeExtrapolation`) on the `TimeSeriesComponentDataItem<T>` mixin, every
@@ -310,7 +310,7 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   optional callback taken by new overloads of `Triangulator::triangulate()`
   and `QuadMesher::triToQuadDominant()`: it is told the phase under way and
   answers whether to carry on. Returning false abandons the run, which then
-  reports itself cancelled and **leaves its output empty** — a cancelled run
+  reports itself canceled and **leaves its output empty** — a canceled run
   hands back nothing rather than half a mesh, including when the caller
   passed in a variable that already held one. Overloads rather than default
   arguments, so every existing exported symbol is untouched.
@@ -333,7 +333,7 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   built from. Interfaces come from a CF `bounds` attribute when present;
   failing that from a variable one longer than the layers whose values run 0
   to -1, which is what an interface sigma *is*; failing that they are
-  midpointed from the centres and **flagged as derived**, since midpointing
+  midpointed from the centers and **flagged as derived**, since midpointing
   is exact only for a uniform distribution.
   `NetCDFUGRIDWriter::setVerticalCoordinate()` is the other half — without it
   the reader could read files the SDK itself could not produce, the same
@@ -361,7 +361,7 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   Driven by the conventions rather than by our own variable names: the
   topology variable is found by its `cf_role` and the coordinate and
   connectivity variables by the attributes it names, so a mesh written by
-  another tool reads as readily as one of ours. Honours `start_index` (a
+  another tool reads as readily as one of ours. Honors `start_index` (a
   1-based file is converted once, here) and drops `_FillValue` padding from
   rectangular connectivity. `ugridReadSupported()` answers at runtime, so a
   consumer linking a prebuilt SDK need not know how it was configured.
@@ -513,7 +513,7 @@ Composition IO moves into the SDK, and completed runs become reopenable.
   `AbstractWorkflowComponent`, `AbstractAdaptedOutputFactory`,
   `TimeSliceOutput`) declare their copy operations deleted. All eight already
   declared destructors, so none were movable and none were copyable in
-  practice — the declarations change no behaviour, they only stop MSVC
+  practice — the declarations change no behavior, they only stop MSVC
   generating a member that cannot exist.
 - The standalone consume step could not resolve `nlohmann_json`. Unlike the
   IO backends, this one is a genuine usage requirement — `nlohmann/json.hpp`

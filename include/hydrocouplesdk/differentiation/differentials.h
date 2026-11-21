@@ -7,7 +7,7 @@
  * The interface's DifferentialEntry pairs an item with a whole-item
  * BufferDescriptor. These helpers move such a buffer to and from
  * row-major host storage through the same hyperslab code the data plane
- * uses, so a strided or pitched cotangent buffer is honoured exactly as a
+ * uses, so a strided or pitched cotangent buffer is honored exactly as a
  * strided data-plane buffer is. Float64 only in G2.1.
  */
 #ifndef HYDROCOUPLESDK_DIFFERENTIALS_H

@@ -95,7 +95,7 @@ public:
      * must not alter it.
      *
      * \param[in]  input    Domain description (boundary required).
-     * \param[out] out      Triangle mesh; left empty if cancelled.
+     * \param[out] out      Triangle mesh; left empty if canceled.
      * \param[out] message  Failure or cancellation description on false.
      * \param[in]  progress Called at each phase and through the loops this
      *                      library runs itself; returning false abandons

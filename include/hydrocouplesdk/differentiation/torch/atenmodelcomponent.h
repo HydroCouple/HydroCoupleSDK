@@ -27,7 +27,7 @@
  *    is written by hand. jvp() is the transpose of that, by the
  *    double-backward identity (the vjp is linear in its seed, so
  *    differentiating it with respect to the seed gives the jvp).
- *  - saveState()/restoreState() serialise the step count, every state item
+ *  - saveState()/restoreState() serialize the step count, every state item
  *    and every Float64 output into the token itself, so releaseState() has
  *    nothing to reclaim.
  *

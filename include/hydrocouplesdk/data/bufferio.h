@@ -14,7 +14,7 @@
  *
  * Fast path: when the descriptor is C-contiguous each innermost run is
  * copied with std::copy (memcpy for trivially copyable types), which the
- * compiler auto-vectorises. Strided destinations fall back to per-element
+ * compiler auto-vectorizes. Strided destinations fall back to per-element
  * addressing via Helpers::byteOffset.
  *
  * DataKind::String buffers point to arrays of std::string and are host-only,
