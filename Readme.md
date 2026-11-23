@@ -93,13 +93,20 @@ The package config records how the SDK was built (`HYDROCOUPLESDK_WITH_MPI`, `..
 
 ## Documentation
 
-| Site | URL |
-| --- | --- |
-| **SDK API (this repository)** | <https://www.hydrocouple.org/HydroCoupleSDK/> |
-| HydroCouple interface standard | <https://www.hydrocouple.org/HydroCouple/> |
-| HydroCouple Python bindings | <https://www.hydrocouple.org/HydroCouple/python/> |
+- [SDK developer guide (Doxygen)](https://www.hydrocouple.org/HydroCoupleSDK/guide/)
+- [C++ API reference (Doxygen)](https://www.hydrocouple.org/HydroCoupleSDK/)
+- [HydroCoupleComposer documentation](https://www.hydrocouple.org/HydroCoupleComposer/)
 
-API documentation is generated with Doxygen (`-DBUILD_DOCS=ON`, target `docs`) and published to GitHub Pages by `.github/workflows/build_docs.yml`, which deploys from `master` and `dev` only. The generated pages carry a navbar link back to the interface standard, and the interface docs link here in return.
+The guide and API share the OpenSWMM Engine Doxygen theme and navigation. From the repository root, build them with CMake, Doxygen and Graphviz.
+
+```sh
+cmake -S . -B build/manual -DHYDROCOUPLE_DOCS_ONLY=ON
+cmake --build build/manual --target docs
+```
+
+Open `build/manual/docs/doxygen/html/index.html` for the API and `guide/index.html` alongside it for the manual.
+
+[HydroCouple interface standard](https://www.hydrocouple.org/HydroCouple/) · [Python bindings](https://www.hydrocouple.org/HydroCouple/python/)
 
 ## Changelog
 

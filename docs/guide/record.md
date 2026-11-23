@@ -1,0 +1,5 @@
+@page sdk_guide_record 6. Record and reopen results
+
+A results writer stores the arrays. The run manifest identifies their artifacts, component and item IDs, dimensions, units and time coverage. Finish the writers before finalizing the manifest so it describes complete artifacts. CSV is available in the core build. Other writer formats depend on the SDK build and its I/O libraries. [Run manifest schema](https://github.com/HydroCouple/HydroCoupleSDK/blob/removing_qt/share/schema/run-1.0.json)
+
+`ResultsModelComponent` exposes recorded variables as outputs for analysis. Keep the manifest and its referenced artifacts together when moving a run. If a variable is listed but reading its values fails, check the artifact path relative to the manifest and the reader support for that format. Restarting a simulation additionally requires model state and restart support from its components. [Results component API](https://github.com/HydroCouple/HydroCoupleSDK/blob/removing_qt/include/hydrocouplesdk/component/resultsmodelcomponent.h)

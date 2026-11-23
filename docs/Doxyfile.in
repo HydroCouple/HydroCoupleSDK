@@ -24,9 +24,10 @@ SORT_MEMBER_DOCS       = YES
 # ── Input ─────────────────────────────────────────────────────────────────
 INPUT                  = @CMAKE_SOURCE_DIR@/include \
                          @CMAKE_SOURCE_DIR@/src \
-                         @CMAKE_SOURCE_DIR@/README.md
+                         @CMAKE_SOURCE_DIR@/docs/mainpage.md
+INPUT                 += @CMAKE_SOURCE_DIR@/docs/guide
 RECURSIVE              = YES
-USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
+USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/docs/mainpage.md
 FILE_PATTERNS          = *.h *.cpp *.c *.md
 
 IGNORE_PREFIX          = I Abstract
@@ -41,9 +42,14 @@ GENERATE_HTML          = YES
 HTML_OUTPUT            = html
 
 # ── doxygen-awesome theme (mirrors the HydroCouple interface repo) ────────
+LAYOUT_FILE            = @CMAKE_CURRENT_SOURCE_DIR@/DoxygenLayout.xml
+TOC_INCLUDE_HEADINGS   = 5
+HTML_COLORSTYLE        = LIGHT
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
 GENERATE_TREEVIEW      = YES
 DISABLE_INDEX          = NO
-HTML_HEADER            = @CMAKE_CURRENT_SOURCE_DIR@/custom/html/header.html
+HTML_HEADER            = @CMAKE_CURRENT_BINARY_DIR@/header.html
 HTML_EXTRA_STYLESHEET  = @CMAKE_CURRENT_SOURCE_DIR@/custom/css/doxygen-awesome.css \
                          @CMAKE_CURRENT_SOURCE_DIR@/custom/hydrocouple/hc-fonts.css \
                          @CMAKE_CURRENT_SOURCE_DIR@/custom/hydrocouple/hc-tokens.css \
@@ -84,3 +90,5 @@ ALIASES                = "threadsafety=\par Thread Safety^^" \
 
 # ── LaTeX (disabled) ─────────────────────────────────────────────────────
 GENERATE_LATEX         = NO
+
+HTML_EXTRA_FILES      += @CMAKE_CURRENT_BINARY_DIR@/serial-coupling-run.zip

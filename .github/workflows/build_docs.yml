@@ -1,13 +1,10 @@
 name: Documentation
 
-# Builds and deploys the SDK's Doxygen docs to GitHub Pages, mirroring the
-# HydroCouple interface repository's documentation pipeline (doxygen-awesome
-# theme, pinned Doxygen release).
+# The Doxygen site includes the manual and the C++ API.
 
 on:
   push:
-    # removing_qt is the working branch: build its manual on every push; only
-    # master and dev deploy (see the deploy job).
+    # The working branch can be published explicitly with workflow_dispatch.
     branches: [ "master", "dev", "removing_qt" ]
     tags: [ "v*.*.*" ]
     paths:
@@ -15,14 +12,16 @@ on:
       - 'include/**'
       - 'src/**'
       - '**/*.md'
+      - 'CMakeLists.txt'
       - '.github/workflows/build_docs.yml'
   pull_request:
-    branches: [ "master", "dev" ]
+    branches: [ "master", "dev", "removing_qt" ]
     paths:
       - 'docs/**'
       - 'include/**'
       - 'src/**'
       - '**/*.md'
+      - 'CMakeLists.txt'
       - '.github/workflows/build_docs.yml'
   workflow_dispatch:
 
@@ -34,19 +33,11 @@ permissions:
   contents: read
 
 jobs:
-  build_doxygen_docs:
-    name: Build C++ Docs (Doxygen)
+  build_docs:
+    name: Build C++ API and user guide
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout SDK
-        uses: actions/checkout@v4
-
-      - name: Checkout HydroCouple interface headers
-        uses: actions/checkout@v4
-        with:
-          repository: HydroCouple/HydroCouple
-          ref: dev
-          path: HydroCouple
+      - uses: actions/checkout@v4
 
       - name: Install Graphviz
         run: |
@@ -61,29 +52,29 @@ jobs:
           sudo cp doxygen-1.13.2/bin/doxygen /usr/local/bin/
           doxygen --version
 
-      - name: Configure (docs only)
-        run: >
-          cmake -S . -B build
-          -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_TOOLS=OFF
-          -DUSE_GDAL=OFF -DUSE_NETCDF=OFF -DUSE_HDF5=OFF -DUSE_OPENMP=OFF
-          -DHYDROCOUPLE_INCLUDE_DIR=${{ github.workspace }}/HydroCouple/include
+      - name: Configure documentation
+        run: cmake -S . -B build/manual -DHYDROCOUPLE_DOCS_ONLY=ON
 
-      - name: Build Doxygen docs
-        run: cmake --build build --target docs
+      - name: Build and check both manuals
+        run: |
+          cmake --build build/manual --target docs
+          test -s build/manual/docs/doxygen/html/annotated.html
+          test -s build/manual/docs/doxygen/html/guide/index.html
 
-      - name: Upload Doxygen docs artifact
+      - name: Upload documentation artifact
         uses: actions/upload-artifact@v4
         with:
-          name: doxygen-docs
-          path: build/docs/doxygen/html/
+          name: reference-site
+          path: build/manual/docs/doxygen/html/
           retention-days: 1
 
   deploy:
     name: Deploy to GitHub Pages
-    needs: build_doxygen_docs
+    needs: build_docs
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-      && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')
+      && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
+          || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/removing_qt'))
     permissions:
       contents: read
       id-token: write
@@ -93,10 +84,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Download Doxygen docs
+      - name: Download both manuals
         uses: actions/download-artifact@v4
         with:
-          name: doxygen-docs
+          name: reference-site
           path: site/
 
       - name: Setup Pages

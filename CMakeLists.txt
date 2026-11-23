@@ -23,6 +23,13 @@ project(
 set(HYDROCOUPLESDK_VERSION_SUFFIX "-beta.1")
 set(HYDROCOUPLESDK_FULL_VERSION "${PROJECT_VERSION}${HYDROCOUPLESDK_VERSION_SUFFIX}")
 
+option(HYDROCOUPLE_DOCS_ONLY "Configure documentation without model or GUI dependencies" OFF)
+if(HYDROCOUPLE_DOCS_ONLY)
+    find_package(Doxygen REQUIRED OPTIONAL_COMPONENTS dot)
+    add_subdirectory(docs)
+    return()
+endif()
+
 # ── Language standard ─────────────────────────────────────────────────────
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

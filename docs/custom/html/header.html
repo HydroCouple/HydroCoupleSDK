@@ -14,8 +14,16 @@
     <title>$title</title><!--END !PROJECT_NAME-->
     <link href="$relpath^tabs.css" rel="stylesheet" type="text/css" />
     <link rel="icon" type="image/png" href="$relpath^hydrocouple_logo.png" />
-    <script type="text/javascript" src="$relpath^jquery.js"></script>
+    @DOXYGEN_JQUERY_SCRIPT@
+    <!--BEGIN HTML_DYNAMIC_SECTIONS-->
     <script type="text/javascript" src="$relpath^dynsections.js"></script>
+    <!--END HTML_DYNAMIC_SECTIONS-->
+    <!--BEGIN HTML_CODE_FOLDING-->
+    <script type="text/javascript" src="$relpath^codefolding.js"></script>
+    <!--END HTML_CODE_FOLDING-->
+    <!--BEGIN COPY_CLIPBOARD-->
+    <script type="text/javascript" src="$relpath^clipboard.js"></script>
+    <!--END COPY_CLIPBOARD-->
     <script type="text/javascript" src="$relpath^doxygen-awesome-darkmode-toggle.js"></script>
     <script type="text/javascript" src="$relpath^doxygen-awesome-fragment-copy-button.js"></script>
     <script type="text/javascript" src="$relpath^doxygen-awesome-paragraph-link.js"></script>
@@ -35,7 +43,7 @@
     $mathjax
     <link href="$relpath^$stylesheet" rel="stylesheet" type="text/css" />
     $extrastylesheet
-<script type="application/json" id="hc-hero">{"kicker": "HydroCouple SDK \u00b7 C++ reference", "title": "Base classes for HydroCouple components", "lede": "HydroCoupleSDK is a C++20 library of concrete implementations of the HydroCouple interfaces, from the typed data plane and component lifecycle to workflows, IO and spatial data, so component authors write only their model-specific logic.", "actions": [{"label": "API reference", "url": "annotated.html", "style": "solid"}, {"label": "Interface standard", "url": "https://www.hydrocouple.org/HydroCouple/", "style": "ghost"}, {"label": "Python interface", "url": "https://www.hydrocouple.org/HydroCouple/python/", "style": "ghost"}]}</script>
+<script type="application/json" id="hc-hero">{"kicker": "HydroCouple SDK \u00b7 C++ reference", "title": "Base classes for HydroCouple components", "lede": "HydroCoupleSDK is a C++20 library of concrete implementations of the HydroCouple interfaces, from the typed data plane and component lifecycle to workflows, IO and spatial data, so component authors write only their model-specific logic.", "actions": [{"label": "C++ API", "url": "annotated.html", "style": "solid"}, {"label": "SDK developer guide", "url": "guide/index.html", "style": "ghost"}, {"label": "Composer reference", "url": "../HydroCoupleComposer/index.html", "style": "ghost"}]}</script>
 </head>
 
 <body>
@@ -49,6 +57,7 @@
     <span class="hc-brand__sep" aria-hidden="true"></span>
     <a class="hc-brand__project" href="$relpath^index.html">$projectname</a>
     <nav class="hc-topbar__nav" aria-label="HydroCouple documentation">
+      <a href="$relpath^guide/index.html">SDK developer guide</a>
       <div class="hc-manuals">
         <button class="hc-manuals__button" type="button" aria-expanded="false" aria-haspopup="true">Documentation</button>
         <div class="hc-manuals__menu" hidden="hidden">

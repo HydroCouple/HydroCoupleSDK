@@ -1,0 +1,112 @@
+{
+  "components": [
+    {
+      "caption": "Catchment",
+      "final_status": "Finished",
+      "id": "catchment"
+    },
+    {
+      "caption": "Channel",
+      "final_status": "Finished",
+      "id": "channel"
+    }
+  ],
+  "composition": {
+    "path": "examples/serial_coupling/composition.json"
+  },
+  "results": [
+    {
+      "artifact": "results.csv",
+      "component": "catchment",
+      "dimensions": [
+        "time",
+        "reach"
+      ],
+      "format": "csv",
+      "item": "runoff",
+      "kind": "Float64",
+      "quantity": {
+        "offset": 0.0,
+        "powers": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": 1.0,
+        "value_kind": 0
+      },
+      "shape": [
+        24,
+        3
+      ],
+      "time": {
+        "count": 24,
+        "end": 24.0,
+        "start": 1.0,
+        "units": "julian_day"
+      },
+      "units": "unitless",
+      "variable": "runoff"
+    },
+    {
+      "artifact": "results.csv",
+      "component": "channel",
+      "dimensions": [
+        "time",
+        "reach"
+      ],
+      "format": "csv",
+      "item": "flow",
+      "kind": "Float64",
+      "quantity": {
+        "offset": 0.0,
+        "powers": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": 1.0,
+        "value_kind": 0
+      },
+      "shape": [
+        24,
+        3
+      ],
+      "time": {
+        "count": 24,
+        "end": 24.0,
+        "start": 1.0,
+        "units": "julian_day"
+      },
+      "units": "unitless",
+      "variable": "flow"
+    }
+  ],
+  "run": {
+    "caption": "serial coupling example",
+    "finished": "2026-11-23T22:32:51Z",
+    "id": "c452aeb5-728c-4fb5-9d9b-cc5276b46b05",
+    "started": "2026-11-23T22:32:51Z",
+    "status": "completed",
+    "wall_seconds": 0.002027208
+  },
+  "schema_version": "1.0",
+  "versions": {
+    "interface": "2.0.0-beta.1",
+    "sdk": "2.0.0-beta.1"
+  }
+}
