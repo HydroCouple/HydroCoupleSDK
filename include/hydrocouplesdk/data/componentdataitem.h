@@ -403,6 +403,18 @@ private:
     std::vector<T> m_data;
 };
 
+// The common specializations live in the library. On Windows its exported
+// items (Argument, Input and Output, 1-D and 2-D) export these bases with
+// them, so every translation unit has to see them declared here: one that
+// includes only this header would otherwise compile its own copy of a member
+// that another one imports from the DLL, and the link fails (LNK2005).
+extern template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<int>;
+extern template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<double>;
+extern template class HYDROCOUPLESDK_EXPORT ComponentDataItem1D<std::string>;
+extern template class HYDROCOUPLESDK_EXPORT ComponentDataItem2D<int>;
+extern template class HYDROCOUPLESDK_EXPORT ComponentDataItem2D<double>;
+extern template class HYDROCOUPLESDK_EXPORT ComponentDataItem2D<std::string>;
+
 } // namespace HydroCouple::SDK
 
 #endif // HYDROCOUPLESDK_COMPONENTDATAITEM_H
