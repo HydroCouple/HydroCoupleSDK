@@ -4,7 +4,6 @@ name: Documentation
 
 on:
   push:
-    # The working branch can be published explicitly with workflow_dispatch.
     branches: [ "master", "dev", "removing_qt" ]
     tags: [ "v*.*.*" ]
     paths:
@@ -26,7 +25,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: pages
+  group: docs-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -70,11 +69,17 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     needs: build_docs
-    if: |
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-      && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
-          || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/removing_qt'))
+    # The Pages environment also restricts which PR merge refs may publish.
+    if: >-
+      ((github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+       && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master'))
+      || (github.event_name == 'pull_request' && github.base_ref == 'dev'
+          && github.head_ref == 'removing_qt'
+          && github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       contents: read
       id-token: write
