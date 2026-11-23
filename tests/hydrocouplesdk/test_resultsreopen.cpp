@@ -630,7 +630,12 @@ TEST(ResultsReopenTest, EveryRecordedFormatServesHyperslabsAndTimes)
 // reads that back, the field is a comment: a run can be plotted and cannot
 // be mapped. Each format is checked against the mesh that was *written*,
 // not against a second read of the same file.
+//
+// A build with none of the mesh formats records CSV alone, which carries no
+// geometry, so there is nothing to read back.
 
+#if defined(HYDROCOUPLESDK_HAVE_HDF5) || defined(HYDROCOUPLESDK_HAVE_NETCDF) \
+    || defined(HYDROCOUPLESDK_HAVE_GEOPACKAGE)
 TEST(ResultsReopenTest, EveryRecordedFormatReadsBackItsGeometry)
 {
     const auto manifestPath = recordRun(reopenDir() / "geometry");
@@ -725,6 +730,7 @@ TEST(ResultsReopenTest, EveryRecordedFormatReadsBackItsGeometry)
     EXPECT_GT(answered, 0)
         << "no format in this build answered with geometry at all";
 }
+#endif
 
 TEST(ResultsReopenTest, AnEntryNamingNoMeshIsNotGivenOne)
 {
@@ -886,7 +892,11 @@ TEST(ResultsReopenTest, AGeoPackageWithNoNodesSaysSoRatherThanAnsweringEmpty)
 // spatial one, a consumer has to know which artifact a run was recorded in
 // and open it a second time -- which is exactly the duplication the manifest
 // exists to prevent.
+//
+// The surface tests need faces, which only the UGRID formats record: a
+// GeoPackage keeps the nodes alone and a CSV no geometry at all.
 
+#if defined(HYDROCOUPLESDK_HAVE_HDF5) || defined(HYDROCOUPLESDK_HAVE_NETCDF)
 TEST(ResultsReopenTest, AReopenedItemIsSpatialAndCarriesItsMesh)
 {
     namespace HCS  = HydroCouple::Spatial;
@@ -954,6 +964,7 @@ TEST(ResultsReopenTest, AReopenedItemIsSpatialAndCarriesItsMesh)
 
     component->finish();
 }
+#endif
 
 TEST(ResultsReopenTest, AnItemWithNoRecordedMeshIsNotSpatial)
 {
@@ -1021,6 +1032,7 @@ TEST(ResultsReopenTest, AnItemWithNoRecordedMeshIsNotSpatial)
     component->finish();
 }
 
+#if defined(HYDROCOUPLESDK_HAVE_HDF5) || defined(HYDROCOUPLESDK_HAVE_NETCDF)
 TEST(ResultsReopenTest, AReopenedPatchIsAClosedRingOfItsFacesNodes)
 {
     namespace HCS = HydroCouple::Spatial;
@@ -1153,3 +1165,4 @@ TEST(ResultsReopenTest, AReopenedSurfaceReportsItsConnectivityInBulk)
 
     component->finish();
 }
+#endif
