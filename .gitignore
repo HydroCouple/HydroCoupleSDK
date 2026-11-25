@@ -275,6 +275,9 @@ include/_probe_delete
 # Working notes and plans stay local.
 plans/
 
+# Local verification reports (verification scripts remain tracked).
+/verification/**/*.md
+
 # Local AI/editor tool settings — machine-specific, never shared.
 .claude/
 
