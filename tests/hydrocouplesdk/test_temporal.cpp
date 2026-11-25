@@ -59,7 +59,9 @@ TEST(TimeData, DerivedCalendars)
 {
     TimeData t("t", 2451545.0); // J2000 epoch
     EXPECT_DOUBLE_EQ(t.modifiedJulianDay(), 2451545.0 - 2400000.5);
-    EXPECT_DOUBLE_EQ(t.serialDate(), 2451545.0 - 1721425.5);
+    EXPECT_DOUBLE_EQ(t.serialDate(), 730486.5); // MATLAB datenum at 2000-01-01 noon.
+    t.setSerialDate(730486.5);
+    EXPECT_DOUBLE_EQ(t.julianDay(), 2451545.0);
 }
 
 TEST(TimeSpanTest, DurationAndEndpoints)

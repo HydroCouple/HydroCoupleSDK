@@ -27,7 +27,7 @@ using namespace HydroCouple::Temporal;
  *
  * Stores time as a double Julian Day value (days since noon, January 1, 4713 BCE).
  * Provides conversions to Modified Julian Day (JD - 2400000.5) and
- * MATLAB Serial Date (days since 0000-01-01).
+ * MATLAB datenum (julianDay() - 1721058.5).
  *
  * \threadsafety Immutable after construction; safe to share across threads.
  */
@@ -60,12 +60,12 @@ public:
     // IDateTime
     [[nodiscard]] double julianDay() const override { return m_julianDay; }
     [[nodiscard]] double modifiedJulianDay() const override { return m_julianDay - 2400000.5; }
-    [[nodiscard]] double serialDate() const override { return m_julianDay - 1721425.5; }
+    [[nodiscard]] double serialDate() const override { return m_julianDay - 1721058.5; }
 
     // Setters
     void setJulianDay(double jd);
     void setModifiedJulianDay(double mjd) { setJulianDay(mjd + 2400000.5); }
-    void setSerialDate(double sd) { setJulianDay(sd + 1721425.5); }
+    void setSerialDate(double sd) { setJulianDay(sd + 1721058.5); }
 
     // Calendar conversion methods (static, no object needed)
     /*!
