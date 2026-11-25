@@ -272,6 +272,10 @@ public:
      */
     void setSidecarDirectory(std::filesystem::path directory);
 
+    //! Base for explicit relative resources in an in-memory edited document.
+    //! initializeFromFile sets this automatically; an empty base means cwd.
+    void setDocumentDirectory(std::filesystem::path directory);
+
     /*!
      * \brief Payload size (in value bytes) above which serialize() emits a
      *        sidecar reference instead of an inline array (default 1024).

@@ -17,6 +17,18 @@
 
 namespace HydroCouple::SDK {
 
+bool AbstractModelComponent::setInstanceId(std::string_view id, std::string &message)
+{
+    if (status() != HydroCouple::IModelComponent::ComponentStatus::Created || id.empty())
+    {
+        message = "a nonempty instance ID can only be assigned before initialization";
+        return false;
+    }
+    setId(id);
+    message.clear();
+    return true;
+}
+
 AbstractModelComponent::AbstractModelComponent(std::string_view id,
                                                 AbstractModelComponentInfo *info)
     : Identity(id)

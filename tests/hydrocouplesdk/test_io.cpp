@@ -350,6 +350,50 @@ TEST_F(ModelInitializerTest, AppliesArgumentsInitializesAndWires)
               static_cast<IOutput *>(m_up->flow));
 }
 
+TEST_F(ModelInitializerTest, ResolvesExplicitResourcePathsBesideTheDocument)
+{
+    const auto directory = artifactPath("relative_resources");
+    std::filesystem::create_directories(directory);
+    const auto documentPath = directory / "composition.json";
+    {
+        std::ofstream file(directory / "coefficients.json");
+        file << R"({"values":[0.125,0.5]})";
+    }
+    auto document = nlohmann::json::parse(kDocument);
+    document["components"][0]["arguments"]["coeffs"] =
+        {{"@uri", "coefficients.json"}};
+    {
+        std::ofstream file(documentPath);
+        file << document;
+    }
+    ModelInitializer initializer(m_resolver);
+    std::string message;
+    ASSERT_TRUE(initializer.initializeFromFile(
+        std::filesystem::relative(documentPath), message)) << message;
+    ASSERT_EQ(m_up->coeffs->length(), 2);
+    EXPECT_DOUBLE_EQ((*m_up->coeffs)[0], 0.125);
+    EXPECT_DOUBLE_EQ((*m_up->coeffs)[1], 0.5);
+    // Loading does not rewrite the document's portable reference.
+    EXPECT_EQ(initializer.spec().components[0].arguments["coeffs"]["@uri"],
+              "coefficients.json");
+    ModelInitializer inMemory(m_resolver);
+    inMemory.setDocumentDirectory(directory);
+    ASSERT_TRUE(inMemory.initialize(document, message)) << message;
+    EXPECT_DOUBLE_EQ((*m_up->coeffs)[1], 0.5);
+}
+
+TEST(ModelInstanceIdentity, HostAssignsIdBeforeInitializeAndCannotRenameRunningState)
+{
+    IOTestComponent component("factory-default");
+    std::string message;
+    EXPECT_FALSE(component.setInstanceId("", message));
+    ASSERT_TRUE(component.setInstanceId("reservoir-1", message)) << message;
+    EXPECT_EQ(component.id(), "reservoir-1");
+    component.initialize();
+    EXPECT_FALSE(component.setInstanceId("reservoir-2", message));
+    EXPECT_EQ(component.id(), "reservoir-1");
+}
+
 TEST_F(ModelInitializerTest, RejectsUnknownComponentBeforeApplying)
 {
     ModelInitializer initializer(m_resolver);

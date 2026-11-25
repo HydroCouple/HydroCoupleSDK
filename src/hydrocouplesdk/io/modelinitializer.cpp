@@ -5,6 +5,7 @@
 #include "hydrocouplesdk/io/modelinitializer.h"
 #include "hydrocouplesdk/component/resultsmodelcomponent.h"
 #include "hydrocouplesdk/io/sidecar.h"
+#include "hydrocouplesdk/io/uriresolver.h"
 #include "hydrocouplesdk/data/abstractcomponentdataitem.h"
 #include "hydrocouplesdk/data/bufferio.h"
 
@@ -152,6 +153,12 @@ void ModelInitializer::setSidecarDirectory(std::filesystem::path directory)
     m_sidecarDirectory = std::move(directory);
 }
 
+void ModelInitializer::setDocumentDirectory(std::filesystem::path directory)
+{
+    m_documentDirectory = directory.empty() ? directory
+        : std::filesystem::absolute(directory).lexically_normal();
+}
+
 void ModelInitializer::setSidecarThresholdBytes(int64_t bytes)
 {
     m_sidecarThresholdBytes = std::max<int64_t>(1, bytes);
@@ -191,8 +198,7 @@ bool ModelInitializer::initializeFromFile(const std::filesystem::path &path,
     }
     std::ostringstream text;
     text << file.rdbuf();
-    m_documentDirectory = path.has_parent_path() ? path.parent_path()
-                                                 : std::filesystem::path(".");
+    m_documentDirectory = std::filesystem::absolute(path).parent_path();
 
     const auto extension = path.extension().string();
     if (extension == ".yaml" || extension == ".yml")
@@ -612,7 +618,8 @@ bool ModelInitializer::applyComponents(std::string &message)
                         return false;
                     }
                 }
-                else if (!argument->initialize(payload.dump(), AT::JSON,
+                else if (!argument->initialize(
+                             resolvedArgument(payload, m_documentDirectory).dump(), AT::JSON,
                                                argMessage))
                 {
                     message = "Component \"" + id + "\", argument \"" +
@@ -748,7 +755,9 @@ HydroCouple::IOutput *ModelInitializer::buildAdaptedChain(
                 return nullptr;
             }
             std::string argMessage;
-            if (!argument->initialize(payload.dump(), AT::JSON, argMessage))
+            if (!argument->initialize(
+                    resolvedArgument(payload, m_documentDirectory).dump(),
+                    AT::JSON, argMessage))
             {
                 message = context + ": adapted output \"" + step.id +
                           "\", argument \"" + argId + "\": " + argMessage;

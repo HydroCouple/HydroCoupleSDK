@@ -79,6 +79,9 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponent
     friend class AbstractModelComponentInfo;
 
 public:
+    //! Assign the composition instance identity before initialization.
+    //! Factories name a type by default; a host may create several instances.
+    [[nodiscard]] bool setInstanceId(std::string_view id, std::string &message);
     /*!
      * \brief Construct with an id and optional component-info pointer.
      */

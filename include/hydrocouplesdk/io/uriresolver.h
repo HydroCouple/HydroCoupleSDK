@@ -33,6 +33,8 @@
 #include "hydrocouplesdk/export.h"
 
 #include <string>
+#include <filesystem>
+#include <nlohmann/json.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -120,6 +122,10 @@ HYDROCOUPLESDK_EXPORT void setUriResolver(UriResolver *resolver);
  * bytes beside the document, this one at a resource somewhere else entirely.
  */
 inline constexpr const char *kUriRefKey = "@uri";
+
+//! Rebase only an explicit relative @uri against the owning document.
+[[nodiscard]] HYDROCOUPLESDK_EXPORT nlohmann::json resolvedArgument(
+    const nlohmann::json &payload, const std::filesystem::path &directory);
 
 /*!
  * \brief The URI a payload names, when it names one instead of holding values.

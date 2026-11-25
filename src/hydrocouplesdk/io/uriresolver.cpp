@@ -11,6 +11,26 @@
 namespace HydroCouple::SDK::IO
 {
 
+// Only explicit resource references are rebased; strings inside argument
+// values are data and may intentionally be relative to the component.
+nlohmann::json resolvedArgument(const nlohmann::json &payload,
+                                const std::filesystem::path &directory)
+{
+    if (directory.empty() || !payload.is_object() ||
+        !payload.contains(kUriRefKey) || !payload[kUriRefKey].is_string())
+        return payload;
+    const auto reference = payload[kUriRefKey].get<std::string>();
+    if (reference.empty() || !uriScheme(reference).empty())
+        return payload;
+    const std::filesystem::path path(reference);
+    if (path.is_absolute())
+        return payload;
+    auto resolved = payload;
+    resolved[kUriRefKey] = (directory / path).lexically_normal().string();
+    return resolved;
+}
+
+
 namespace
 {
     UriResolver *g_resolver = nullptr;
