@@ -55,6 +55,11 @@ public:
                              std::string_view caption,
                              HydroCouple::IModelComponent *modelComponent,
                              HydroCouple::SDK::Dimension *timeDim);
+    //! Construct with a borrowed physical value definition (must outlive item).
+    TimeSeriesArgumentDouble(std::string_view id, std::string_view caption,
+                             HydroCouple::IModelComponent *modelComponent,
+                             HydroCouple::SDK::Dimension *timeDim,
+                             HydroCouple::SDK::ValueDefinition *valueDefinition);
 
     ~TimeSeriesArgumentDouble() override = default;
 

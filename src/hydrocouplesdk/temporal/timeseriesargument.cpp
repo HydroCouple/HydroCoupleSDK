@@ -22,7 +22,16 @@ TimeSeriesArgumentDouble::TimeSeriesArgumentDouble(
     std::string_view caption,
     HydroCouple::IModelComponent *modelComponent,
     HydroCouple::SDK::Dimension *timeDim)
-    : AbstractArgument(id, caption, {timeDim}, nullptr, modelComponent),
+    : TimeSeriesArgumentDouble(id, caption, modelComponent, timeDim, nullptr)
+{
+}
+
+TimeSeriesArgumentDouble::TimeSeriesArgumentDouble(
+    std::string_view id, std::string_view caption,
+    HydroCouple::IModelComponent *modelComponent,
+    HydroCouple::SDK::Dimension *timeDim,
+    HydroCouple::SDK::ValueDefinition *valueDefinition)
+    : AbstractArgument(id, caption, {timeDim}, valueDefinition, modelComponent),
       m_timeSeries(std::make_shared<TimeSeries>(std::string(id))),
       m_timeDim(timeDim)
 {
