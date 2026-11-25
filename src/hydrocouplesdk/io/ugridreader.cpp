@@ -197,7 +197,8 @@ bool readDoubles(int ncid, const std::string &name,
 bool readConnectivity(int ncid, const std::string &name,
                       std::vector<int64_t> &values, size_t &rows,
                       size_t &columns, int64_t &startIndex,
-                      int64_t &fillValue, std::string &message)
+                      int64_t &fillValue, std::string &message,
+                      const std::string &rowDimension = "")
 {
     int varId = -1;
 
@@ -253,6 +254,26 @@ bool readConnectivity(int ncid, const std::string &name,
         fillValue = fill;
     }
 
+    if (startIndex != 0 && startIndex != 1) {
+        message = name + " start_index must be zero or one.";
+        return false;
+    }
+    if (!rowDimension.empty()) {
+        int rowDim = -1;
+        if (nc_inq_dimid(ncid, rowDimension.c_str(), &rowDim) != NC_NOERR ||
+            (dims[0] != rowDim && dims[1] != rowDim)) {
+            message = name + " does not contain declared entity dimension " + rowDimension;
+            return false;
+        }
+        if (dims[1] == rowDim && dims[0] != rowDim) {
+            std::vector<int64_t> transposed(values.size());
+            for (size_t row = 0; row < rows; ++row)
+                for (size_t column = 0; column < columns; ++column)
+                    transposed[column * rows + row] = values[row * columns + column];
+            values = std::move(transposed);
+            std::swap(rows, columns);
+        }
+    }
     return true;
 }
 
@@ -351,16 +372,18 @@ bool readUGRIDMesh(const std::filesystem::path &path,
         return false;
     }
 
-    // A third named coordinate is elevation, which is optional.
-    if (coordinates.size() > 2)
+    // Explicitly declared elevations must be readable, including older
+    // node_z/node_elevation attributes used by reservoir files.
+    auto elevation = textAttribute(ncid, topologyVar, "node_z");
+    if (elevation.empty()) elevation = textAttribute(ncid, topologyVar, "node_elevation");
+    if (elevation.empty() && coordinates.size() > 2) elevation = coordinates[2];
+    if (!elevation.empty())
     {
-        std::string elevationMessage;
-        std::vector<double> nodeZ;
-
-        if (readDoubles(ncid, coordinates[2], nodeZ, elevationMessage)
-            && nodeZ.size() == mesh.nodeX.size())
-        {
-            mesh.nodeZ = std::move(nodeZ);
+        if (!readDoubles(ncid, elevation, mesh.nodeZ, message))
+            return false;
+        if (mesh.nodeZ.size() != mesh.nodeX.size()) {
+            message = "Declared node elevations do not match coordinate count.";
+            return false;
         }
     }
 
@@ -377,7 +400,8 @@ bool readUGRIDMesh(const std::filesystem::path &path,
         int64_t fillValue = -1;
 
         if (!readConnectivity(ncid, faceVariable, raw, rows, columns,
-                              startIndex, fillValue, message))
+                              startIndex, fillValue, message,
+                              textAttribute(ncid, topologyVar, "face_dimension")))
         {
             return false;
         }
@@ -386,6 +410,7 @@ bool readUGRIDMesh(const std::filesystem::path &path,
 
         for (size_t face = 0; face < rows; ++face)
         {
+            bool padding = false;
             for (size_t slot = 0; slot < columns; ++slot)
             {
                 const int64_t entry = raw[face * columns + slot];
@@ -394,9 +419,13 @@ bool readUGRIDMesh(const std::filesystem::path &path,
                 // the widest, and the short ones are filled to the end.
                 if (entry == fillValue)
                 {
-                    break;
+                    padding = true;
+                    continue;
                 }
-
+                if (padding || entry < startIndex || entry - startIndex >= mesh.nodeCount()) {
+                    message = "Invalid or non-trailing connectivity padding in face " + std::to_string(face);
+                    return false;
+                }
                 mesh.faceNodes.push_back(entry - startIndex);
             }
 
@@ -418,7 +447,8 @@ bool readUGRIDMesh(const std::filesystem::path &path,
         int64_t fillValue = -1;
 
         if (!readConnectivity(ncid, edgeVariable, raw, rows, columns,
-                              startIndex, fillValue, message))
+                              startIndex, fillValue, message,
+                              textAttribute(ncid, topologyVar, "edge_dimension")))
         {
             return false;
         }
@@ -440,7 +470,7 @@ bool readUGRIDMesh(const std::filesystem::path &path,
         return false;
     }
 
-    return true;
+    return mesh.validate(message);
 }
 
 

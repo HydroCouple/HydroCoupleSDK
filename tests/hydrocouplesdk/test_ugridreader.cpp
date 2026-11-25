@@ -769,3 +769,43 @@ TEST(UGRIDReaderTest, RoundTripsAVerticalCoordinateThroughTheWriter)
     EXPECT_NEAR(vertical.surface.front() + vertical.interfaceSigma.front() * column,
                 1.5, 1.0e-12);
 }
+
+TEST(UGRIDReaderTest, TransposedMixedConnectivityAndStrictPadding) {
+    const auto path = artifact("transposed_mixed.nc");
+    std::filesystem::remove(path);
+    int nc = -1, nodes = -1, faces = -1, slots = -1, topology = -1, x = -1, y = -1, connectivity = -1;
+    ASSERT_EQ(nc_create(path.string().c_str(), NC_NETCDF4 | NC_CLOBBER, &nc), NC_NOERR);
+    ASSERT_EQ(nc_def_dim(nc, "nodes", 5, &nodes), NC_NOERR);
+    ASSERT_EQ(nc_def_dim(nc, "faces", 2, &faces), NC_NOERR);
+    ASSERT_EQ(nc_def_dim(nc, "slots", 4, &slots), NC_NOERR);
+    ASSERT_EQ(nc_def_var(nc, "mesh", NC_INT, 0, nullptr, &topology), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(nc, topology, "cf_role", 13, "mesh_topology"), NC_NOERR);
+    const int dimension = 2, start = 1, fill = -999;
+    ASSERT_EQ(nc_put_att_int(nc, topology, "topology_dimension", NC_INT, 1, &dimension), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(nc, topology, "node_coordinates", 3, "x y"), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(nc, topology, "face_node_connectivity", 4, "conn"), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(nc, topology, "face_dimension", 5, "faces"), NC_NOERR);
+    ASSERT_EQ(nc_def_var(nc, "x", NC_DOUBLE, 1, &nodes, &x), NC_NOERR);
+    ASSERT_EQ(nc_def_var(nc, "y", NC_DOUBLE, 1, &nodes, &y), NC_NOERR);
+    const int dims[] = {slots, faces};
+    ASSERT_EQ(nc_def_var(nc, "conn", NC_INT, 2, dims, &connectivity), NC_NOERR);
+    ASSERT_EQ(nc_put_att_int(nc, connectivity, "start_index", NC_INT, 1, &start), NC_NOERR);
+    ASSERT_EQ(nc_put_att_int(nc, connectivity, "_FillValue", NC_INT, 1, &fill), NC_NOERR);
+    ASSERT_EQ(nc_enddef(nc), NC_NOERR);
+    const double xs[] = {0,1,1,0,2}, ys[] = {0,0,1,1,0};
+    const int values[] = {1,2, 2,5, 3,3, 4,-999};
+    ASSERT_EQ(nc_put_var_double(nc, x, xs), NC_NOERR);
+    ASSERT_EQ(nc_put_var_double(nc, y, ys), NC_NOERR);
+    ASSERT_EQ(nc_put_var_int(nc, connectivity, values), NC_NOERR);
+    ASSERT_EQ(nc_close(nc), NC_NOERR);
+    MeshDefinition mesh;
+    std::string message;
+    ASSERT_TRUE(readUGRIDMesh(path, "", mesh, message)) << message;
+    EXPECT_EQ(mesh.faceNodeOffsets, (std::vector<int64_t>{0,4,7}));
+    EXPECT_EQ(mesh.faceNodes, (std::vector<int64_t>{0,1,2,3,1,4,2}));
+    ASSERT_EQ(nc_open(path.string().c_str(), NC_WRITE, &nc), NC_NOERR);
+    const size_t badSlot[] = {1, 1};
+    ASSERT_EQ(nc_put_var1_int(nc, connectivity, badSlot, &fill), NC_NOERR);
+    ASSERT_EQ(nc_close(nc), NC_NOERR);
+    EXPECT_FALSE(readUGRIDMesh(path, "", mesh, message)) << "interior padding must be refused";
+}
