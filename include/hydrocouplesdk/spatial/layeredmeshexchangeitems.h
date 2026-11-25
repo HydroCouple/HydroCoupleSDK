@@ -396,6 +396,11 @@ private:
 using LayeredMeshOutputDouble = LayeredMeshOutput<double>;
 using LayeredMeshInputDouble  = LayeredMeshInput<double>;
 
+// Export the concrete aliases' RTTI/vtables once. Header-only instantiation
+// under a plugin's hidden visibility makes cross-library dynamic_cast fail.
+extern template class HYDROCOUPLESDK_EXPORT LayeredMeshOutput<double>;
+extern template class HYDROCOUPLESDK_EXPORT LayeredMeshInput<double>;
+
 } // namespace HydroCouple::SDK::Spatial
 
 #endif // HYDROCOUPLESDK_LAYEREDMESHEXCHANGEITEMS_H
