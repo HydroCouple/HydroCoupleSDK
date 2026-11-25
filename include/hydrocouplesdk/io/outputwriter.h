@@ -51,7 +51,7 @@ public:
     virtual ~IOutputWriter() = default;
 
     /*!
-     * \brief Human-readable writer name for diagnostics (e.g. "csv").
+     * \brief Human-readable writer name for diagnostics (for example "csv").
      */
     [[nodiscard]] virtual std::string name() const = 0;
 

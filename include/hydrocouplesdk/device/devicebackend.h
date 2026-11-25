@@ -44,7 +44,7 @@ public:
     virtual ~DeviceBackend() = default;
 
     /*!
-     * \brief Human-readable backend name (e.g. "host", "kokkos-serial").
+     * \brief Human-readable backend name (for example "host", "kokkos-serial").
      */
     [[nodiscard]] virtual std::string name() const = 0;
 

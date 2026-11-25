@@ -144,7 +144,7 @@ public:
     void setOffsetToSI(double offset);
 
     /*!
-     * \brief The unit as a UDUNITS-2 string (e.g. "m3 s-1"); empty when not declared.
+     * \brief The unit as a UDUNITS-2 string (for example "m3 s-1"); empty when not declared.
      */
     [[nodiscard]] std::string symbol() const override;
 
@@ -154,7 +154,7 @@ public:
     void setSymbol(std::string_view symbol);
 
     /*!
-     * \brief The unit as a case-sensitive UCUM code (e.g. "m3/s"); empty when
+     * \brief The unit as a case-sensitive UCUM code (for example "m3/s"); empty when
      *        not declared.
      */
     [[nodiscard]] std::string ucumCode() const override;

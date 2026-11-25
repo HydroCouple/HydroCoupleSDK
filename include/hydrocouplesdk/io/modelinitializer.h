@@ -155,7 +155,7 @@ public:
 
     /*!
      * \brief Supplies standalone adapted-output factories — host-owned,
-     *        e.g. realized from IAdaptedOutputFactoryComponentInfo
+     *        for example realized from IAdaptedOutputFactoryComponentInfo
      *        libraries, or SdkAdaptedOutputFactory::instance().
      *
      * A list, not an id→factory lookup, because a chain step that names no

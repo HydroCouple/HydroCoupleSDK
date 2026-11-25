@@ -101,7 +101,7 @@ public:
     [[nodiscard]] std::string email() const override;
 
     /*!
-     * \brief Returns the component version string (e.g. "1.0.0").
+     * \brief Returns the component version string (for example "1.0.0").
      */
     [[nodiscard]] std::string version() const override;
 
