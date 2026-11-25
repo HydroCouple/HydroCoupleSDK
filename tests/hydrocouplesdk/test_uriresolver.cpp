@@ -43,6 +43,15 @@ std::filesystem::path artifactPath(const std::string &name)
     return dir / name;
 }
 
+//! The path part of a file URI. A Windows path (D:/...) gains the leading
+//! slash RFC 8089 gives it, so "file://" + it is file:///D:/... rather than
+//! a URI whose host is "D:".
+std::string uriPath(const std::filesystem::path &path)
+{
+    const std::string generic = path.generic_string();
+    return generic.front() == '/' ? generic : "/" + generic;
+}
+
 //! A resolver that serves one canned body and counts what it was asked for.
 class FakeResolver : public UriResolver
 {
@@ -157,13 +166,13 @@ TEST_F(UriResolverTest, AFileUriIsReadWithoutAResolver)
     std::string message;
 
     // file:///abs/path, and the file:/abs/path form beside it.
-    ASSERT_TRUE(readReference("file://" + path.generic_string(), contents,
+    ASSERT_TRUE(readReference("file://" + uriPath(path), contents,
                               message))
         << message;
     EXPECT_EQ(contents, "[4, 5, 6]");
 
     contents.clear();
-    ASSERT_TRUE(readReference("file:" + path.generic_string(), contents,
+    ASSERT_TRUE(readReference("file:" + uriPath(path), contents,
                               message))
         << message;
     EXPECT_EQ(contents, "[4, 5, 6]");
@@ -179,7 +188,7 @@ TEST_F(UriResolverTest, AFileUriOnLocalhostIsStillThisMachine)
 
     std::string contents;
     std::string message;
-    ASSERT_TRUE(readReference("file://localhost" + path.generic_string(),
+    ASSERT_TRUE(readReference("file://localhost" + uriPath(path),
                              contents, message))
         << message;
     EXPECT_EQ(contents, "[7]");
