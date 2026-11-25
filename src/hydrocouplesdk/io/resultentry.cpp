@@ -114,7 +114,10 @@ nlohmann::json ResultEntry::toJson() const
                          {"start", time->start},
                          {"end", time->end},
                          {"units", time->units}};
+        if (time->epochJulianDay) entry["time"]["epoch_julian_day"]=*time->epochJulianDay;
     }
+    if (!geometry.is_null()) entry["geometry"] = geometry;
+    if (!quantity.is_null()) entry["quantity"] = quantity;
     if (!sha256.empty())
         entry["sha256"] = sha256;
     return entry;
@@ -193,6 +196,14 @@ bool ResultEntry::fromJson(const nlohmann::json &json, ResultEntry &entry,
         }
     }
 
+    if (json.contains("geometry")) {
+        if (!json["geometry"].is_object()) {message="geometry must be an object"; return false;}
+        entry.geometry=json["geometry"];
+    }
+    if (json.contains("quantity")) {
+        if (!json["quantity"].is_object()) {message="quantity must be an object"; return false;}
+        entry.quantity=json["quantity"];
+    }
     entry.units       = json.value("units", "");
     entry.description = json.value("description", "");
     entry.mesh        = json.value("mesh", "");
@@ -224,6 +235,7 @@ bool ResultEntry::fromJson(const nlohmann::json &json, ResultEntry &entry,
         axis.start = json["time"].value("start", 0.0);
         axis.end   = json["time"].value("end", 0.0);
         axis.units = json["time"].value("units", std::string("julian_day"));
+        if (json["time"].contains("epoch_julian_day")) axis.epochJulianDay=json["time"].at("epoch_julian_day").get<double>();
         entry.time = axis;
     }
 

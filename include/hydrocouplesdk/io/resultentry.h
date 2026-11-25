@@ -50,6 +50,7 @@ struct HYDROCOUPLESDK_EXPORT ResultTimeAxis
     double      start = 0.0;             //!< First time value.
     double      end   = 0.0;             //!< Last time value.
     std::string units = "julian_day";    //!< SDK convention.
+    std::optional<double> epochJulianDay; //!< Required origin for elapsed_s clocks.
 };
 
 /*!
@@ -76,6 +77,9 @@ struct HYDROCOUPLESDK_EXPORT ResultEntry
 
     std::optional<ResultTimeAxis> time; //!< Time axis of dimension 0, if any.
 
+    // Optional explicit metadata; absent for older manifests.
+    nlohmann::json geometry; //!< Recorded topology sidecar and optional interface-elevation result.
+    nlohmann::json quantity; //!< SI scale/offset, dimensional powers and value kind.
     std::string sha256; //!< Optional artifact hash for drift detection.
 
     /*!

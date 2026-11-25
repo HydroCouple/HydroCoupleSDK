@@ -14,6 +14,9 @@
 
 #include <algorithm>
 #include <map>
+#include <fstream>
+#include <cmath>
+#include "hydrocouplesdk/core/unit.h"
 
 namespace HydroCouple::SDK {
 
@@ -50,6 +53,12 @@ public:
         if (m_entry.time.has_value() &&
             m_reader->readTimes(m_entry, m_times, message))
         {
+            if ((m_entry.time->units=="elapsed_s" || m_entry.time->units=="seconds_since_start")) {
+                if (!m_entry.time->epochJulianDay || !std::isfinite(*m_entry.time->epochJulianDay))
+                    throw std::runtime_error("elapsed_s results require a declared Julian-day epoch");
+                for (double &t:m_times) t=*m_entry.time->epochJulianDay+t/86400.0;
+            } else if (m_entry.time->units!="julian_day")
+                throw std::runtime_error("unsupported recorded calendar: "+m_entry.time->units);
             m_timeObjects.reserve(m_times.size());
             for (size_t i = 0; i < m_times.size(); ++i)
                 m_timeObjects.push_back(std::make_shared<Temporal::TimeData>(
@@ -187,7 +196,32 @@ private:
  * honest no — it turns a question that can be asked once into one that has
  * to be asked twice.
  */
-class SpatialRecordedItem final
+class RecordedReference final : public HydroCouple::Spatial::ISpatialReferenceSystem {
+public:
+    explicit RecordedReference(nlohmann::json j):m_json(std::move(j)),a(m_json.value("authority","")),
+        text(m_json.value("text","")),va(m_json.value("vertical_authority","")),vt(m_json.value("vertical_text","")) {}
+    int authSRID() const override {return m_json.value("id",0);}
+    const std::string &authName() const override {return a;}
+    const std::string &srText() const override {return text;}
+    IUnit::DistanceUnits distanceUnits() const override {return static_cast<IUnit::DistanceUnits>(m_json.at("units").get<int>());}
+    const std::string &verticalAuthName() const override {return va;}
+    int verticalAuthSRID() const override {return m_json.value("vertical_id",0);}
+    const std::string &verticalSrText() const override {return vt;}
+    IUnit::DistanceUnits verticalDistanceUnits() const override {return static_cast<IUnit::DistanceUnits>(m_json.at("vertical_units").get<int>());}
+private:
+    nlohmann::json m_json;std::string a,text,va,vt;
+};
+
+struct RecordedSurface {
+    IO::MeshDefinition mesh;
+    std::unique_ptr<RecordedReference> reference;
+    std::unique_ptr<Spatial::PolyhedralSurfaceAdapter> surface;
+    RecordedSurface(const IO::MeshDefinition &m,const nlohmann::json &r):mesh(m),
+        reference(r.is_object()?std::make_unique<RecordedReference>(r):nullptr),
+        surface(std::make_unique<Spatial::PolyhedralSurfaceAdapter>(Spatial::polyhedralSurfaceFromMesh(mesh),mesh,reference.get())) {}
+};
+
+class SpatialRecordedItem
     : public RecordedItem,
       public virtual HydroCouple::SpatioTemporal::
           ITimeSeriesPolyhedralSurfaceComponentDataItem
@@ -199,10 +233,9 @@ public:
                         const std::vector<Dimension *> &dimensions,
                         ValueDefinition *valueDefinition,
                         HydroCouple::IModelComponent *component,
-                        const IO::MeshDefinition &mesh)
+                        const IO::MeshDefinition &mesh, const nlohmann::json &reference = {}, std::shared_ptr<RecordedSurface> geometry = {})
         : RecordedItem(entry, reader, dimensions, valueDefinition, component),
-          m_surface(std::make_unique<Spatial::PolyhedralSurfaceAdapter>(
-              Spatial::polyhedralSurfaceFromMesh(mesh), mesh))
+          m_geometry(geometry ? std::move(geometry) : std::make_shared<RecordedSurface>(mesh,reference))
     {
         switch (entry.location.value_or(IO::MeshLocation::Node))
         {
@@ -238,7 +271,7 @@ public:
     [[nodiscard]] HydroCouple::Spatial::IPolyhedralSurface *polyhedralSurface()
         const override
     {
-        return m_surface.get();
+        return m_geometry->surface.get();
     }
 
     [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override
@@ -250,12 +283,73 @@ public:
     //! The dimension the values run along: the last, time being the first.
     [[nodiscard]] HydroCouple::IDimension *entityDimension() const override
     {
-        return dimensions().empty() ? nullptr : dimensions().back();
+        const auto axis=m_entry.geometry.is_object() ? m_entry.geometry.value("entity_axis",int(dimensions().size())-1) : int(dimensions().size())-1;
+        return axis>=0 && size_t(axis)<dimensions().size() ? dimensions()[axis] : nullptr;
     }
 
 private:
-    std::unique_ptr<Spatial::PolyhedralSurfaceAdapter> m_surface;
+    std::shared_ptr<RecordedSurface> m_geometry;
     MeshLocation m_objectType = MeshLocation::Node;
+};
+
+class RecordedVertical final : public HydroCouple::Spatial::IVerticalCoordinate {
+public:
+    RecordedVertical(ResultEntry entry,IResultReader *reader,int kind):m_entry(std::move(entry)),m_reader(reader),m_kind(kind) {
+        if (m_entry.kind!=DataKind::Float64 || m_entry.shape.size()!=3 || m_entry.shape[0]<1 || m_entry.shape[1]<1 || m_entry.shape[2]<2)
+            throw std::runtime_error("invalid recorded interface-elevation shape");
+        m_values.resize(size_t(m_entry.shape[1]*m_entry.shape[2]));
+        std::string message;if (!select(m_entry.shape[0]-1,message)) throw std::runtime_error(message);
+    }
+    bool select(int64_t time,std::string &message) const {
+        if (time==m_time) return true;
+        const std::vector<int64_t> start={time,0,0},count={1,m_entry.shape[1],m_entry.shape[2]};
+        std::vector<double> values(m_values.size());
+        BufferDescriptor b;b.data=values.data();b.kind=DataKind::Float64;b.rank=3;b.shape=count.data();b.space=MemorySpace::Host;
+        if (!m_reader->read(m_entry,start,count,b,message)) return false;
+        for (int64_t c=0;c<columnCount();++c) for (int64_t k=0;k<=layerCount();++k) {
+            const auto i=size_t(c*(layerCount()+1)+k);
+            if (!std::isfinite(values[i]) || (k && values[i]>=values[i-1])) {message="invalid recorded layer elevations";return false;}
+        }
+        m_values=std::move(values);m_time=time;++m_epoch;return true;
+    }
+    HydroCouple::Spatial::VerticalCoordinateKind kind() const override {return static_cast<HydroCouple::Spatial::VerticalCoordinateKind>(m_kind);}
+    int64_t columnCount() const override {return m_entry.shape[1];}
+    int64_t layerCount() const override {return m_entry.shape[2]-1;}
+    bool isTimeVarying() const override {return m_entry.shape[0]>1;}
+    uint64_t geometryEpoch() const override {return m_epoch;}
+    double interfaceElevation(int64_t c,int64_t k) const override {return m_values.at(size_t(c*(layerCount()+1)+k));}
+    std::span<const double> interfaceElevations() const override {return m_values;}
+private:
+    ResultEntry m_entry;IResultReader *m_reader;int m_kind;
+    mutable std::vector<double> m_values;mutable int64_t m_time=-1;mutable uint64_t m_epoch=0;
+};
+
+class LayeredRecordedItem final : public SpatialRecordedItem,
+    public virtual HydroCouple::SpatioTemporal::ITimeLayeredMeshComponentDataItem {
+public:
+    LayeredRecordedItem(const ResultEntry &e,IResultReader *reader,const std::vector<Dimension *> &dims,
+        ValueDefinition *q,HydroCouple::IModelComponent *mc,const IO::MeshDefinition &mesh,
+        const nlohmann::json &ref,ResultEntry vertical,IResultReader *verticalReader,std::shared_ptr<RecordedSurface> geometry)
+        :SpatialRecordedItem(e,reader,dims,q,mc,mesh,ref,std::move(geometry)),
+         m_vertical(std::move(vertical),verticalReader,e.geometry.at("vertical_kind").get<int>()),
+         m_layerAxis(e.geometry.at("layer_axis").get<size_t>()) {
+        const auto entity=e.geometry.at("entity_axis").get<size_t>();
+        if (entity>=e.shape.size() || m_layerAxis>=e.shape.size() || entity==m_layerAxis ||
+            e.shape[entity]!=m_vertical.columnCount() || e.shape[m_layerAxis]!=m_vertical.layerCount())
+            throw std::runtime_error("recorded layer/mesh dimensions disagree");
+    }
+    HydroCouple::IDimension *layerDimension() const override {return dimensions().at(m_layerAxis);}
+    HydroCouple::Spatial::IVerticalCoordinate *verticalCoordinate() const override {return const_cast<RecordedVertical *>(&m_vertical);}
+    bool getValuesInto(const BufferDescriptor &b,std::span<const int64_t> start,std::span<const int64_t> count,
+        std::string *message=nullptr) const override {
+        if (!SpatialRecordedItem::getValuesInto(b,start,count,message)) return false;
+        if (count.size()==m_entry.shape.size() && count[0]==1) {
+            std::string detail;if (!m_vertical.select(start[0],detail)) {if(message)*message=detail;return false;}
+        }
+        return true;
+    }
+private:
+    RecordedVertical m_vertical;size_t m_layerAxis;
 };
 
 /*!
@@ -285,6 +379,8 @@ struct ResultsModelComponent::Impl
     std::map<std::string, std::unique_ptr<IResultReader>> readers;
 
     std::vector<std::unique_ptr<Dimension>>       dimensions;
+    std::map<std::string,std::shared_ptr<RecordedSurface>> geometries;
+    std::vector<std::unique_ptr<Unit>> units;
     std::vector<std::unique_ptr<ValueDefinition>> valueDefinitions;
     std::vector<RecordedItem *>                   items; //!< Owned by base.
 };
@@ -434,29 +530,63 @@ void ResultsModelComponent::initialize()
             dimensions.push_back(m_impl->dimensions.back().get());
         }
 
-        m_impl->valueDefinitions.emplace_back(
-            Quantity::unitLess(entry->units.empty() ? entry->itemId
-                                                    : entry->units));
-
-        IResultReader *reader = m_impl->readers.at(entry->artifact).get();
-
-        // Geometry when the artifact carried it. Asked for once, here, rather
-        // than on every read: a mesh does not move between time steps, and an
-        // item that re-read it per step would pay for the whole topology to
-        // draw one frame.
-        IO::MeshDefinition mesh;
-        std::string        meshMessage;
-        const bool         spatial = reader->readMesh(*entry, mesh, meshMessage);
-
-        RecordedItem *item =
-            spatial ? new SpatialRecordedItem(
-                          *entry, reader, dimensions,
-                          m_impl->valueDefinitions.back().get(), this, mesh)
-                    : new RecordedItem(*entry, reader, dimensions,
-                                       m_impl->valueDefinitions.back().get(),
-                                       this);
+        try {
+        if (entry->quantity.is_object()) {
+            const auto &j=entry->quantity;
+            auto unit=std::make_unique<Unit>(entry->units,j.at("scale").get<double>(),j.at("offset").get<double>());
+            const auto powers=j.at("powers").get<std::vector<double>>();
+            if (powers.size()!=UnitDimensions::kDimensionCount || !std::isfinite(unit->conversionFactorToSI()) || unit->conversionFactorToSI()<=0 || !std::isfinite(unit->offsetToSI()))
+                throw std::runtime_error("invalid recorded physical unit");
+            for (size_t d=0;d<powers.size();++d) {if (!std::isfinite(powers[d])) throw std::runtime_error("invalid unit powers");unit->dimensionsInternal()->setPower(static_cast<IUnitDimensions::FundamentalUnitDimension>(d),powers[d]);}
+            auto q=std::make_unique<Quantity>(entry->description,typeid(double),unit.get());
+            q->setValueKind(static_cast<ValueKind>(j.at("value_kind").get<int>()));
+            m_impl->units.push_back(std::move(unit));m_impl->valueDefinitions.push_back(std::move(q));
+        } else m_impl->valueDefinitions.emplace_back(Quantity::unitLess(entry->units.empty()?entry->itemId:entry->units));
+        IResultReader *reader=m_impl->readers.at(entry->artifact).get();
+        IO::MeshDefinition mesh;std::string detail;nlohmann::json ref;
+        bool spatial=false;std::shared_ptr<RecordedSurface> geometry;
+        if (entry->geometry.is_object()) {
+            const auto geometryPath=m_impl->manifest.directory/entry->geometry.at("artifact").get<std::string>();
+            const std::string geometryKey=geometryPath.string();
+            const auto cached=m_impl->geometries.find(geometryKey);
+            if (cached!=m_impl->geometries.end()) {geometry=cached->second;mesh=geometry->mesh;}
+            else {
+            std::ifstream input(geometryPath);if (!input) throw std::runtime_error("missing recorded geometry: "+geometryPath.string());
+            nlohmann::json g;input>>g;
+            if (g.at("schema")!="hc.recorded-mesh/1.0") throw std::runtime_error("unsupported recorded geometry schema");
+            mesh.nodeX=g.at("node_x").get<std::vector<double>>();mesh.nodeY=g.at("node_y").get<std::vector<double>>();mesh.nodeZ=g.at("node_z").get<std::vector<double>>();
+            mesh.faceNodeOffsets=g.at("face_offsets").get<std::vector<int64_t>>();mesh.faceNodes=g.at("face_nodes").get<std::vector<int64_t>>();
+            const auto edges=g.at("edge_nodes").get<std::vector<int64_t>>();if (edges.size()%2) throw std::runtime_error("invalid recorded edge connectivity");
+            for (size_t e=0;e<edges.size();e+=2) mesh.edgeNodes.push_back({edges[e],edges[e+1]});
+            if (!mesh.validate(detail)) throw std::runtime_error(detail);
+            for (double x:mesh.nodeX) if(!std::isfinite(x)) throw std::runtime_error("invalid recorded coordinates");
+            for (double y:mesh.nodeY) if(!std::isfinite(y)) throw std::runtime_error("invalid recorded coordinates");
+            if (g.contains("reference")) ref=g["reference"];
+                geometry=std::make_shared<RecordedSurface>(mesh,ref);
+                m_impl->geometries.emplace(geometryKey,geometry);
+            }
+            const auto axis=entry->geometry.at("entity_axis").get<size_t>();
+            const auto n=entry->location==IO::MeshLocation::Face?mesh.faceCount():entry->location==IO::MeshLocation::Edge?mesh.edgeCount():mesh.nodeCount();
+            if(axis>=entry->shape.size() || entry->shape[axis]!=n) throw std::runtime_error("recorded entity/mesh dimensions disagree");
+            spatial=true;
+        } else spatial=reader->readMesh(*entry,mesh,detail);
+        RecordedItem *item=nullptr;
+        if (spatial && entry->geometry.contains("vertical")) {
+            ResultEntry v;if (!ResultEntry::fromJson(entry->geometry.at("vertical"),v,detail)) throw std::runtime_error(detail);
+            if (v.shape.size()!=3 || v.shape[0]!=entry->shape[0]) throw std::runtime_error("recorded field/interface times disagree");
+            if (!m_impl->readers.count(v.artifact)) {
+                auto vr=IO::createResultReader(v.format,detail);if (!vr || !vr->open(m_impl->manifest.artifactPath(v),detail)) throw std::runtime_error(detail);
+                m_impl->readers.emplace(v.artifact,std::move(vr));
+            }
+            item=new LayeredRecordedItem(*entry,reader,dimensions,m_impl->valueDefinitions.back().get(),this,mesh,ref,v,m_impl->readers.at(v.artifact).get(),geometry);
+        } else if(spatial) item=new SpatialRecordedItem(*entry,reader,dimensions,m_impl->valueDefinitions.back().get(),this,mesh,ref,geometry);
+        else item=new RecordedItem(*entry,reader,dimensions,m_impl->valueDefinitions.back().get(),this);
         addOutput(item);
         m_impl->items.push_back(item);
+        } catch (const std::exception &e) {
+            const std::string detail="item "+entry->itemId+": "+e.what();
+            reportError(ErrorEntry::Severity::Fatal,5,detail);setStatus(ComponentStatus::Failed,detail);return;
+        }
     }
 
     setStatus(ComponentStatus::Initialized,

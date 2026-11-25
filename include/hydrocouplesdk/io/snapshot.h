@@ -119,12 +119,17 @@ public:
      * \brief Appends an already-materialized field slice (move).
      */
     void addField(FieldSlice field);
+    //! Captures live layer interfaces once per shared vertical coordinate.
+    //! Hosts recording layered items call this at the same instant as capture().
+    bool captureGeometry(const HydroCouple::IComponentDataItem &item, std::string &message);
 
 private:
     double                  m_time;
     std::vector<FieldSlice> m_fields;
 };
 
+//! Stable reserved field identity shared by the recorder and capturing hosts.
+[[nodiscard]] HYDROCOUPLESDK_EXPORT std::string verticalFieldId(const HydroCouple::IComponentDataItem &item);
 } // namespace HydroCouple::SDK::IO
 
 #endif // HYDROCOUPLESDK_IO_SNAPSHOT_H

@@ -6,6 +6,11 @@
 #include "hydrocouplesdk/component/abstractmodelcomponent.h"
 #include "hydrocouplesdk/core/uuid.h"
 #include "hydrocouplesdk/version.h"
+#include "hydrocouplesdk/io/snapshot.h"
+#include "hydrocouplesdk/core/unit.h"
+#include "hydrocouplespatial.h"
+#include "hydrocoupletemporal.h"
+#include <map>
 
 #include <algorithm>
 #include <ctime>
@@ -406,8 +411,82 @@ RunManifest RunRecorder::finish(RunStatus status)
 bool RunRecorder::finishToFile(const std::filesystem::path &path,
                                std::string &message, RunStatus status)
 {
-    const RunManifest manifest = finish(status);
-    return manifest.write(path, message);
+    RunManifest manifest = finish(status);
+    try {
+        std::filesystem::create_directories(path.parent_path());
+        std::map<HydroCouple::Spatial::IPolyhedralSurface *,std::string> geometries;
+        for (auto &entry:manifest.results) {
+            if (entry.itemId.starts_with("__hc_interfaces_")) continue;
+            HydroCouple::IComponentDataItem *item=nullptr;
+            for (auto *component:m_components) {
+                if (!entry.componentId.empty() && component->id()!=entry.componentId) continue;
+                for (auto *candidate:component->outputs()) if (candidate->id()==entry.itemId) {
+                    if (item) {message="ambiguous recorded output identity: "+entry.itemId;return false;}
+                    item=candidate;
+                }
+            }
+            if (!item) continue;
+            entry.description=item->caption();
+            if (entry.time && (entry.time->units=="elapsed_s" || entry.time->units=="seconds_since_start")) {
+                const auto *clock=dynamic_cast<const HydroCouple::Temporal::ITimeModelComponent *>(item->modelComponent());
+                if (clock && clock->simulationPeriod()) entry.time->epochJulianDay=clock->simulationPeriod()->julianDay();
+            }
+            entry.dimensions={"time"};
+            for (auto *d:item->dimensions()) entry.dimensions.push_back(d->id());
+            if (entry.dimensions.size()!=entry.shape.size()) {message="recorded dimension rank mismatch";return false;}
+            if (const auto *q=dynamic_cast<const HydroCouple::IQuantity *>(item->valueDefinition());q && q->unit() &&
+                (entry.units.empty() || entry.units==q->unit()->caption())) {
+                const auto *u=q->unit();entry.units=u->caption();
+                std::vector<double> powers;
+                for (size_t i=0;i<UnitDimensions::kDimensionCount;++i)
+                    powers.push_back(u->dimensions()->power(static_cast<IUnitDimensions::FundamentalUnitDimension>(i)));
+                entry.quantity={{"scale",u->conversionFactorToSI()},{"offset",u->offsetToSI()},
+                    {"powers",powers},{"value_kind",int(q->valueKind())}};
+            }
+            auto *spatial=dynamic_cast<HydroCouple::Spatial::IPolyhedralSurfaceComponentDataItem *>(item);
+            if (!spatial || !spatial->polyhedralSurface()) continue;
+            auto *surface=spatial->polyhedralSurface();auto *view=surface->meshView();
+            if (!view) {message="recorded surface has no mesh view";return false;}
+            if (!geometries.count(surface)) {
+                nlohmann::json g={{"schema","hc.recorded-mesh/1.0"},
+                    {"node_x",view->nodeX()},{"node_y",view->nodeY()},{"node_z",view->nodeZ()},
+                    {"face_offsets",view->faceNodeOffsets()},{"face_nodes",view->faceNodes()},
+                    {"edge_nodes",view->edgeNodes()}};
+                if (auto *ref=surface->spatialReferenceSystem())
+                    g["reference"]={{"authority",ref->authName()},{"id",ref->authSRID()},
+                      {"text",ref->srText()},{"units",int(ref->distanceUnits())},
+                      {"vertical_authority",ref->verticalAuthName()},{"vertical_id",ref->verticalAuthSRID()},
+                      {"vertical_text",ref->verticalSrText()},{"vertical_units",int(ref->verticalDistanceUnits())}};
+                const std::string name="geometry_"+generateUUID()+"_"+std::to_string(geometries.size())+".json";
+                std::ofstream out(path.parent_path()/name);out<<g.dump();out.close();
+                if (!out) {message="could not write recorded geometry";return false;}
+                geometries.emplace(surface,name);
+            }
+            entry.geometry={{"artifact",geometries.at(surface)}};
+            const auto dims=item->dimensions();
+            const auto it=std::find(dims.begin(),dims.end(),spatial->entityDimension());
+            if (it==dims.end()) {message="recorded mesh entity dimension is absent";return false;}
+            entry.geometry["entity_axis"]=1+std::distance(dims.begin(),it);
+            switch (spatial->location()) {
+                case HydroCouple::Spatial::MeshLocation::Face:entry.location=MeshLocation::Face;break;
+                case HydroCouple::Spatial::MeshLocation::Edge:entry.location=MeshLocation::Edge;break;
+                case HydroCouple::Spatial::MeshLocation::Node:entry.location=MeshLocation::Node;break;
+                default:message="unsupported recorded mesh location";return false;
+            }
+            if (auto *layered=dynamic_cast<HydroCouple::Spatial::ILayering *>(item)) {
+                const auto v=std::find_if(manifest.results.begin(),manifest.results.end(),[&](const ResultEntry &e){return e.itemId==verticalFieldId(*item) && e.format==entry.format;});
+                if (v!=manifest.results.end()) {
+                    entry.geometry["vertical"]=v->toJson();
+                    entry.geometry["vertical_kind"]=int(layered->verticalCoordinate()->kind());
+                    const auto l=std::find(dims.begin(),dims.end(),layered->layerDimension());
+                    if (l==dims.end()) {message="recorded layer dimension is absent";return false;}
+                    entry.geometry["layer_axis"]=1+std::distance(dims.begin(),l);
+                }
+            }
+        }
+        std::erase_if(manifest.results,[](const ResultEntry &e){return e.itemId.starts_with("__hc_interfaces_");});
+        return manifest.write(path,message);
+    } catch (const std::exception &e) {message=std::string("recording result metadata: ")+e.what();return false;}
 }
 
 CompositionSpec compositionForRun(const RunManifest &manifest,

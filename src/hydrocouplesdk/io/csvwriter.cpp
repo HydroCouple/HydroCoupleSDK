@@ -152,6 +152,7 @@ std::vector<ResultEntry> CSVWriter::catalog() const
         axis.count = extent.timeLevels;
         axis.start = m_firstTime;
         axis.end   = m_lastTime;
+        axis.units = m_timeUnits;
         entry.time = axis;
 
         entries.push_back(std::move(entry));

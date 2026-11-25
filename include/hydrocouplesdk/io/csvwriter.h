@@ -51,6 +51,9 @@ public:
      */
     explicit CSVWriter(std::filesystem::path path);
 
+    //! Declare the snapshot time coordinate before starting the IO thread.
+    void setTimeUnits(std::string units) { m_timeUnits = std::move(units); }
+
     ~CSVWriter() override = default;
 
     // ── IOutputWriter ─────────────────────────────────────────────────────
@@ -116,6 +119,7 @@ private:
     std::filesystem::path m_path;
     std::ofstream         m_stream;
     std::string           m_error;
+    std::string           m_timeUnits = "julian_day";
 
     std::vector<std::string>                     m_itemOrder;
     std::unordered_map<std::string, ItemExtent>  m_extents;
