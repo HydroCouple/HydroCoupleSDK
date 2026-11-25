@@ -71,6 +71,7 @@ PolyhedralSurfaceArgument::PolyhedralSurfaceArgument(
       m_quantity(quantity)
 {
     addFileFilter("UGRID NetCDF (*.nc)");
+    addFileFilter("Mesh packages (*.mesh.json)");
     addValidComponentDataItemType<
         HydroCouple::Spatial::IPolyhedralSurfaceComponentDataItem>();
     addValidComponentDataItemType<PolyhedralSurfaceArgument>();
@@ -135,6 +136,17 @@ bool PolyhedralSurfaceArgument::initialize(const std::string &value,
     {
     case AT::File:
     {
+        if (std::filesystem::path(value).extension() == ".json") {
+            HydroCouple::SDK::IO::MeshPackage package;
+            if (!HydroCouple::SDK::IO::readMeshPackage(value, package, message))
+                return false;
+            adoptMesh(package.mesh);
+            m_meshPackage = std::move(package);
+            m_sourceReference = value;
+            setCurrentArgumentInputType(AT::File);
+            setSourceUri(std::string());
+            return true;
+        }
         HydroCouple::SDK::IO::MeshDefinition mesh;
         // The reader's own suite owns coherence for what it produces; a
         // second check here would be a defence nothing can falsify.
@@ -183,7 +195,9 @@ bool PolyhedralSurfaceArgument::initialize(
             dynamic_cast<const PolyhedralSurfaceArgument *>(
                 &componentDataItem))
     {
+        if (other == this) { message.clear(); return true; }
         adoptMesh(other->mesh());
+        m_meshPackage = other->m_meshPackage;
         m_sourceReference = other->m_sourceReference;
         message.clear();
         return true;
@@ -290,6 +304,7 @@ void PolyhedralSurfaceArgument::adoptMesh(
     HydroCouple::SDK::IO::MeshDefinition mesh)
 {
     m_mesh = std::move(mesh);
+    m_meshPackage.reset();
 
     // Dropped rather than rebuilt: nothing has asked for the surface yet,
     // and building one for a mesh that may be replaced again before

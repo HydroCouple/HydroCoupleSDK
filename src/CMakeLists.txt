@@ -62,6 +62,7 @@ PRIVATE
     # ── io (namespace HydroCouple::SDK::IO) ───────────────────────────────
     hydrocouplesdk/io/snapshot.cpp
     hydrocouplesdk/io/meshdefinition.cpp
+    hydrocouplesdk/io/meshpackage.cpp
     hydrocouplesdk/io/iothread.cpp
     hydrocouplesdk/io/csvwriter.cpp
     hydrocouplesdk/io/resultentry.cpp

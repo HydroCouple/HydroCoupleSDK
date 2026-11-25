@@ -28,6 +28,8 @@
 #include "hydrocouplesdk/core/valuedefinition.h"
 #include "hydrocouplesdk/data/abstractargument.h"
 #include "hydrocouplesdk/io/meshdefinition.h"
+#include "hydrocouplesdk/io/meshpackage.h"
+#include <optional>
 #include "meshadapters.h"
 
 #include <memory>
@@ -157,6 +159,12 @@ public:
     //! Node positions are Cartesian x, y, z in the surface's reference system.
     [[nodiscard]] HydroCouple::Spatial::VectorBasis vectorBasis() const override;
 
+    //! Physical metadata when loaded from a versioned mesh package.
+    [[nodiscard]] const std::optional<HydroCouple::SDK::IO::MeshPackage> &meshPackage() const noexcept
+    {
+        return m_meshPackage;
+    }
+
     // ── Mesh access ───────────────────────────────────────────────────────
 
     /*!
@@ -204,6 +212,7 @@ private:
     void adoptMesh(HydroCouple::SDK::IO::MeshDefinition mesh);
 
     HydroCouple::SDK::IO::MeshDefinition m_mesh;
+    std::optional<HydroCouple::SDK::IO::MeshPackage> m_meshPackage;
     std::string m_sourceReference; //!< File/URI the mesh was read from.
 
     //! Built on demand from m_mesh; dropped by adoptMesh().
