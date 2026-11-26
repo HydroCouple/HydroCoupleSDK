@@ -20,24 +20,30 @@ using Severity = HydroCouple::ErrorEntry::Severity;
 namespace Spatial  = HydroCouple::Spatial;
 namespace Temporal = HydroCouple::Temporal;
 
+//! Collects the findings of one link, prefixing each message with
+//! `link 'P' -> 'C': `, where P and C are the provider and consumer ids.
 class Findings
 {
 public:
+    //! Builds the message prefix from the provider and consumer ids.
     Findings(const HydroCouple::IOutput &provider, const HydroCouple::IInput &consumer)
         : m_prefix("link '" + provider.id() + "' -> '" + consumer.id() + "': ")
     {
     }
 
+    //! Adds an Error finding with \p code and the prefixed \p what.
     void error(int32_t code, const std::string &what)
     {
         m_items.push_back({Severity::Error, code, m_prefix + what});
     }
 
+    //! Adds a Warning finding with \p code and the prefixed \p what.
     void warning(int32_t code, const std::string &what)
     {
         m_items.push_back({Severity::Warning, code, m_prefix + what});
     }
 
+    //! Moves the collected findings out, in the order they were added.
     std::vector<ConnectionFinding> take() { return std::move(m_items); }
 
 private:
@@ -46,6 +52,9 @@ private:
 };
 
 // ── Names for messages ────────────────────────────────────────────────────
+
+// Names for messages: each returns the enumerator's name, or "Unknown" ("?"
+// for the enumerations without an Unknown value) for a value outside it.
 
 const char *name(HydroCouple::ValueKind kind)
 {
@@ -166,6 +175,7 @@ const char *name(Spatial::VerticalCoordinateKind kind)
 
 // ── Data kind ─────────────────────────────────────────────────────────────
 
+//! Error DataKindMismatch when the two ends report different DataKinds.
 void checkDataKind(const HydroCouple::IOutput &provider,
                    const HydroCouple::IInput &consumer, Findings &findings)
 {
@@ -176,6 +186,8 @@ void checkDataKind(const HydroCouple::IOutput &provider,
 
 // ── Value definitions: quantity/quality, ValueKind, units ─────────────────
 
+//! Formats the nonzero powers as "L^3 T^-1"; "dimensionless" when all
+//! are zero. Unitless is not listed.
 std::string powersOf(HydroCouple::IUnitDimensions &dims)
 {
     using D = HydroCouple::IUnitDimensions::FundamentalUnitDimension;
@@ -195,6 +207,7 @@ std::string powersOf(HydroCouple::IUnitDimensions &dims)
     return result.empty() ? "dimensionless" : result.substr(0, result.size() - 1);
 }
 
+//! True when every power except Unitless agrees within 1e-12 (absolute).
 bool samePowers(HydroCouple::IUnitDimensions &a, HydroCouple::IUnitDimensions &b)
 {
     using D = HydroCouple::IUnitDimensions::FundamentalUnitDimension;
@@ -208,16 +221,21 @@ bool samePowers(HydroCouple::IUnitDimensions &a, HydroCouple::IUnitDimensions &b
     return true;
 }
 
+//! True when every power except Unitless is zero.
 bool isDimensionless(HydroCouple::IUnitDimensions &dims)
 {
     return powersOf(dims) == "dimensionless";
 }
 
+//! True when |a - b| <= 1e-12 * max(1, |a|, |b|).
 bool closeRelative(double a, double b)
 {
     return std::abs(a - b) <= 1e-12 * std::max({1.0, std::abs(a), std::abs(b)});
 }
 
+//! Value kind, quantity name, quantity against quality, categories and
+//! units (Diagnostic codes 1102, 1103, 1104, 1113). Skipped for an adapted
+//! output that declares no value definition.
 void checkValueDefinitions(const HydroCouple::IOutput &provider,
                            const HydroCouple::IInput &consumer, Findings &findings)
 {
@@ -363,6 +381,8 @@ void checkValueDefinitions(const HydroCouple::IOutput &provider,
 
 // ── Temporal semantics ────────────────────────────────────────────────────
 
+//! Time kind and interval, interpolation and extrapolation (1105, 1106);
+//! only when both ends implement ITimeSeriesComponentDataItem.
 void checkTemporal(const HydroCouple::IOutput &provider,
                    const HydroCouple::IInput &consumer, Findings &findings)
 {
@@ -447,6 +467,9 @@ void checkTemporal(const HydroCouple::IOutput &provider,
 
 // ── Reference systems ─────────────────────────────────────────────────────
 
+//! The reference system of a spatial item: its first geometry's, its
+//! surface's, its first network vertex's, its raster's or its grid's;
+//! nullptr for a non-spatial item or one with nothing to ask.
 const Spatial::ISpatialReferenceSystem *referenceOf(const HydroCouple::IComponentDataItem &item)
 {
     if (const auto *geometries = dynamic_cast<const Spatial::IGeometryComponentDataItem *>(&item))
@@ -476,11 +499,15 @@ const Spatial::ISpatialReferenceSystem *referenceOf(const HydroCouple::IComponen
     return nullptr;
 }
 
+//! "AUTHORITY:code", for messages.
 std::string label(const std::string &authority, int code)
 {
     return authority + ":" + std::to_string(code);
 }
 
+//! Horizontal and vertical reference systems (1107, 1108); only when both
+//! ends have one. A system counts as declared when its SRID is nonzero and
+//! its authority name nonempty.
 void checkReferenceSystems(const HydroCouple::IOutput &provider,
                            const HydroCouple::IInput &consumer, Findings &findings)
 {
@@ -534,6 +561,8 @@ void checkReferenceSystems(const HydroCouple::IOutput &provider,
 
 // ── Entities, vector structure, layering ──────────────────────────────────
 
+//! Mesh location (1109), then value structure and, for vectors and
+//! tensors, vector basis (1110).
 void compareEntityStructure(Spatial::MeshLocation producedAt, Spatial::MeshLocation expectedAt,
                             Spatial::SpatialDataType producedType,
                             Spatial::SpatialDataType expectedType,
@@ -572,6 +601,8 @@ void compareEntityStructure(Spatial::MeshLocation producedAt, Spatial::MeshLocat
                            "different things on the two ends");
 }
 
+//! Applies compareEntityStructure() to two polyhedral-surface items or two
+//! network items, and compares the locations of two regular-grid items.
 void checkEntities(const HydroCouple::IOutput &provider,
                    const HydroCouple::IInput &consumer, Findings &findings)
 {
@@ -615,6 +646,8 @@ void checkEntities(const HydroCouple::IOutput &provider,
                                    name(expectedGrid->location()));
 }
 
+//! Vertical coordinate kind and layer count (1111); only when both ends
+//! implement ILayering.
 void checkLayering(const HydroCouple::IOutput &provider,
                    const HydroCouple::IInput &consumer, Findings &findings)
 {
@@ -656,6 +689,8 @@ void checkLayering(const HydroCouple::IOutput &provider,
 
 // ── Dimension roles ───────────────────────────────────────────────────────
 
+//! Axis-by-axis role comparison (1112) when the ranks are equal; axes
+//! whose role is Unknown or Other on either side are skipped.
 void checkDimensionRoles(const HydroCouple::IOutput &provider,
                          const HydroCouple::IInput &consumer, Findings &findings)
 {

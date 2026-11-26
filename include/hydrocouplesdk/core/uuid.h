@@ -28,9 +28,14 @@ namespace HydroCouple::SDK {
  * Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
  * where x is a random hex digit and y is one of 8, 9, a, or b.
  *
- * Thread-safe: each call constructs its own seeded generator.
+ * Thread-safe: each thread owns a \c std::mt19937_64 generator, seeded once
+ * from \c std::random_device on the thread's first call. The digits are
+ * lowercase hexadecimal. The generator is not cryptographically secure; the
+ * ids are meant to be unique, not unguessable. Identity uses this function
+ * when no id is supplied.
  *
- * \return UUID string, e.g. "550e8400-e29b-41d4-a716-446655440000"
+ * \return A new 36-character UUID string, for example
+ *         "550e8400-e29b-41d4-a716-446655440000".
  */
 [[nodiscard]] inline std::string generateUUID()
 {

@@ -12,6 +12,9 @@ namespace {
 // mapping those names to IDimension::DimensionRole here means every item gets
 // a correct role() without each construction site repeating it. Anything
 // else stays Unknown until setRole() is called.
+//
+// id: the dimension id, compared exactly and case-sensitively.
+// Returns the role for a well-known id, otherwise DimensionRole::Unknown.
 HydroCouple::IDimension::DimensionRole roleForId(std::string_view id)
 {
     using Role = HydroCouple::IDimension::DimensionRole;

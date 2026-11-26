@@ -299,6 +299,10 @@ namespace {
 //! kind is what these generic quantities honestly know; a component that
 //! means something narrower (channel discharge, not any volume flow rate)
 //! sets its own conceptURI() and standardName().
+//! \param[in,out] quantity          Quantity to label; must not be null.
+//! \param[in]     qudtQuantityKind  QUDT quantity-kind local name, appended
+//!                                  to http://qudt.org/vocab/quantitykind/.
+//! \return \p quantity, for chaining.
 Quantity *ofKind(Quantity *quantity, const char *qudtQuantityKind)
 {
     quantity->setConceptURI(std::string("http://qudt.org/vocab/quantitykind/") +

@@ -6,6 +6,7 @@
 
 namespace HydroCouple::SDK {
 
+//! Short name for the fundamental-dimension enumeration in this file.
 using Dim = HydroCouple::IUnitDimensions::FundamentalUnitDimension;
 
 // ── UnitDimensions ────────────────────────────────────────────────────────

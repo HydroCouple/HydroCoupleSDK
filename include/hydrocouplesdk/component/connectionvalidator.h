@@ -50,14 +50,34 @@ namespace HydroCouple::SDK {
  */
 struct ConnectionFinding
 {
+    //! Error when both ends declare and contradict each other; Warning when
+    //! a declaration is missing. validateConnection() uses no other value.
     HydroCouple::ErrorEntry::Severity severity =
         HydroCouple::ErrorEntry::Severity::Warning;
+    //! A Diagnostic connection code, 1101 to 1113.
     int32_t     code = 0;
+    //! What was found, prefixed with `link 'P' -> 'C': `, where P is the
+    //! provider's id and C the consumer's.
     std::string message;
 };
 
 /*!
  * \brief Checks the link provider → consumer against both ends' declarations.
+ * \details The checks run in this order: element type (DataKind); value
+ *          definitions (value kind, quantity name, quantity against quality,
+ *          categories, unit dimension and scale); temporal semantics, when
+ *          both ends are time series (time kind and interval, interpolation,
+ *          extrapolation); horizontal and vertical reference systems, when
+ *          both ends are spatial items with a reference system; mesh
+ *          location, value structure and vector basis, for two items of the
+ *          same spatial kind; layering, when both ends are layered; and
+ *          dimension roles, when both ends have the same rank. A check whose
+ *          inputs one end does not offer is skipped silently. The function
+ *          reads only declarations: it does not need the link to be wired,
+ *          does not read values and changes nothing.
+ * \param[in] provider  The output whose values the consumer would read;
+ *                      for an adapted link, the adapted output itself.
+ * \param[in] consumer  The input that would read them.
  * \returns Every finding, Errors and Warnings mixed, in check order. Empty
  *          means every check that could be made passed.
  */
@@ -67,6 +87,9 @@ validateConnection(const HydroCouple::IOutput &provider,
 
 /*!
  * \brief Whether any finding is an Error.
+ * \param[in] findings  Findings from validateConnection().
+ * \return \c true when at least one finding has Severity::Error; \c false
+ *         for an empty vector or Warnings only.
  */
 [[nodiscard]] HYDROCOUPLESDK_EXPORT bool
 hasConnectionError(const std::vector<ConnectionFinding> &findings);

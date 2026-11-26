@@ -196,6 +196,11 @@ private:
  * honest no — it turns a question that can be asked once into one that has
  * to be asked twice.
  */
+//! A spatial reference system read back from a recorded geometry file's
+//! "reference" object (authority, id, text, units and their vertical
+//! counterparts). distanceUnits() and verticalDistanceUnits() throw
+//! nlohmann::json::out_of_range when the record lacks "units" or
+//! "vertical_units".
 class RecordedReference final : public HydroCouple::Spatial::ISpatialReferenceSystem {
 public:
     explicit RecordedReference(nlohmann::json j):m_json(std::move(j)),a(m_json.value("authority","")),
@@ -212,6 +217,8 @@ private:
     nlohmann::json m_json;std::string a,text,va,vt;
 };
 
+//! A recorded mesh, its reference system and the polyhedral-surface view
+//! over them, shared by every item recorded on the same geometry file.
 struct RecordedSurface {
     IO::MeshDefinition mesh;
     std::unique_ptr<RecordedReference> reference;
@@ -292,6 +299,12 @@ private:
     MeshLocation m_objectType = MeshLocation::Node;
 };
 
+//! Recorded interface elevations of a layered item: a Float64 entry of
+//! shape { time, column, interface } with at least two interfaces. Holds
+//! one time level at a time; select() loads a level and checks that the
+//! elevations are finite and strictly decrease downward. The constructor
+//! loads the last level and throws std::runtime_error on a bad shape or
+//! bad values.
 class RecordedVertical final : public HydroCouple::Spatial::IVerticalCoordinate {
 public:
     RecordedVertical(ResultEntry entry,IResultReader *reader,int kind):m_entry(std::move(entry)),m_reader(reader),m_kind(kind) {
@@ -324,6 +337,11 @@ private:
     mutable std::vector<double> m_values;mutable int64_t m_time=-1;mutable uint64_t m_epoch=0;
 };
 
+//! A recorded item on a layered mesh. Reading a single time level (count[0]
+//! equal to 1 over the full rank) also selects that level of the vertical
+//! coordinate, so verticalCoordinate() describes the values just read.
+//! The constructor throws std::runtime_error when the layer or entity axis
+//! disagrees with the vertical coordinate.
 class LayeredRecordedItem final : public SpatialRecordedItem,
     public virtual HydroCouple::SpatioTemporal::ITimeLayeredMeshComponentDataItem {
 public:
@@ -370,19 +388,23 @@ int formatRank(const std::string &format)
 
 // ── Impl ──────────────────────────────────────────────────────────────────
 
+//! Private state of a ResultsModelComponent.
 struct ResultsModelComponent::Impl
 {
-    IO::RunManifest manifest;
-    std::string     componentId;
+    IO::RunManifest manifest;    //!< The manifest, copied at construction.
+    std::string     componentId; //!< Component whose entries are exposed; "" = all.
 
     //! One reader per artifact, shared by the items reading from it.
     std::map<std::string, std::unique_ptr<IResultReader>> readers;
 
-    std::vector<std::unique_ptr<Dimension>>       dimensions;
-    std::map<std::string,std::shared_ptr<RecordedSurface>> geometries;
-    std::vector<std::unique_ptr<Unit>> units;
-    std::vector<std::unique_ptr<ValueDefinition>> valueDefinitions;
-    std::vector<RecordedItem *>                   items; //!< Owned by base.
+    std::vector<std::unique_ptr<Dimension>>       dimensions; //!< Axes of every item, in creation order.
+    std::map<std::string,std::shared_ptr<RecordedSurface>> geometries; //!< Recorded meshes by geometry file path, shared by the items on them.
+    std::vector<std::unique_ptr<Unit>> units; //!< Units rebuilt from the entries' quantity records.
+    std::vector<std::unique_ptr<ValueDefinition>> valueDefinitions; //!< One per item.
+    //! The recorded items, in catalog order. Created with new and
+    //! registered as outputs; neither this struct nor the base class deletes
+    //! them.
+    std::vector<RecordedItem *>                   items;
 };
 
 // ── Construction ──────────────────────────────────────────────────────────

@@ -15,6 +15,9 @@ namespace {
 
 /*!
  * \brief All providers connected to an input (single or multi).
+ * \param[in] input  The input; must not be null.
+ * \return An IMultiInput's providers(), otherwise the single provider, or
+ *         an empty vector when nothing is connected.
  */
 std::vector<HydroCouple::IOutput *> connectedProviders(
     HydroCouple::IInput *input)

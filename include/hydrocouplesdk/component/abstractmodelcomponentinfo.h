@@ -23,8 +23,32 @@ namespace HydroCouple::SDK {
  * \brief Concrete base class for HydroCouple::IModelComponentInfo.
  *
  * Extends ComponentInfo with an adaptedOutputFactories registry. Plug-in
- * authors subclass this and override createComponentInstance() to return new
- * model component instances.
+ * authors subclass this, fill the metadata in the constructor, and
+ * override createComponentInstance() (pure virtual in
+ * IModelComponentInfo, not implemented here) to return new model component
+ * instances:
+ *
+ * \code
+ *     class ReservoirInfo : public AbstractModelComponentInfo
+ *     {
+ *     public:
+ *         ReservoirInfo() : AbstractModelComponentInfo("org.example.reservoir")
+ *         {
+ *             setCaption("Reservoir");
+ *             setVersion("1.0.0");
+ *         }
+ *         std::unique_ptr<IModelComponent> createComponentInstance() override
+ *         {
+ *             return std::make_unique<Reservoir>("reservoir", this);
+ *         }
+ *     };
+ *     HYDROCOUPLE_DECLARE_COMPONENT(ReservoirInfo)
+ * \endcode
+ *
+ * The instance is owned by the caller and must be destroyed before the
+ * library that created it is unloaded (hydrocouplecomponentabi.h). Passing
+ * \c this to the component's constructor makes componentInfo() return this
+ * info; the SDK does not set it otherwise.
  *
  * The adapted-output factory map is keyed by factory id for O(1) lookup.
  * Factories are raw non-owning pointers — ownership belongs to the caller
@@ -40,15 +64,18 @@ class HYDROCOUPLESDK_EXPORT AbstractModelComponentInfo
 public:
     /*!
      * \brief Construct with an auto-generated UUID.
+     * \details Give production infos a stable id with the other constructor.
      */
     AbstractModelComponentInfo() = default;
 
     /*!
      * \brief Construct with an explicit identifier.
-     * \param id  Unique identifier string.
+     * \param[in] id  Unique identifier string of the component type; copied.
+     *                Empty is replaced by a generated UUID v4.
      */
     explicit AbstractModelComponentInfo(std::string_view id);
 
+    //! Destroys the info; registered factories are not deleted.
     ~AbstractModelComponentInfo() override = default;
 
     // ── IModelComponentInfo ───────────────────────────────────────────────
@@ -57,7 +84,8 @@ public:
      * \brief Returns all registered IAdaptedOutputFactory instances.
      *
      * The returned vector is freshly built on each call from the internal
-     * unordered_map, so callers should not cache it across mutations.
+     * unordered_map, so callers should not cache it across mutations. Its
+     * order is the map's iteration order, which is unspecified.
      *
      * \return Vector of non-owning IAdaptedOutputFactory pointers.
      */
@@ -67,30 +95,39 @@ public:
 protected:
     /*!
      * \brief Returns the internal factory map (keyed by factory id).
-     * \return Unordered map of IAdaptedOutputFactory pointers.
+     * \return A copy of the map of IAdaptedOutputFactory pointers.
      */
     [[nodiscard]] std::unordered_map<std::string, HydroCouple::IAdaptedOutputFactory *>
     adaptedOutputFactoriesInternal() const;
 
     /*!
      * \brief Registers a factory. Overwrites any existing entry with the same id.
-     * \param factory  Non-owning pointer; must remain valid for the lifetime of this info object.
+     * \details Fires propertyChanged("AdaptedOutputFactories").
+     * \param[in] factory  Non-owning pointer; must remain valid for the
+     *                     lifetime of this info object. nullptr is ignored.
      */
     void addAdaptedOutputFactory(HydroCouple::IAdaptedOutputFactory *factory);
 
     /*!
      * \brief Removes a factory by pointer identity.
-     * \param factory  Pointer previously registered via addAdaptedOutputFactory.
-     * \return true if the factory was found and removed; false otherwise.
+     * \details Looks the factory up by its id and removes the entry only if
+     *          it holds this same pointer. Fires
+     *          propertyChanged("AdaptedOutputFactories") on removal.
+     * \param[in] factory  Pointer previously registered via addAdaptedOutputFactory.
+     * \return true if the factory was found and removed; false otherwise,
+     *         including for nullptr.
      */
     bool removeAdaptedOutputFactory(HydroCouple::IAdaptedOutputFactory *factory);
 
     /*!
      * \brief Removes all registered factories.
+     * \details Fires propertyChanged("AdaptedOutputFactories"). The
+     *          factories are not deleted.
      */
     void clearAdaptedOutputFactories();
 
 private:
+    //! Registered factories by id; non-owning.
     std::unordered_map<std::string, HydroCouple::IAdaptedOutputFactory *> m_adaptedOutputFactories;
 };
 

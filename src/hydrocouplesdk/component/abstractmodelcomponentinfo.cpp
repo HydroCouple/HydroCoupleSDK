@@ -3,8 +3,8 @@
 
 #include "stdafx.h"
 #include "hydrocouplesdk/component/abstractmodelcomponentinfo.h"
-// AbstractAdaptedOutputFactory is forward-declared; we only need the
-// IAdaptedOutputFactory interface for id() — no inclusion of Qt-based header.
+// Only the IAdaptedOutputFactory interface (from hydrocouple.h) is needed,
+// for id(); no SDK factory header is included.
 
 namespace HydroCouple::SDK {
 
