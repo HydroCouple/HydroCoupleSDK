@@ -40,11 +40,11 @@ if(BUILD_TESTS)
              COMMAND serial_coupling composition.json "${serial_coupling_output}"
              WORKING_DIRECTORY $<TARGET_FILE_DIR:serial_coupling>)
     set_tests_properties(examples.serial_coupling PROPERTIES
-        FIXTURES_SETUP serial_coupling_run LABELS docs-example)
+        FIXTURES_SETUP serial_coupling_run LABELS docs-example TIMEOUT 300)
     add_test(NAME examples.analysis_reopen
              COMMAND analysis_reopen "${serial_coupling_output}/run.json")
     set_tests_properties(examples.analysis_reopen PROPERTIES
-        FIXTURES_REQUIRED serial_coupling_run LABELS docs-example)
+        FIXTURES_REQUIRED serial_coupling_run LABELS docs-example TIMEOUT 300)
     # The YAML document initializes the same composition (yaml-cpp builds only).
     if(HYDROCOUPLESDK_HAVE_YAML_CPP)
         add_test(NAME examples.serial_coupling_yaml
@@ -52,6 +52,6 @@ if(BUILD_TESTS)
                          "${CMAKE_BINARY_DIR}/docs-examples/serial_coupling_yaml"
                  WORKING_DIRECTORY $<TARGET_FILE_DIR:serial_coupling>)
         set_tests_properties(examples.serial_coupling_yaml PROPERTIES
-            LABELS docs-example)
+            LABELS docs-example TIMEOUT 300)
     endif()
 endif()
