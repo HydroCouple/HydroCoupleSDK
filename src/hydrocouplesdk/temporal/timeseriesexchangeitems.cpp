@@ -12,12 +12,18 @@ namespace HydroCouple::SDK::Temporal {
 using namespace HydroCouple::Temporal;
 
 // Explicit instantiations — keep the common typed exchange items in the library.
+//! Explicit instantiation of TimeSeriesInput for `int`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesInput<int>;
+//! Explicit instantiation of TimeSeriesInput for `double`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesInput<double>;
+//! Explicit instantiation of TimeSeriesInput for `std::string`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesInput<std::string>;
 
+//! Explicit instantiation of TimeSeriesOutput for `int`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesOutput<int>;
+//! Explicit instantiation of TimeSeriesOutput for `double`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesOutput<double>;
+//! Explicit instantiation of TimeSeriesOutput for `std::string`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesOutput<std::string>;
 
 } // namespace HydroCouple::SDK::Temporal

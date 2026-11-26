@@ -33,6 +33,11 @@ namespace HydroCouple::SDK {
 
 /*!
  * \brief Concrete 2-D typed input exchange item (row-major storage).
+ *
+ * \details Shape { iLength(), jLength() } fixed by the component.
+ * retrieveValuesFromProvider() copies the overlapping top-left block of a
+ * rank-2 provider of the same kind and leaves the rest of the storage.
+ *
  * \tparam T  Element type (int, double, std::string, …).
  */
 template <typename T>
@@ -41,6 +46,16 @@ class Input2D
       public ComponentDataItem2D<T>
 {
 public:
+    /*!
+     * \brief Construct an unconnected input of \p lengthX by \p lengthY elements of \c T{}.
+     * \param id         Input identifier, unique within the component.
+     * \param dimensionX Row axis, dimension 0 (borrowed).
+     * \param dimensionY Column axis, dimension 1 (borrowed).
+     * \param lengthX    Row count.
+     * \param lengthY    Column count.
+     * \param valueDef   Value definition (borrowed; may be nullptr).
+     * \param mc         Owning component (borrowed; may be nullptr).
+     */
     Input2D(std::string_view id, Dimension *dimensionX, Dimension *dimensionY,
             int lengthX, int lengthY,
             ValueDefinition *valueDef, HydroCouple::IModelComponent *mc)
@@ -88,6 +103,10 @@ public:
 
     /*!
      * \brief Accepts any 2-D provider of the same DataKind.
+     * \param[in]  provider Candidate output.
+     * \param[out] message  "Provider is null", "Provider data kind
+     *                      mismatch" or "Provider is not two-dimensional".
+     * \return true when \p provider has this input's kind and rank 2.
      */
     [[nodiscard]] bool canConsume(HydroCouple::IOutput *provider,
                                   std::string &message) const override
@@ -112,6 +131,12 @@ public:
 
     /*!
      * \brief Pulls the overlapping leading region from the connected provider.
+     * \details Reads rows [0, min(provider rows, iLength())) and columns
+     *          [0, min(provider columns, jLength())) into a staging block,
+     *          writes it to the same positions here and fires value-changed
+     *          for that block. Returns without a change or a message when
+     *          unconnected, when the provider does not fit, when the overlap
+     *          is empty, or when a read fails.
      */
     void retrieveValuesFromProvider() override
     {
@@ -154,6 +179,10 @@ public:
 
     // ── JSON persistence ──────────────────────────────────────────────────
 
+    /*!
+     * \brief Reads the base fields and, when present, the "values" rows.
+     * \param[in] j JSON object as written by writeData().
+     */
     void readData(const nlohmann::json &j) override
     {
         AbstractComponentDataItem::readData(j);
@@ -161,6 +190,10 @@ public:
             assignRows(j["values"]);
     }
 
+    /*!
+     * \brief Writes the base fields and the rows.
+     * \return The base object with "values" holding the array of rows.
+     */
     [[nodiscard]] nlohmann::json writeData() const override
     {
         auto j = AbstractComponentDataItem::writeData();
@@ -169,6 +202,8 @@ public:
     }
 
 private:
+    //! The values as a JSON array of rows.
+    //! \return iLength() arrays of jLength() elements.
     [[nodiscard]] nlohmann::json rowsToJson() const
     {
         auto rows = nlohmann::json::array();
@@ -182,6 +217,14 @@ private:
         return rows;
     }
 
+    /*!
+     * \brief Replaces the values with a JSON array of rows.
+     * \details The column count is the first row's length; shorter rows
+     *          leave their missing elements as they were (the default where
+     *          the table grew), longer rows are cut. A non-array is ignored.
+     *          Fires no signal.
+     * \param[in] j The array of rows.
+     */
     void assignRows(const nlohmann::json &j)
     {
         if (!j.is_array())
@@ -195,13 +238,13 @@ private:
                 (*this)(i, jj) = j[i][jj].get<T>();
     }
 
-    Dimension *m_dimensionX;
-    Dimension *m_dimensionY;
+    Dimension *m_dimensionX; //!< Row axis (borrowed).
+    Dimension *m_dimensionY; //!< Column axis (borrowed).
 };
 
-using Input2DInt    = Input2D<int>;
-using Input2DDouble = Input2D<double>;
-using Input2DString = Input2D<std::string>;
+using Input2DInt    = Input2D<int>;         //!< 2-D input of \c int (DataKind::Int32).
+using Input2DDouble = Input2D<double>;      //!< 2-D input of \c double (DataKind::Float64).
+using Input2DString = Input2D<std::string>; //!< 2-D input of \c std::string (DataKind::String).
 
 extern template class HYDROCOUPLESDK_EXPORT Input2D<int>;
 extern template class HYDROCOUPLESDK_EXPORT Input2D<double>;
@@ -224,6 +267,16 @@ class Output2D
       public ComponentDataItem2D<T>
 {
 public:
+    /*!
+     * \brief Construct an output of \p lengthX by \p lengthY elements of \c T{}.
+     * \param id         Output identifier, unique within the component.
+     * \param dimensionX Row axis, dimension 0 (borrowed).
+     * \param dimensionY Column axis, dimension 1 (borrowed).
+     * \param lengthX    Row count.
+     * \param lengthY    Column count.
+     * \param valueDef   Value definition (borrowed; may be nullptr).
+     * \param mc         Producing component (borrowed; may be nullptr).
+     */
     Output2D(std::string_view id, Dimension *dimensionX, Dimension *dimensionY,
              int lengthX, int lengthY,
              ValueDefinition *valueDef, HydroCouple::IModelComponent *mc)
@@ -269,10 +322,16 @@ public:
 
     // ── IOutput ───────────────────────────────────────────────────────────
 
+    //! No-op: the component writes the storage in its own update().
     void updateValues() override {}
 
     // ── JSON persistence ──────────────────────────────────────────────────
 
+    /*!
+     * \brief Reads the base fields and, when present, the "values" rows.
+     * \details Same rules as Input2D: the first row sets the column count.
+     * \param[in] j JSON object as written by writeData().
+     */
     void readData(const nlohmann::json &j) override
     {
         AbstractComponentDataItem::readData(j);
@@ -288,6 +347,10 @@ public:
                 (*this)(i, jj) = rows[i][jj].get<T>();
     }
 
+    /*!
+     * \brief Writes the base fields and the rows.
+     * \return The base object with "values" holding the array of rows.
+     */
     [[nodiscard]] nlohmann::json writeData() const override
     {
         auto j = AbstractComponentDataItem::writeData();
@@ -304,13 +367,13 @@ public:
     }
 
 private:
-    Dimension *m_dimensionX;
-    Dimension *m_dimensionY;
+    Dimension *m_dimensionX; //!< Row axis (borrowed).
+    Dimension *m_dimensionY; //!< Column axis (borrowed).
 };
 
-using Output2DInt    = Output2D<int>;
-using Output2DDouble = Output2D<double>;
-using Output2DString = Output2D<std::string>;
+using Output2DInt    = Output2D<int>;         //!< 2-D output of \c int (DataKind::Int32).
+using Output2DDouble = Output2D<double>;      //!< 2-D output of \c double (DataKind::Float64).
+using Output2DString = Output2D<std::string>; //!< 2-D output of \c std::string (DataKind::String).
 
 extern template class HYDROCOUPLESDK_EXPORT Output2D<int>;
 extern template class HYDROCOUPLESDK_EXPORT Output2D<double>;

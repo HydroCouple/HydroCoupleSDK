@@ -29,6 +29,24 @@ namespace HydroCouple::SDK {
 
 /*!
  * \brief Concrete 1-D typed argument.
+ *
+ * \details The usual argument of a component: a list of numbers or strings,
+ * for example a coefficient per reach or a single scalar setting stored as a
+ * list of length 1. Its shape is { length() } and length() follows the last
+ * value read, so an argument constructed with length 0 takes the size of
+ * whatever the host gives it.
+ *
+ * Accepted input (initialize() with a string):
+ * | Input type | \p value holds |
+ * | --- | --- |
+ * | String, JSON (and XML, YAML, MEMORY_OBJECT, which are read the same way) | JSON text: an array such as `[1.5, 2.5]`, or an object with a "values" array |
+ * | File | a path or `file:` URI of a file holding that JSON; saveData() writes back to it |
+ * | URL | a URI read through IO::readReference(); a remote one is recorded as sourceUri() |
+ *
+ * Elements are converted with nlohmann::json::get of \c T, so a string in a
+ * double argument fails with the library's type_error text. Every successful
+ * read fires value-changed for the whole array.
+ *
  * \tparam T  Element type (int, double, std::string, …).
  */
 template <typename T>
@@ -40,6 +58,11 @@ public:
     /*!
      * \brief Construct with identifier, dimension, initial length, value
      *        definition, and owning component.
+     * \param id       Argument identifier, unique within the component.
+     * \param dimension The argument's single axis (borrowed).
+     * \param length   Initial element count; elements start at \c T{}.
+     * \param valueDef Value definition (borrowed; may be nullptr).
+     * \param mc       Owning component (borrowed; may be nullptr).
      */
     Argument1D(std::string_view id, Dimension *dimension, int length,
                ValueDefinition *valueDef, HydroCouple::IModelComponent *mc)
@@ -86,6 +109,7 @@ public:
 
     /*!
      * \brief Returns the values as a JSON array string.
+     * \return Compact JSON, for example `[1.5,2.5]`.
      */
     [[nodiscard]] std::string toString() const override
     {
@@ -95,6 +119,10 @@ public:
     /*!
      * \brief Writes the current values back to the input file, if one was
      *        set via File/URL initialization.
+     * \details Only a local path or \c file: reference is remembered; a
+     *          remote URL is not written back. The file is overwritten with
+     *          toString() (a bare array, even if it held an object before).
+     *          A file that cannot be opened is skipped silently.
      */
     void saveData() override
     {
@@ -107,6 +135,17 @@ public:
 
     /*!
      * \brief Parses \p value according to \p argType and stores the result.
+     * \details See the class table for the accepted forms. On failure the
+     *          message is the reader's (`Cannot open file: PATH`, or
+     *          `No resolver is installed for 'SCHEME' URIs, so this argument cannot read URI`),
+     *          the JSON parser's, or "Expected JSON array of values"; the
+     *          previous values are kept unless the failure came from an
+     *          element conversion part way through.
+     * \param[in]  value   JSON text, or a path or URI for File and URL.
+     * \param[in]  argType Representation of \p value.
+     * \param[out] message Failure description.
+     * \return true when the values were read; currentArgumentInputType()
+     *         is then \p argType (URL for a payload that named a URI).
      */
     [[nodiscard]] bool initialize(const std::string &value,
                                   HydroCouple::IArgument::ArgumentInputType argType,
@@ -158,6 +197,15 @@ public:
 
     /*!
      * \brief Copies values from another 1-D data item of the same DataKind.
+     * \details Resizes to the source's length and reads all of it with
+     *          getValuesInto(). Refuses a source that is not rank 1 ("Source
+     *          data item is not one-dimensional") or of another kind ("Source
+     *          data kind mismatch"). Fires no value-changed signal and leaves
+     *          currentArgumentInputType() unchanged.
+     * \param[in]  componentDataItem Source item, for example another
+     *                               component's output.
+     * \param[out] message           Failure description.
+     * \return true when the values were copied.
      */
     [[nodiscard]] bool initialize(const HydroCouple::IComponentDataItem &componentDataItem,
                                   std::string &message) override
@@ -187,6 +235,13 @@ public:
 
     // ── JSON persistence ──────────────────────────────────────────────────
 
+    /*!
+     * \brief Reads the base fields and, when present, the "values" array.
+     * \details A "values" entry that is not an array is ignored without a
+     *          message; an element of the wrong type throws
+     *          nlohmann::json::type_error.
+     * \param[in] j JSON object as written by writeData().
+     */
     void readData(const nlohmann::json &j) override
     {
         AbstractArgument::readData(j);
@@ -197,6 +252,10 @@ public:
         }
     }
 
+    /*!
+     * \brief Writes the base fields and the values.
+     * \return The AbstractArgument object with "values" holding the array.
+     */
     [[nodiscard]] nlohmann::json writeData() const override
     {
         auto j = AbstractArgument::writeData();
@@ -205,6 +264,8 @@ public:
     }
 
 private:
+    //! The values as a JSON array.
+    //! \return One JSON element per value, in index order.
     [[nodiscard]] nlohmann::json valuesToJson() const
     {
         auto arr = nlohmann::json::array();
@@ -213,6 +274,17 @@ private:
         return arr;
     }
 
+    /*!
+     * \brief Replaces the values with the elements of a JSON array.
+     * \details Resizes to the array's size and fires value-changed for the
+     *          whole array.
+     * \param[in]  j       The array.
+     * \param[out] message "Expected JSON array of values" when \p j is not
+     *                     an array.
+     * \return false when \p j is not an array.
+     * \exception nlohmann::json::type_error when an element does not convert
+     *            to \c T (the array has already been resized).
+     */
     bool assignValues(const nlohmann::json &j, std::string &message)
     {
         if (!j.is_array())
@@ -227,13 +299,13 @@ private:
         return true;
     }
 
-    Dimension             *m_dimension;
-    std::filesystem::path  m_inputFile;
+    Dimension             *m_dimension; //!< The argument's axis (borrowed).
+    std::filesystem::path  m_inputFile; //!< Local file saveData() writes to, or empty.
 };
 
-using Argument1DInt    = Argument1D<int>;
-using Argument1DDouble = Argument1D<double>;
-using Argument1DString = Argument1D<std::string>;
+using Argument1DInt    = Argument1D<int>;         //!< 1-D argument of \c int (DataKind::Int32).
+using Argument1DDouble = Argument1D<double>;      //!< 1-D argument of \c double (DataKind::Float64).
+using Argument1DString = Argument1D<std::string>; //!< 1-D argument of \c std::string (DataKind::String, host only).
 
 extern template class HYDROCOUPLESDK_EXPORT Argument1D<int>;
 extern template class HYDROCOUPLESDK_EXPORT Argument1D<double>;

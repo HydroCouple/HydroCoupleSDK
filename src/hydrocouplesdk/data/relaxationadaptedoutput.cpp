@@ -20,6 +20,11 @@ using Differentiation::itemOf;
 using Differentiation::readDifferential;
 using Differentiation::writeDifferential;
 
+//! Stores \p text in \p message (when given) and returns false, for the
+//! refusals of vjp() and jvp().
+//! \param[out] message Optional failure description.
+//! \param[in]  text    The reason.
+//! \return false.
 bool refuse(std::string *message, const std::string &text)
 {
     if (message)
@@ -34,6 +39,8 @@ bool refuse(std::string *message, const std::string &text)
 constexpr std::string_view kTokenTag = "relaxation-v1";
 
 //! The next space-separated field of \p rest, or an empty view at the end.
+//! \param[in,out] rest Remaining token text; advanced past the field.
+//! \return The field (a view into the token).
 std::string_view nextField(std::string_view &rest)
 {
     const size_t start = rest.find_first_not_of(' ');
@@ -49,6 +56,12 @@ std::string_view nextField(std::string_view &rest)
     return field;
 }
 
+//! Parses a whole field as an integer with std::from_chars.
+//! \tparam T Integer type.
+//! \param[in]  field Text to parse.
+//! \param[out] value Parsed value.
+//! \param[in]  base  Number base (16 for the value bit patterns).
+//! \return true when the field is non-empty and parsed completely.
 template <typename T>
 bool parseField(std::string_view field, T &value, int base = 10)
 {

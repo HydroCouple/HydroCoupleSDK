@@ -137,8 +137,9 @@ double TimeSeriesArgumentDouble::intervalLength() const
 
 HydroCouple::Temporal::TimeInterpolation TimeSeriesArgumentDouble::timeInterpolation() const
 {
-    // getInterpolatedValue() interpolates linearly and holds the ends, so
-    // these defaults describe what the argument actually does.
+    // The declared defaults are Linear and HoldLast. getInterpolatedValue()
+    // interpolates linearly but returns NaN outside the record, so the
+    // HoldLast default does not describe what the argument does.
     return m_timeInterpolation;
 }
 
@@ -228,6 +229,10 @@ namespace
      *
      * `std::filesystem::path("https://host/flow.csv?token=x").extension()`
      * is ".csv?token=x", so a served series would be parsed as JSON.
+     *
+     * \param[in] reference A path or URI.
+     * \return The extension of the part before the first "?" or "#",
+     *         with its dot (".csv"), or empty.
      */
     std::string referenceExtension(const std::string &reference)
     {

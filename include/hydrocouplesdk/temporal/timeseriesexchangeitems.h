@@ -41,6 +41,11 @@ using namespace HydroCouple::Temporal;
  * step to local storage when the provider is itself a time-series item of
  * matching DataKind and element count.
  *
+ * The input records history: every retrieve adds a row, whether or not the
+ * provider has a new time step, so retrieving twice at one provider time
+ * stores that time twice. The time dimension is the first entry of the
+ * dimension list; give it the id "time" so that its role is Time.
+ *
  * \tparam T Scalar value type (int, double, std::string, …).
  */
 template <typename T>
@@ -53,6 +58,13 @@ public:
     /*!
      * \brief Construct with identifier, dimensions (time axis first),
      *        value definition, and owning component.
+     * \details Declares TimeInterpolation::None and TimeExtrapolation::Refuse.
+     * \param id             Input identifier, unique within the component.
+     * \param dimensions     Time axis first, then the element axis if any
+     *                       (borrowed; the list is copied).
+     * \param valueDef       Value definition (borrowed; may be nullptr).
+     * \param modelComponent Owning component (borrowed; may be nullptr).
+     * \param elementSize    Values per time step.
      */
     TimeSeriesInput(std::string_view id,
                     const std::vector<HydroCouple::SDK::Dimension *> &dimensions,
@@ -75,46 +87,65 @@ public:
 
     // ── ITimeSeriesComponentDataItem ─────────────────────────────────────
 
+    //! The instant of a time step.
+    //! \param[in] timeIndex Zero-based time step.
+    //! \return The recorded IDateTime (non-owning), or nullptr out of range.
     [[nodiscard]] const IDateTime *time(int64_t timeIndex) const override
     {
         return TimeSeriesComponentDataItem<T>::time(timeIndex);
     }
 
+    //! Number of recorded time steps.
+    //! \return shape()[0].
     [[nodiscard]] int64_t timeCount() const override
     {
         return TimeSeriesComponentDataItem<T>::timeCount();
     }
 
+    //! All recorded instants as Julian days.
+    //! \return A span valid until the next time step is added.
     [[nodiscard]] std::span<const double> times() const override
     {
         return TimeSeriesComponentDataItem<T>::times();
     }
 
+    //! The first-to-last span of the recorded instants.
+    //! \return A pointer owned by the item and replaced by every addTimeStep().
     [[nodiscard]] ITimeSpan *timeSpan() const override
     {
         return TimeSeriesComponentDataItem<T>::timeSpan();
     }
 
+    //! The time axis: the first dimension given at construction.
+    //! \return That dimension (borrowed), or nullptr when the list was empty.
     [[nodiscard]] HydroCouple::IDimension *timeDimension() const override
     {
         return m_timeDim;
     }
 
+    //! What each value's time coordinate refers to.
+    //! \return The declared kind; Unknown unless setTimeKind() was called.
     [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
     {
         return TimeSeriesComponentDataItem<T>::timeKind();
     }
 
+    //! Declared interval length in days.
+    //! \return 0 unless setTimeKind() declared one.
     [[nodiscard]] double intervalLength() const override
     {
         return TimeSeriesComponentDataItem<T>::intervalLength();
     }
 
+    //! Declared interpolation policy (None from the constructor).
+    //! \return The policy.
     [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
     {
         return TimeSeriesComponentDataItem<T>::timeInterpolation();
     }
 
+    //! Declared extrapolation policy (Refuse from the constructor).
+    //! \return The policy.
     [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
     {
         return TimeSeriesComponentDataItem<T>::timeExtrapolation();
@@ -159,6 +190,14 @@ public:
     /*!
      * \brief Accepts any time-series provider of the same DataKind and
      *        element count.
+     * \details The provider must implement ITimeSeriesComponentDataItem and
+     *          have shape { times, elementSize() }. Temporal declarations are
+     *          not compared here.
+     * \param[in]  provider Candidate output.
+     * \param[out] message  "Provider is null", "Provider is not a
+     *                      time-series data item", "Provider data kind
+     *                      mismatch" or "Provider element count mismatch".
+     * \return true when the provider fits.
      */
     [[nodiscard]] bool canConsume(HydroCouple::IOutput *provider,
                                   std::string &message) const override
@@ -192,6 +231,11 @@ public:
 
     /*!
      * \brief Appends the provider's most recent time step to local storage.
+     * \details Reads row timeCount() - 1 of the provider, appends it with the
+     *          provider's Julian day (a new TimeData named "Time") and fires
+     *          value-changed for the new row. Returns without a change when
+     *          unconnected, when the provider does not fit or holds no time
+     *          step, or when the read fails.
      */
     void retrieveValuesFromProvider() override
     {
@@ -230,12 +274,12 @@ public:
     void applyData() override {}
 
 private:
-    HydroCouple::SDK::Dimension *m_timeDim;
+    HydroCouple::SDK::Dimension *m_timeDim; //!< Time axis (borrowed; may be nullptr).
 };
 
-using TimeSeriesInputInt    = TimeSeriesInput<int>;
-using TimeSeriesInputDouble = TimeSeriesInput<double>;
-using TimeSeriesInputString = TimeSeriesInput<std::string>;
+using TimeSeriesInputInt    = TimeSeriesInput<int>;         //!< Time-series input of \c int.
+using TimeSeriesInputDouble = TimeSeriesInput<double>;      //!< Time-series input of \c double.
+using TimeSeriesInputString = TimeSeriesInput<std::string>; //!< Time-series input of \c std::string.
 
 extern template class HYDROCOUPLESDK_EXPORT TimeSeriesInput<int>;
 extern template class HYDROCOUPLESDK_EXPORT TimeSeriesInput<double>;
@@ -250,6 +294,12 @@ extern template class HYDROCOUPLESDK_EXPORT TimeSeriesInput<std::string>;
  * Provides time-varying data to consumer components. Model components
  * append time steps via addTimeStep() (or override updateValues()).
  *
+ * It holds every recorded time step and serves them by index; it declares
+ * TimeInterpolation::None and TimeExtrapolation::Refuse because it never
+ * computes a value between or beyond its instants. A consumer that needs a
+ * value at its own time wires a Temporal::TemporalInterpolationAdaptedOutput
+ * (offering "temporal_interpolation", single-column Float64 series only).
+ *
  * \tparam T Scalar value type (int, double, std::string, …).
  */
 template <typename T>
@@ -262,6 +312,13 @@ public:
     /*!
      * \brief Construct with identifier, dimensions (time axis first),
      *        value definition, and owning component.
+     * \details Declares TimeInterpolation::None and TimeExtrapolation::Refuse.
+     * \param id             Output identifier, unique within the component.
+     * \param dimensions     Time axis first, then the element axis if any
+     *                       (borrowed; the list is copied).
+     * \param valueDef       Value definition (borrowed; may be nullptr).
+     * \param modelComponent Producing component (borrowed; may be nullptr).
+     * \param elementSize    Values per time step.
      */
     TimeSeriesOutput(std::string_view id,
                      const std::vector<HydroCouple::SDK::Dimension *> &dimensions,
@@ -283,46 +340,65 @@ public:
 
     // ── ITimeSeriesComponentDataItem ─────────────────────────────────────
 
+    //! The instant of a time step.
+    //! \param[in] timeIndex Zero-based time step.
+    //! \return The recorded IDateTime (non-owning), or nullptr out of range.
     [[nodiscard]] const IDateTime *time(int64_t timeIndex) const override
     {
         return TimeSeriesComponentDataItem<T>::time(timeIndex);
     }
 
+    //! Number of recorded time steps.
+    //! \return shape()[0].
     [[nodiscard]] int64_t timeCount() const override
     {
         return TimeSeriesComponentDataItem<T>::timeCount();
     }
 
+    //! All recorded instants as Julian days.
+    //! \return A span valid until the next time step is added.
     [[nodiscard]] std::span<const double> times() const override
     {
         return TimeSeriesComponentDataItem<T>::times();
     }
 
+    //! The first-to-last span of the recorded instants.
+    //! \return A pointer owned by the item and replaced by every addTimeStep().
     [[nodiscard]] ITimeSpan *timeSpan() const override
     {
         return TimeSeriesComponentDataItem<T>::timeSpan();
     }
 
+    //! The time axis: the first dimension given at construction.
+    //! \return That dimension (borrowed), or nullptr when the list was empty.
     [[nodiscard]] HydroCouple::IDimension *timeDimension() const override
     {
         return m_timeDim;
     }
 
+    //! What each value's time coordinate refers to.
+    //! \return The declared kind; Unknown unless setTimeKind() was called.
     [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
     {
         return TimeSeriesComponentDataItem<T>::timeKind();
     }
 
+    //! Declared interval length in days.
+    //! \return 0 unless setTimeKind() declared one.
     [[nodiscard]] double intervalLength() const override
     {
         return TimeSeriesComponentDataItem<T>::intervalLength();
     }
 
+    //! Declared interpolation policy (None from the constructor).
+    //! \return The policy.
     [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
     {
         return TimeSeriesComponentDataItem<T>::timeInterpolation();
     }
 
+    //! Declared extrapolation policy (Refuse from the constructor).
+    //! \return The policy.
     [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
     {
         return TimeSeriesComponentDataItem<T>::timeExtrapolation();
@@ -364,15 +440,16 @@ public:
 
     // ── IOutput ───────────────────────────────────────────────────────────
 
+    //! No-op: the component appends time steps itself.
     void updateValues() override {}
 
 private:
-    HydroCouple::SDK::Dimension *m_timeDim;
+    HydroCouple::SDK::Dimension *m_timeDim; //!< Time axis (borrowed; may be nullptr).
 };
 
-using TimeSeriesOutputInt    = TimeSeriesOutput<int>;
-using TimeSeriesOutputDouble = TimeSeriesOutput<double>;
-using TimeSeriesOutputString = TimeSeriesOutput<std::string>;
+using TimeSeriesOutputInt    = TimeSeriesOutput<int>;         //!< Time-series output of \c int.
+using TimeSeriesOutputDouble = TimeSeriesOutput<double>;      //!< Time-series output of \c double.
+using TimeSeriesOutputString = TimeSeriesOutput<std::string>; //!< Time-series output of \c std::string.
 
 extern template class HYDROCOUPLESDK_EXPORT TimeSeriesOutput<int>;
 extern template class HYDROCOUPLESDK_EXPORT TimeSeriesOutput<double>;

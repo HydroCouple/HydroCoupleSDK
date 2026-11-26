@@ -39,6 +39,24 @@ namespace detail {
 /*!
  * \brief Validates a hyperslab selection against an item's shape and a
  *        caller buffer. Returns an empty string on success.
+ * \details Checks, in this order, and returns the first failure: the
+ *          buffer's kind equals \p itemKind ("kind mismatch"); the buffer is
+ *          in MemorySpace::Host ("unsupported memory space"); \p start and
+ *          \p count each have one entry per dimension of \p itemShape
+ *          ("selection rank mismatch"); every start and count is
+ *          non-negative and start + count stays within the extent
+ *          ("selection out of bounds"); the buffer's element count (the
+ *          product of its shape, 1 for rank 0) equals the product of
+ *          \p count ("buffer element count mismatch"). The buffer's rank
+ *          and itemSizeBytes are not checked, so a destination may have any
+ *          rank whose element count matches.
+ * \param[in] itemShape Extent of each dimension of the item's storage.
+ * \param[in] buffer    The caller's descriptor.
+ * \param[in] itemKind  The item's element kind.
+ * \param[in] start     First index of the selection per dimension.
+ * \param[in] count     Extent of the selection per dimension.
+ * \return An empty string when the selection is valid, otherwise one of
+ *         the messages above.
  */
 inline std::string validateSelection(std::span<const int64_t> itemShape,
                                      const BufferDescriptor &buffer,
@@ -67,6 +85,13 @@ inline std::string validateSelection(std::span<const int64_t> itemShape,
 /*!
  * \brief Builds a C-contiguous host BufferDescriptor over \p data with the
  *        given element kind and shape. \p shape must outlive the descriptor.
+ * \details itemSizeBytes is left 0 (the kind's natural size), strides null.
+ *          Helpers::makeContiguous() in hydrocouplehelpers.h builds the same
+ *          descriptor with itemSizeBytes set.
+ * \param[in] data  Base address of the caller's buffer (not owned).
+ * \param[in] kind  Element kind of the buffer.
+ * \param[in] shape Extent per dimension; the descriptor points into it.
+ * \return The descriptor.
  */
 inline BufferDescriptor hostDescriptor(void *data, DataKind kind,
                                        std::span<const int64_t> shape)
@@ -83,6 +108,10 @@ inline BufferDescriptor hostDescriptor(void *data, DataKind kind,
 
 /*!
  * \brief Row-major linear offset of \p index within \p shape.
+ * \param[in] shape Extent per dimension.
+ * \param[in] index Element index per dimension; same length as \p shape,
+ *                  not range-checked.
+ * \return The element offset (not bytes) in C order.
  */
 inline int64_t linearOffset(std::span<const int64_t> shape,
                             std::span<const int64_t> index)
@@ -97,9 +126,27 @@ inline int64_t linearOffset(std::span<const int64_t> shape,
  * \brief Copies a hyperslab between row-major contiguous item storage and a
  *        caller buffer, in either direction.
  *
+ * \details Validates with validateSelection() first and copies nothing on
+ *          failure. A rank-0 item copies its single element. An empty
+ *          selection (a zero count) succeeds without touching memory. A
+ *          C-contiguous buffer is filled one innermost run at a time with
+ *          std::copy; a strided buffer is addressed element by element
+ *          through Helpers::byteOffset(). The buffer is indexed by the
+ *          selection's own coordinates, so element (0, ..., 0) of the
+ *          buffer receives element \p start of the item.
+ *
  * \tparam T        Element type; DataKindOf<T>::kind must equal the item's kind.
  * \tparam ToBuffer true = read from storage into the buffer;
  *                  false = write from the buffer into storage.
+ * \param[in,out] storage   The item's row-major storage, at least the
+ *                          product of \p itemShape elements.
+ * \param[in]     itemShape Extent of each dimension of the storage.
+ * \param[in]     buffer    The caller's descriptor (host memory).
+ * \param[in]     start     First index of the selection per dimension.
+ * \param[in]     count     Extent of the selection per dimension.
+ * \param[out]    message   Receives the validation message on failure; may
+ *                          be nullptr.
+ * \return true when the selection was copied.
  */
 template <typename T, bool ToBuffer>
 bool copyHyperslab(T *storage,
@@ -189,6 +236,17 @@ bool copyHyperslab(T *storage,
 /*!
  * \brief Copies a hyperslab from row-major contiguous \p storage into the
  *        caller-described \p destination buffer. Returns true on success.
+ * \details The common implementation of getValuesInto() for every typed
+ *          SDK item; see copyHyperslab() for the copy and validateSelection()
+ *          for the failures.
+ * \tparam T Element type of the storage.
+ * \param[in]  storage     The item's row-major storage (read only).
+ * \param[in]  itemShape   Extent of each dimension of the storage.
+ * \param[in]  destination The caller's buffer descriptor.
+ * \param[in]  start       First index of the selection per dimension.
+ * \param[in]  count       Extent of the selection per dimension.
+ * \param[out] message     Failure description; may be nullptr.
+ * \return true when the values were copied.
  */
 template <typename T>
 bool readHyperslab(const T *storage,
@@ -205,6 +263,16 @@ bool readHyperslab(const T *storage,
 /*!
  * \brief Copies a hyperslab from the caller-described \p source buffer into
  *        row-major contiguous \p storage. Returns true on success.
+ * \details The common implementation of setValuesFrom() for every typed
+ *          SDK item; it fires no signal (the item does that after success).
+ * \tparam T Element type of the storage.
+ * \param[in,out] storage   The item's row-major storage.
+ * \param[in]     itemShape Extent of each dimension of the storage.
+ * \param[in]     source    The caller's buffer descriptor.
+ * \param[in]     start     First index of the selection per dimension.
+ * \param[in]     count     Extent of the selection per dimension.
+ * \param[out]    message   Failure description; may be nullptr.
+ * \return true when the values were stored.
  */
 template <typename T>
 bool writeHyperslab(T *storage,

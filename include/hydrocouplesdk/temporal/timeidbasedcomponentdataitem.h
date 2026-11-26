@@ -30,6 +30,18 @@ namespace HydroCouple::SDK::Temporal {
 
 /*!
  * \brief Typed time-and-identifier data item ({ time, id } storage).
+ *
+ * \details A record of one value per identifier per time step: a station
+ * series, a per-reach history. It is a plain data item, neither input nor
+ * output, for a record that other code reads through the data plane (a
+ * state item, a store behind a TimeSliceOutput). The element count per time
+ * step is the number of identifiers, fixed
+ * at construction; append rows with addTimeStep() (one value per
+ * identifier). It owns its two dimensions: "time" (role Time) and
+ * "identifiers" (role Entity). The temporal declarations default to
+ * Unknown; set them with setTimeKind(), setTimeInterpolation() and
+ * setTimeExtrapolation().
+ *
  * \tparam T Element type (int, double, std::string).
  */
 template <typename T>
@@ -38,11 +50,16 @@ class TimeIdBasedComponentDataItem
       public TimeSeriesComponentDataItem<T>,
       public virtual HydroCouple::Temporal::ITimeIdBasedComponentDataItem
 {
+    //! The storage mixin, named for the delegating overrides below.
     using TimeStore = TimeSeriesComponentDataItem<T>;
 
 public:
     /*!
      * \brief Construct with fixed identifiers (dimension 1 order).
+     * \param id          Item identifier.
+     * \param identifiers Entity identifiers; their count is the element size.
+     * \param valueDef    Value definition (borrowed; may be nullptr).
+     * \param mc          Owning component (borrowed; may be nullptr).
      */
     TimeIdBasedComponentDataItem(std::string_view id,
                                  std::vector<std::string> identifiers,
@@ -58,51 +75,71 @@ public:
     {
     }
 
+    //! Destroys the item and its dimensions.
     ~TimeIdBasedComponentDataItem() override = default;
 
     // ── ITimeSeriesComponentDataItem ──────────────────────────────────────
 
+    //! The instant of a time step.
+    //! \param[in] timeIndex Zero-based time step.
+    //! \return The recorded IDateTime (non-owning), or nullptr out of range.
     [[nodiscard]] const HydroCouple::Temporal::IDateTime *
     time(int64_t timeIndex) const override
     {
         return TimeStore::time(timeIndex);
     }
 
+    //! Number of recorded time steps.
+    //! \return shape()[0].
     [[nodiscard]] int64_t timeCount() const override
     {
         return TimeStore::timeCount();
     }
 
+    //! All recorded instants as Julian days.
+    //! \return A span valid until the next time step is added.
     [[nodiscard]] std::span<const double> times() const override
     {
         return TimeStore::times();
     }
 
+    //! The first-to-last span of the recorded instants.
+    //! \return A pointer owned by the item and replaced by every addTimeStep().
     [[nodiscard]] HydroCouple::Temporal::ITimeSpan *timeSpan() const override
     {
         return TimeStore::timeSpan();
     }
 
+    //! The time axis (dimension 0), owned by the item.
+    //! \return The member dimension "time".
     [[nodiscard]] HydroCouple::IDimension *timeDimension() const override
     {
         return const_cast<Dimension *>(&m_timeDimension);
     }
 
+    //! What each value's time coordinate refers to.
+    //! \return The declared kind; Unknown by default.
     [[nodiscard]] HydroCouple::Temporal::TimeKind timeKind() const override
     {
         return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeKind();
     }
 
+    //! Declared interval length in days.
+    //! \return 0 unless declared.
     [[nodiscard]] double intervalLength() const override
     {
         return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::intervalLength();
     }
 
+    //! Declared interpolation policy.
+    //! \return Unknown unless setTimeInterpolation() was called.
     [[nodiscard]] HydroCouple::Temporal::TimeInterpolation timeInterpolation() const override
     {
         return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeInterpolation();
     }
 
+    //! Declared extrapolation policy.
+    //! \return Unknown unless setTimeExtrapolation() was called.
     [[nodiscard]] HydroCouple::Temporal::TimeExtrapolation timeExtrapolation() const override
     {
         return HydroCouple::SDK::Temporal::TimeSeriesComponentDataItem<T>::timeExtrapolation();
@@ -110,11 +147,15 @@ public:
 
     // ── ITimeIdBasedComponentDataItem ─────────────────────────────────────
 
+    //! The entity identifiers, in dimension-1 order.
+    //! \return A copy of the list given at construction.
     [[nodiscard]] std::vector<std::string> identifiers() const override
     {
         return m_identifiers;
     }
 
+    //! The identifier axis (dimension 1), owned by the item.
+    //! \return The member dimension "identifiers".
     [[nodiscard]] HydroCouple::IDimension *identifierDimension() const override
     {
         return const_cast<Dimension *>(&m_identifierDimension);
@@ -154,13 +195,14 @@ public:
     }
 
 private:
-    std::vector<std::string> m_identifiers;
-    Dimension m_timeDimension;
-    Dimension m_identifierDimension;
+    std::vector<std::string> m_identifiers;   //!< Identifiers, fixed at construction.
+    Dimension m_timeDimension;                //!< Dimension 0: "time", role Time.
+    Dimension m_identifierDimension;          //!< Dimension 1: "identifiers", role Entity.
 };
 
-using TimeIdBasedComponentDataItemInt    = TimeIdBasedComponentDataItem<int>;
-using TimeIdBasedComponentDataItemDouble = TimeIdBasedComponentDataItem<double>;
+using TimeIdBasedComponentDataItemInt    = TimeIdBasedComponentDataItem<int>;    //!< Time-and-id item of \c int.
+using TimeIdBasedComponentDataItemDouble = TimeIdBasedComponentDataItem<double>; //!< Time-and-id item of \c double.
+//! Time-and-id item of \c std::string.
 using TimeIdBasedComponentDataItemString =
     TimeIdBasedComponentDataItem<std::string>;
 

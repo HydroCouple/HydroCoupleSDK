@@ -12,16 +12,20 @@
 
 namespace HydroCouple::SDK {
 
+/*!
+ * \brief Private state of a TimeSliceOutput.
+ */
 struct TimeSliceOutput::Impl
 {
-    HydroCouple::IComponentDataItem *source = nullptr;
-    int64_t                          timeIndex = 0;
+    HydroCouple::IComponentDataItem *source = nullptr; //!< Time-major source item (borrowed).
+    int64_t                          timeIndex = 0;    //!< Time level currently exposed.
 
-    std::vector<std::unique_ptr<Dimension>> dimensions;
-    std::unique_ptr<ValueDefinition>        valueDefinition;
+    std::vector<std::unique_ptr<Dimension>> dimensions;      //!< The slice's dimensions (owned).
+    std::unique_ptr<ValueDefinition>        valueDefinition; //!< The slice's unitless value definition (owned).
 
     /*!
      * Time levels available in the source (dimension 0).
+     * \return The source's extent in dimension 0, or 0 for a rank-0 source.
      */
     [[nodiscard]] int64_t timeCount() const
     {

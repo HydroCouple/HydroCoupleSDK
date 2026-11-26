@@ -35,6 +35,23 @@ namespace HydroCouple::SDK {
 
 /*!
  * \brief Concrete ID-keyed typed argument.
+ *
+ * \details For a value per named entity: a roughness per reach, an initial
+ * depth per node. The identifiers come from the value that is read, not from
+ * the component: initialize() replaces the identifier list with the one in
+ * the text.
+ *
+ * Accepted JSON (String, JSON and the other text types; File and URL read
+ * the named text first):
+ * | Form | Example | Identifier order |
+ * | --- | --- | --- |
+ * | Object of identifier to value | `{"nodeA": 1.5, "nodeB": 2.0}` | sorted by identifier (nlohmann::json objects are ordered maps) |
+ * | Parallel arrays | `{"identifiers": ["b", "a"], "values": [2, 1]}` | as listed |
+ *
+ * toString() always writes the object form, so the identifier order it
+ * shows is sorted; writeData() (and so serialize(JSON)) writes the parallel
+ * arrays and keeps the order.
+ *
  * \tparam T  Element type (int, double, std::string, …).
  */
 template <typename T>
@@ -47,6 +64,11 @@ public:
     /*!
      * \brief Construct with identifier, id list, identifier dimension,
      *        value definition, and owning component.
+     * \param id                  Argument identifier, unique within the component.
+     * \param identifiers         Initial entity identifiers; values start at \c T{}.
+     * \param identifierDimension The identifier axis, dimension 0 (borrowed).
+     * \param valueDef            Value definition (borrowed; may be nullptr).
+     * \param mc                  Owning component (borrowed; may be nullptr).
      */
     IdBasedArgument(std::string_view id,
                     const std::vector<std::string> &identifiers,
@@ -62,11 +84,15 @@ public:
 
     // ── IIdBasedComponentDataItem ────────────────────────────────────────
 
+    //! The entity identifiers, in dimension-0 order.
+    //! \return A copy of the list.
     [[nodiscard]] std::vector<std::string> identifiers() const override
     {
         return IdBasedComponentDataItem<T>::identifiers();
     }
 
+    //! The identifier axis.
+    //! \return The dimension given at construction (borrowed).
     [[nodiscard]] HydroCouple::IDimension *identifierDimension() const override
     {
         return m_identifierDimension;
@@ -109,6 +135,7 @@ public:
 
     /*!
      * \brief Returns the values as a JSON id→value object string.
+     * \return Compact JSON with keys in sorted order.
      */
     [[nodiscard]] std::string toString() const override
     {
@@ -118,6 +145,8 @@ public:
     /*!
      * \brief Writes the current values back to the input file, if one was
      *        set via File/URL initialization.
+     * \details Writes toString() (the object form) to the remembered local
+     *          file; a remote URL is not written back.
      */
     void saveData() override
     {
@@ -130,6 +159,13 @@ public:
 
     /*!
      * \brief Parses \p value according to \p argType and stores the result.
+     * \details Failures as for Argument1D::initialize(), plus "Expected JSON
+     *          object" and "identifiers/values must be arrays of equal
+     *          length". Fires value-changed for the whole item on success.
+     * \param[in]  value   JSON text, or a path or URI for File and URL.
+     * \param[in]  argType Representation of \p value.
+     * \param[out] message Failure description.
+     * \return true when the identifiers and values were read.
      */
     [[nodiscard]] bool initialize(const std::string &value,
                                   HydroCouple::IArgument::ArgumentInputType argType,
@@ -179,6 +215,14 @@ public:
     /*!
      * \brief Copies identifiers and values from another id-based data item
      *        of the same DataKind.
+     * \details Refuses a source that is not an IIdBasedComponentDataItem
+     *          ("Source data item is not id-based") or has another kind
+     *          ("Source data kind mismatch"). Takes the source's identifiers,
+     *          then reads its first length() values by position. Fires no
+     *          signal.
+     * \param[in]  componentDataItem Source item.
+     * \param[out] message           Failure description.
+     * \return true when the values were copied.
      */
     [[nodiscard]] bool initialize(const HydroCouple::IComponentDataItem &componentDataItem,
                                   std::string &message) override
@@ -210,6 +254,15 @@ public:
 
     // ── JSON persistence ──────────────────────────────────────────────────
 
+    /*!
+     * \brief Reads the base fields and, when "values" is present, the
+     *        identifiers and values.
+     * \details Expects the parallel-array form writeData() produces. A
+     *          document with "values" but no "identifiers" is read as the
+     *          object form, so its other keys become identifiers and a
+     *          non-convertible value throws nlohmann::json::type_error.
+     * \param[in] j JSON object as written by writeData().
+     */
     void readData(const nlohmann::json &j) override
     {
         AbstractArgument::readData(j);
@@ -221,6 +274,10 @@ public:
         }
     }
 
+    /*!
+     * \brief Writes the base fields, "identifiers" and "values".
+     * \return The AbstractArgument object with the two parallel arrays.
+     */
     [[nodiscard]] nlohmann::json writeData() const override
     {
         auto j = AbstractArgument::writeData();
@@ -233,6 +290,8 @@ public:
     }
 
 private:
+    //! The values as a JSON object keyed by identifier.
+    //! \return The object (keys sorted).
     [[nodiscard]] nlohmann::json valuesToJson() const
     {
         auto obj = nlohmann::json::object();
@@ -244,6 +303,10 @@ private:
 
     /*!
      * Accepts {"id": value, ...} or {"identifiers": [...], "values": [...]}.
+     * \param[in]  j       The JSON object.
+     * \param[out] message Why \p j was refused.
+     * \return false when \p j is not an object, or its arrays differ in length.
+     * \exception nlohmann::json::type_error when a value does not convert to \c T.
      */
     bool assignValues(const nlohmann::json &j, std::string &message)
     {
@@ -279,13 +342,13 @@ private:
         return true;
     }
 
-    Dimension             *m_identifierDimension;
-    std::filesystem::path  m_inputFile;
+    Dimension             *m_identifierDimension; //!< Identifier axis (borrowed).
+    std::filesystem::path  m_inputFile;           //!< Local file saveData() writes to, or empty.
 };
 
-using IdBasedArgumentInt    = IdBasedArgument<int>;
-using IdBasedArgumentDouble = IdBasedArgument<double>;
-using IdBasedArgumentString = IdBasedArgument<std::string>;
+using IdBasedArgumentInt    = IdBasedArgument<int>;         //!< Id-based argument of \c int.
+using IdBasedArgumentDouble = IdBasedArgument<double>;      //!< Id-based argument of \c double.
+using IdBasedArgumentString = IdBasedArgument<std::string>; //!< Id-based argument of \c std::string.
 
 extern template class HYDROCOUPLESDK_EXPORT IdBasedArgument<int>;
 extern template class HYDROCOUPLESDK_EXPORT IdBasedArgument<double>;

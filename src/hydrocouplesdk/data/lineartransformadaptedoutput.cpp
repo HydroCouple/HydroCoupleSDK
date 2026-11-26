@@ -127,6 +127,11 @@ using Differentiation::itemOf;
 using Differentiation::readDifferential;
 using Differentiation::writeDifferential;
 
+//! Stores \p text in \p message (when given) and returns false, for the
+//! refusals of vjp() and jvp().
+//! \param[out] message Optional failure description.
+//! \param[in]  text    The reason.
+//! \return false.
 bool refuse(std::string *message, const std::string &text)
 {
     if (message)

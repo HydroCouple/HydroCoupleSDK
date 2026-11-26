@@ -34,6 +34,13 @@ namespace HydroCouple::SDK {
 
 /*!
  * \brief Id-based input item: consumes values keyed by identifier.
+ *
+ * \details The input owns its identifier dimension (id "identifiers", role
+ * Entity). Matching is by position, not by name: value i of the provider
+ * lands on identifier i of this input, whatever the provider's identifiers
+ * are. A provider whose order differs needs a subclass that maps by name, or
+ * an adapted output that reorders.
+ *
  * \tparam T Element type (int, double, std::string).
  */
 template <typename T>
@@ -63,11 +70,15 @@ public:
 
     // ── IIdBasedComponentDataItem ─────────────────────────────────────────
 
+    //! The entity identifiers, in dimension-0 order.
+    //! \return A copy of the list.
     [[nodiscard]] std::vector<std::string> identifiers() const override
     {
         return IdBasedComponentDataItem<T>::identifiers();
     }
 
+    //! The identifier axis, owned by this item.
+    //! \return The member dimension (id "identifiers").
     [[nodiscard]] HydroCouple::IDimension *identifierDimension() const override
     {
         return const_cast<Dimension *>(&m_identifierDimension);
@@ -113,6 +124,13 @@ public:
     /*!
      * \brief Accepts a 1-D provider of the same DataKind carrying at least
      *        as many values as this input has identifiers.
+     * \details The provider need not be id-based, and its identifiers are
+     *          not compared.
+     * \param[in]  provider Candidate output.
+     * \param[out] message  "provider is null", "provider DataKind differs"
+     *                      or "provider must be 1-D with at least N values";
+     *                      cleared on success.
+     * \return true when the provider fits.
      */
     [[nodiscard]] bool canConsume(HydroCouple::IOutput *provider,
                                   std::string &message) const override
@@ -143,6 +161,9 @@ public:
 
     /*!
      * \brief Pulls the provider's leading length() values by position.
+     * \details Fires no value-changed signal (unlike Input1D) and ignores a
+     *          failed read, which happens when the provider has shrunk below
+     *          length().
      */
     void retrieveValuesFromProvider() override
     {
@@ -162,14 +183,20 @@ public:
         (void)p->getValuesInto(destination, start, shapeArray, nullptr);
     }
 
+    //! Empty hook; override to apply the values to the model.
     void applyData() override {}
 
 private:
-    Dimension m_identifierDimension;
+    Dimension m_identifierDimension; //!< Identifier axis ("identifiers", role Entity).
 };
 
 /*!
  * \brief Id-based output item: produces values keyed by identifier.
+ *
+ * \details Owns its identifier dimension (id "identifiers", role Entity).
+ * The component writes values by identifier with valueAt() or by position
+ * with operator[] or setValuesFrom(); consumers read them by position.
+ *
  * \tparam T Element type (int, double, std::string).
  */
 template <typename T>
@@ -181,6 +208,11 @@ class IdBasedOutput
 public:
     /*!
      * \brief Construct with identifiers (one value slot per id).
+     * \param[in] id          Item identifier.
+     * \param[in] identifiers Entity identifiers (dimension 0 order); values
+     *                        start at \c T{}.
+     * \param[in] valueDef    Value definition (borrowed).
+     * \param[in] mc          Producing component (borrowed; may be nullptr).
      */
     IdBasedOutput(std::string_view id,
                   const std::vector<std::string> &identifiers,
@@ -195,11 +227,15 @@ public:
 
     // ── IIdBasedComponentDataItem ─────────────────────────────────────────
 
+    //! The entity identifiers, in dimension-0 order.
+    //! \return A copy of the list.
     [[nodiscard]] std::vector<std::string> identifiers() const override
     {
         return IdBasedComponentDataItem<T>::identifiers();
     }
 
+    //! The identifier axis, owned by this item.
+    //! \return The member dimension (id "identifiers").
     [[nodiscard]] HydroCouple::IDimension *identifierDimension() const override
     {
         return const_cast<Dimension *>(&m_identifierDimension);
@@ -248,15 +284,15 @@ public:
     void updateValues() override {}
 
 private:
-    Dimension m_identifierDimension;
+    Dimension m_identifierDimension; //!< Identifier axis ("identifiers", role Entity).
 };
 
-using IdBasedInputInt     = IdBasedInput<int>;
-using IdBasedInputDouble  = IdBasedInput<double>;
-using IdBasedInputString  = IdBasedInput<std::string>;
-using IdBasedOutputInt    = IdBasedOutput<int>;
-using IdBasedOutputDouble = IdBasedOutput<double>;
-using IdBasedOutputString = IdBasedOutput<std::string>;
+using IdBasedInputInt     = IdBasedInput<int>;          //!< Id-based input of \c int.
+using IdBasedInputDouble  = IdBasedInput<double>;       //!< Id-based input of \c double.
+using IdBasedInputString  = IdBasedInput<std::string>;  //!< Id-based input of \c std::string.
+using IdBasedOutputInt    = IdBasedOutput<int>;         //!< Id-based output of \c int.
+using IdBasedOutputDouble = IdBasedOutput<double>;      //!< Id-based output of \c double.
+using IdBasedOutputString = IdBasedOutput<std::string>; //!< Id-based output of \c std::string.
 
 extern template class HYDROCOUPLESDK_EXPORT IdBasedInput<int>;
 extern template class HYDROCOUPLESDK_EXPORT IdBasedInput<double>;

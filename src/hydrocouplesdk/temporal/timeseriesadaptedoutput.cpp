@@ -82,7 +82,9 @@ bool TimeSeriesAdaptedOutput<T>::setValuesFrom(const BufferDescriptor &,
 }
 
 // Explicit template instantiations
+//! Explicit instantiation of TimeSeriesAdaptedOutput for `int`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesAdaptedOutput<int>;
+//! Explicit instantiation of TimeSeriesAdaptedOutput for `double`, compiled into and exported from the library.
 template class HYDROCOUPLESDK_EXPORT TimeSeriesAdaptedOutput<double>;
 
 } // namespace HydroCouple::SDK::Temporal

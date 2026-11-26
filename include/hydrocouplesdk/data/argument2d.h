@@ -30,6 +30,14 @@ namespace HydroCouple::SDK {
 
 /*!
  * \brief Concrete 2-D typed argument (row-major storage).
+ *
+ * \details A table of values, for example a coefficient per (layer, cell).
+ * Its shape is { iLength(), jLength() }, rows first. The text form is a JSON
+ * array of rows, `[[1, 2, 3], [4, 5, 6]]`, every row the same length; an
+ * object with a "values" key holding that array is also accepted. The input
+ * types are read as for Argument1D: File and URL read the named text,
+ * everything else is parsed as JSON.
+ *
  * \tparam T  Element type (int, double, std::string, …).
  */
 template <typename T>
@@ -41,6 +49,13 @@ public:
     /*!
      * \brief Construct with identifier, dimensions, initial extents, value
      *        definition, and owning component.
+     * \param id         Argument identifier, unique within the component.
+     * \param dimensionX Row axis, dimension 0 (borrowed).
+     * \param dimensionY Column axis, dimension 1 (borrowed).
+     * \param lengthX    Initial row count.
+     * \param lengthY    Initial column count.
+     * \param valueDef   Value definition (borrowed; may be nullptr).
+     * \param mc         Owning component (borrowed; may be nullptr).
      */
     Argument2D(std::string_view id,
                Dimension *dimensionX, Dimension *dimensionY,
@@ -90,6 +105,7 @@ public:
 
     /*!
      * \brief Returns the values as a JSON array-of-arrays string (rows).
+     * \return Compact JSON, one inner array per row.
      */
     [[nodiscard]] std::string toString() const override
     {
@@ -99,6 +115,8 @@ public:
     /*!
      * \brief Writes the current values back to the input file, if one was
      *        set via File/URL initialization.
+     * \details Only a local file is remembered; it is overwritten with
+     *          toString(). A file that cannot be opened is skipped silently.
      */
     void saveData() override
     {
@@ -111,6 +129,14 @@ public:
 
     /*!
      * \brief Parses \p value according to \p argType and stores the result.
+     * \details Failures as for Argument1D::initialize(), plus "Expected JSON
+     *          array of row arrays" and "Rows must be arrays of equal length"
+     *          (checked before anything is changed). The column count is the
+     *          length of the first row; an empty array gives a 0 x 0 table.
+     * \param[in]  value   JSON text, or a path or URI for File and URL.
+     * \param[in]  argType Representation of \p value.
+     * \param[out] message Failure description.
+     * \return true when the values were read.
      */
     [[nodiscard]] bool initialize(const std::string &value,
                                   HydroCouple::IArgument::ArgumentInputType argType,
@@ -162,6 +188,13 @@ public:
 
     /*!
      * \brief Copies values from another 2-D data item of the same DataKind.
+     * \details Resizes to the source's shape and reads all of it. Refuses a
+     *          source that is not rank 2 ("Source data item is not
+     *          two-dimensional") or of another kind ("Source data kind
+     *          mismatch"). Fires no signal.
+     * \param[in]  componentDataItem Source item.
+     * \param[out] message           Failure description.
+     * \return true when the values were copied.
      */
     [[nodiscard]] bool initialize(const HydroCouple::IComponentDataItem &componentDataItem,
                                   std::string &message) override
@@ -191,6 +224,12 @@ public:
 
     // ── JSON persistence ──────────────────────────────────────────────────
 
+    /*!
+     * \brief Reads the base fields and, when present, the "values" rows.
+     * \details A "values" entry that is not a rectangular array of rows is
+     *          ignored without a message.
+     * \param[in] j JSON object as written by writeData().
+     */
     void readData(const nlohmann::json &j) override
     {
         AbstractArgument::readData(j);
@@ -201,6 +240,10 @@ public:
         }
     }
 
+    /*!
+     * \brief Writes the base fields and the rows.
+     * \return The AbstractArgument object with "values" holding the rows.
+     */
     [[nodiscard]] nlohmann::json writeData() const override
     {
         auto j = AbstractArgument::writeData();
@@ -209,6 +252,8 @@ public:
     }
 
 private:
+    //! The values as a JSON array of rows.
+    //! \return iLength() arrays of jLength() elements.
     [[nodiscard]] nlohmann::json valuesToJson() const
     {
         auto rows = nlohmann::json::array();
@@ -222,6 +267,15 @@ private:
         return rows;
     }
 
+    /*!
+     * \brief Replaces the values with a rectangular JSON array of rows.
+     * \details Fires value-changed for the whole table on success.
+     * \param[in]  j       The array of rows.
+     * \param[out] message Why \p j was refused.
+     * \return false when \p j is not an array of equal-length row arrays.
+     * \exception nlohmann::json::type_error when an element does not convert
+     *            to \c T (the table has already been resized).
+     */
     bool assignValues(const nlohmann::json &j, std::string &message)
     {
         if (!j.is_array())
@@ -248,14 +302,14 @@ private:
         return true;
     }
 
-    Dimension             *m_dimensionX;
-    Dimension             *m_dimensionY;
-    std::filesystem::path  m_inputFile;
+    Dimension             *m_dimensionX; //!< Row axis (borrowed).
+    Dimension             *m_dimensionY; //!< Column axis (borrowed).
+    std::filesystem::path  m_inputFile;  //!< Local file saveData() writes to, or empty.
 };
 
-using Argument2DInt    = Argument2D<int>;
-using Argument2DDouble = Argument2D<double>;
-using Argument2DString = Argument2D<std::string>;
+using Argument2DInt    = Argument2D<int>;         //!< 2-D argument of \c int (DataKind::Int32).
+using Argument2DDouble = Argument2D<double>;      //!< 2-D argument of \c double (DataKind::Float64).
+using Argument2DString = Argument2D<std::string>; //!< 2-D argument of \c std::string (DataKind::String, host only).
 
 extern template class HYDROCOUPLESDK_EXPORT Argument2D<int>;
 extern template class HYDROCOUPLESDK_EXPORT Argument2D<double>;

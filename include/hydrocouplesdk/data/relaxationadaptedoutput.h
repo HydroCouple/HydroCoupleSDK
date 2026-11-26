@@ -49,6 +49,22 @@ namespace HydroCouple::SDK {
  * state — the values, bit for bit, and so whether there is a history — so it
  * can be restored by another process and releasing it frees nothing. A
  * token whose values do not fit the adaptee's shape is refused.
+ *
+ * \details In formulas, with \f$\lambda\f$ the relaxation factor, refresh
+ * \f$k\f$ computes \f[ y^{(k)}_i = (1-\lambda)\,y^{(k-1)}_i + \lambda\,x^{(k)}_i, \f]
+ * and with \f$t = \bar{y}_{\mathrm{out}} + \bar{y}_{\mathrm{state}}\f$ the
+ * adjoint of a blending refresh is
+ * \f[ \bar{x} = \lambda\,t, \qquad \bar{y}^{(k-1)} = (1-\lambda)\,t, \qquad
+ *     \bar{\lambda} = \sum_i t_i\,\bigl(x^{(k)}_i - y^{(k-1)}_i\bigr). \f]
+ *
+ * Argument (an Argument1DDouble of length 1):
+ * | Id | Default | Meaning |
+ * | --- | --- | --- |
+ * | `relaxation_factor` | 1 | \f$\lambda\f$, unitless. 1 passes the adaptee through, 0 freezes the first values, values between damp. Not range-checked. |
+ *
+ * Every refresh blends once, so the result depends on how many refreshes the
+ * host makes per exchange. AbstractAdaptedOutput::updateValues(query) on a
+ * parent adapter refreshes this one twice (two blends).
  */
 class HYDROCOUPLESDK_EXPORT RelaxationAdaptedOutput
     : public AbstractAdaptedOutput,
@@ -57,6 +73,7 @@ class HYDROCOUPLESDK_EXPORT RelaxationAdaptedOutput
 {
 public:
     /*!
+     * \brief Builds the adapter with relaxation factor 1 and no history.
      * \param id       Instance identifier.
      * \param adaptee  Rank-1 Double output being adapted (borrowed).
      * \param factory  Creating factory. Registration with the adaptee is the
@@ -66,6 +83,7 @@ public:
                             HydroCouple::IOutput *adaptee,
                             HydroCouple::IAdaptedOutputFactory *factory);
 
+    //! Destroys the adapter and deregisters it from its adaptee.
     ~RelaxationAdaptedOutput() override = default;
 
     // ── IAdaptedOutput ────────────────────────────────────────────────────
@@ -75,25 +93,55 @@ public:
 
     //! Blends the adaptee's current values into the running state, with
     //! the relaxation factor's current value.
+    //! \details When the adaptee is gone, not rank 1, or refuses the read,
+    //! the values stay and nothing is emitted (and there is then no refresh
+    //! to differentiate). When the stored values' length differs from the
+    //! adaptee's (the first refresh, or a shape change), the adaptee passes
+    //! through. Ends by firing value-changed and refreshing the children.
     void refresh() override;
 
     //! Delegates to refresh().
     void updateValues() override;
 
     //! The adapter itself: its previous values are its state.
+    //! \return A one-element vector holding this adapter.
     [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *> states() const override;
 
     // ── v2 typed hyperslab data plane ─────────────────────────────────────
 
+    /*!
+     * \brief The adaptee's current shape.
+     * \return The adaptee's shape(), or an empty vector when detached.
+     */
     [[nodiscard]] std::vector<int64_t> shape() const override;
+    /*!
+     * \brief The element type of the relaxed values.
+     * \return Always DataKind::Float64.
+     */
     [[nodiscard]] DataKind dataKind() const override;
 
+    /*!
+     * \brief Copies a hyperslab of the relaxed values.
+     * \details Fails with `RelaxationAdaptedOutput "<id>" has no values;
+     *          initialize() has not run` while the adapter holds no values;
+     *          otherwise follows AbstractComponentDataItem::getValuesInto().
+     * \param[in]  destination Host Float64 buffer receiving the values.
+     * \param[in]  start       First index (one entry).
+     * \param[in]  count       Number of values (one entry).
+     * \param[out] message     Failure description; may be nullptr.
+     * \return true when the values were copied.
+     */
     [[nodiscard]] bool getValuesInto(const BufferDescriptor &destination,
                                      std::span<const int64_t> start,
                                      std::span<const int64_t> count,
                                      std::string *message = nullptr) const override;
 
     //! Always fails — adapted outputs are read-only.
+    //! \param[in]  source  Ignored.
+    //! \param[in]  start   Ignored.
+    //! \param[in]  count   Ignored.
+    //! \param[out] message Receives "RelaxationAdaptedOutput is read-only".
+    //! \return false.
     [[nodiscard]] bool setValuesFrom(const BufferDescriptor &source,
                                      std::span<const int64_t> start,
                                      std::span<const int64_t> count,
@@ -102,39 +150,89 @@ public:
     // ── IDifferentiableAdaptedOutput ──────────────────────────────────────
 
     //! The relaxation factor.
+    //! \return The relaxation_factor argument (owned by the adapter).
     [[nodiscard]] std::vector<HydroCouple::IArgument *>
     differentiableArguments() const override;
     //! The adapter itself (StateBefore / StateAfter).
+    //! \return The same list as states().
     [[nodiscard]] std::vector<HydroCouple::IComponentDataItem *>
     differentiableStates() const override;
     //! Seeds: this (Output, StateAfter). Results: adaptee (Input), this
     //! (StateBefore), the relaxation factor (Argument).
+    //! \details Linearized at the most recent refresh; refused before one and
+    //! after restoreState() ("has no refresh to differentiate"). The Output
+    //! and StateAfter seeds add. For a passthrough refresh the adaptee's
+    //! cotangent is the seed and the others are zero.
+    //! \param[in] seeds   Cotangents of this adapter (Output and/or StateAfter).
+    //! \param[in] results Buffers to overwrite (whole-item Float64).
+    //! \param[out] message Failure description; may be nullptr.
+    //! \return true on success.
     [[nodiscard]] bool vjp(HydroCouple::DifferentialSet seeds,
                            HydroCouple::DifferentialSet results,
                            std::string *message = nullptr) override;
     //! Seeds: adaptee (Input), this (StateBefore), the relaxation factor
     //! (Argument). Results: this (Output and/or StateAfter).
+    //! \details Both result roles receive the same tangent. Same refusals as vjp().
+    //! \param[in] seeds   Tangents; absent ones are zero.
+    //! \param[in] results Buffers to overwrite (whole-item Float64).
+    //! \param[out] message Failure description; may be nullptr.
+    //! \return true on success.
     [[nodiscard]] bool jvp(HydroCouple::DifferentialSet seeds,
                            HydroCouple::DifferentialSet results,
                            std::string *message = nullptr) override;
 
     // ── ICheckpointableAdaptedOutput ──────────────────────────────────────
 
+    /*!
+     * \brief Saves the current values as a self-contained token.
+     * \details The token is the text "relaxation-v1", the value count and
+     *          each value's IEEE-754 bit pattern as 16 hexadecimal digits,
+     *          separated by spaces. It is exact for every double, independent
+     *          of locale, and can be restored by another process. An adapter
+     *          with no history saves a count of 0.
+     * \param[out] token   Receives the token.
+     * \param[out] message Not changed.
+     * \return Always true.
+     */
     bool saveState(std::string &token, std::string &message) override;
+    /*!
+     * \brief Restores values saved by saveState().
+     * \details Refused, with the message prefixed by
+     *          `RelaxationAdaptedOutput "<id>": `, when the token does not
+     *          start with the tag and a count ("not a relaxation token"),
+     *          when a non-zero count differs from the adaptee's current
+     *          length ("the token holds N values but the adaptee has a
+     *          different shape"), when a value is missing or not hexadecimal
+     *          ("truncated or malformed token"), or when text follows the
+     *          values ("trailing data in token"). A refused token changes
+     *          nothing. On success the values are replaced, nothing is
+     *          emitted, no child is refreshed, and the next vjp() or jvp() is
+     *          refused until a refresh.
+     * \param[in]  token   A token from saveState().
+     * \param[out] message Cleared on success; the reason on failure.
+     * \return true when the state was restored.
+     */
     bool restoreState(const std::string &token, std::string &message) override;
     //! The token is the state: nothing to free.
+    //! \param[in]  token   Ignored.
+    //! \param[out] message Cleared.
+    //! \return Always true.
     bool releaseState(const std::string &token, std::string &message) override;
 
 private:
+    //! Pulls the adaptee's rank-1 slab as Float64.
+    //! \param[out] into Resized to the adaptee's length and filled.
+    //! \return false when the adaptee is gone, not rank 1, or refuses the read.
     bool pullAdaptee(std::vector<double> &into) const;
 
-    Dimension m_argDimension{"scalar"};
+    Dimension m_argDimension{"scalar"}; //!< Length axis of the factor argument.
+    //! Unitless value definition of the factor argument.
     std::unique_ptr<Quantity> m_factorQuantity{
         Quantity::unitLess("Relaxation factor")};
 
-    Argument1DDouble m_relaxationFactor;
+    Argument1DDouble m_relaxationFactor; //!< Argument "relaxation_factor", read at every refresh.
 
-    std::vector<double> m_values;
+    std::vector<double> m_values;        //!< Relaxed values: the output and the carried state.
 
     // The linearization point of vjp()/jvp(): the most recent refresh.
     bool m_haveRefresh = false;      //!< false before the first, and after a restore

@@ -13,6 +13,10 @@ namespace HydroCouple::SDK {
 
 namespace {
 
+//! Whether \p item is a Float64 item of rank 1 (what the element-wise
+//! adapters accept).
+//! \param[in] item Item to test; nullptr gives false.
+//! \return true for a rank-1 Float64 item.
 bool isRankOneDouble(const HydroCouple::IComponentDataItem *item)
 {
     return item && item->dataKind() == HydroCouple::DataKind::Float64 &&
@@ -20,6 +24,8 @@ bool isRankOneDouble(const HydroCouple::IComponentDataItem *item)
 }
 
 //! A single-column Double time-series: {timeCount, 1} with a time axis.
+//! \param[in] provider Output to test; nullptr gives false.
+//! \return true for a Float64 ITimeSeriesComponentDataItem of shape {n, 1}.
 bool isSingleColumnTimeSeries(const HydroCouple::IOutput *provider)
 {
     if (!provider ||
