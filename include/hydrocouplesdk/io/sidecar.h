@@ -27,6 +27,16 @@
  * All utilities are inline (header-only) so the typed argument templates
  * can resolve references inside their own initialize() paths, where
  * storage resizing is available.
+ *
+ * ModelInitializer::serialize() writes sidecars when a sidecar directory is
+ * set (ModelInitializer::setSidecarDirectory()), and
+ * ModelInitializer::initialize() reads them for any payload isSidecarRef()
+ * recognizes. The \c byteOrder key is always written as "little" and is
+ * not read back: the file holds the writing machine's native byte order,
+ * and the reader copies the bytes without conversion, so a sidecar is
+ * portable only between machines of the same byte order.
+ *
+ * \threadsafety Free functions over caller-owned data; no shared state.
  */
 
 #ifndef HYDROCOUPLESDK_IO_SIDECAR_H
@@ -47,7 +57,9 @@
 namespace HydroCouple::SDK::IO {
 
 /*!
- * \brief Parsed form of an \c \@ref sidecar reference object.
+ * \brief Parsed form of an \@ref sidecar reference object.
+ *
+ * Plain value type filled by parseSidecarRef().
  */
 struct SidecarRef
 {
@@ -57,6 +69,8 @@ struct SidecarRef
 
     /*!
      * \brief Number of elements described by \c shape.
+     *
+     * \return The product of the extents; 1 for an empty shape.
      */
     [[nodiscard]] int64_t elementCount() const noexcept
     {
@@ -69,6 +83,11 @@ struct SidecarRef
 
 /*!
  * \brief Canonical DataKind name used in reference objects.
+ *
+ * \param[in] kind Element kind.
+ * \return "Float64", "Float32", "Int64", "UInt64", "Int32", "UInt32",
+ *         "Int16", "UInt16", "Int8", "UInt8" or "Boolean"; "Unknown" for
+ *         String, Opaque and any other kind.
  */
 [[nodiscard]] inline const char *sidecarKindName(DataKind kind) noexcept
 {
@@ -91,6 +110,9 @@ struct SidecarRef
 
 /*!
  * \brief Inverse of sidecarKindName().
+ *
+ * \param[in] name Kind spelling, matched exactly.
+ * \return The kind, or DataKind::Unknown for any other text.
  */
 [[nodiscard]] inline DataKind sidecarKindFromName(const std::string &name) noexcept
 {
@@ -109,8 +131,14 @@ struct SidecarRef
 }
 
 /*!
- * \brief True when \p payload is (or wraps under "values") an \c \@ref
+ * \brief True when \p payload is (or wraps under "values") an \@ref
  *        reference object.
+ *
+ * Checks only for the key; parseSidecarRef() validates the rest.
+ *
+ * \param[in] payload One argument payload.
+ * \return True for an object with an "\@ref" key, or an object whose
+ *         "values" member is such an object.
  */
 [[nodiscard]] inline bool isSidecarRef(const nlohmann::json &payload) noexcept
 {
@@ -123,9 +151,21 @@ struct SidecarRef
 
 /*!
  * \brief Parses a reference object (unwrapping "values" when present).
+ *
+ * Call only on a payload isSidecarRef() accepted. A "kind" that is not a
+ * string, or a "shape" holding non-integers, makes nlohmann::json throw
+ * \c nlohmann::json::type_error. ModelInitializer::initialize() lets it
+ * propagate; ModelInitializer::initializeFromJsonText() and
+ * ModelInitializer::initializeFromFile() catch it and report it as a
+ * "JSON parse error" (or, for a YAML document, "YAML parse error") message.
+ *
  * \param[in]  payload Reference JSON.
- * \param[out] ref     Parsed reference.
- * \param[out] message Failure description when returning false.
+ * \param[out] ref     Parsed reference; the path is stored as written
+ *                     (the caller resolves a relative one).
+ * \param[out] message "Sidecar reference must carry \"\@ref\", \"kind\",
+ *                     and \"shape\"" or "Sidecar reference has unknown kind
+ *                     \"\<kind\>\"" when returning false; cleared on success.
+ * \return False when a required key is missing or the kind is unknown.
  */
 [[nodiscard]] inline bool parseSidecarRef(const nlohmann::json &payload,
                                           SidecarRef &ref,
@@ -161,11 +201,19 @@ struct SidecarRef
  *
  * The bytes are pulled through getValuesInto() into one staging buffer and
  * written in a single stream write — bulk data never enters a JSON DOM.
+ * An existing file is overwritten.
  *
- * \param[in]  item        Source item (fixed-width numeric kind).
+ * \param[in]  item        Source item (fixed-width numeric kind, host
+ *                         values).
  * \param[in]  sidecarPath Destination file; parents created.
- * \param[out] refOut      The reference object to embed in the document.
- * \param[out] message     Failure description when returning false.
+ * \param[out] refOut      The reference object to embed in the document:
+ *                         "\@ref" (file name), "kind", "shape" and
+ *                         "byteOrder" ("little").
+ * \param[out] message     Failure description when returning false
+ *                         ("Sidecar export requires a fixed-width
+ *                         DataKind", the item's read error, or a stream
+ *                         error naming the file); cleared on success.
+ * \return True when the file was written.
  */
 [[nodiscard]] inline bool writeSidecar(
     const HydroCouple::IComponentDataItem &item,
@@ -226,9 +274,15 @@ struct SidecarRef
 /*!
  * \brief Reads a sidecar file into an owned byte buffer, validating its
  *        size against the reference's kind and shape.
+ *
  * \param[in]  ref     Parsed reference (path must already be resolved).
  * \param[out] bytes   The file contents.
- * \param[out] message Failure description when returning false.
+ * \param[out] message Failure description when returning false ("Cannot
+ *                     open sidecar '\<path\>'", "Sidecar '\<path\>' holds N
+ *                     bytes but kind/shape describe M", or a stream
+ *                     error); cleared on success.
+ * \return True when the file size equals element size times element count
+ *         and the whole file was read.
  */
 [[nodiscard]] inline bool readSidecarBytes(const SidecarRef &ref,
                                            std::vector<std::byte> &bytes,

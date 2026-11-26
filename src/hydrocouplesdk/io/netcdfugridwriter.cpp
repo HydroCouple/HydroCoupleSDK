@@ -15,10 +15,16 @@ namespace HydroCouple::SDK::IO {
 
 namespace {
 
-constexpr long long kFillValue    = -1;
-constexpr int       kDeflateLevel = 4;
+constexpr long long kFillValue    = -1; //!< Connectivity padding value.
+constexpr int       kDeflateLevel = 4;  //!< Field variable deflate level.
 
-/*! Evaluates a NetCDF call, capturing nc_strerror on failure. */
+/*!
+ * Evaluates a NetCDF call, capturing nc_strerror on failure.
+ *
+ * On a status other than NC_NOERR, sets \p errorOut to the call's source
+ * text followed by the NetCDF message and returns \p failCode from the
+ * enclosing function.
+ */
 #define HC_NC_CHECK(call, errorOut, failCode)                                \
     do                                                                       \
     {                                                                        \
@@ -33,44 +39,62 @@ constexpr int       kDeflateLevel = 4;
 
 } // namespace
 
+/*!
+ * \brief Private state of a NetCDFUGRIDWriter: the mesh, the registered
+ *        fields, the vertical coordinate and the NetCDF ids.
+ */
 struct NetCDFUGRIDWriter::Impl
 {
+    /*!
+     * \brief One registered time-varying field.
+     */
     struct Field
     {
-        std::string  itemId;
-        MeshLocation location = MeshLocation::Node;
-        std::string  units;
-        std::string  standardName;
-        int          varId = -1;
+        std::string  itemId;       //!< FieldSlice::itemId to match; also the variable name.
+        MeshLocation location = MeshLocation::Node; //!< Mesh location of the values.
+        std::string  units;        //!< CF units attribute ("" writes none).
+        std::string  standardName; //!< CF standard_name attribute ("" writes none).
+        int          varId = -1;   //!< NetCDF variable id after initialize().
         int64_t      count = 0; //!< Values per time level.
     };
 
-    std::filesystem::path path;
-    MeshDefinition        mesh;
-    std::vector<Field>    fields;
-    std::string           error;
+    std::filesystem::path path;   //!< Destination file.
+    MeshDefinition        mesh;   //!< Mesh written at initialize().
+    std::vector<Field>    fields; //!< Registered fields, in registration order.
+    std::string           error;  //!< Last failure message.
 
-    int    ncid       = -1;
-    int    timeDim    = -1;
-    int    timeVar    = -1;
-    size_t timeLevels = 0;
-    bool   open       = false;
+    int    ncid       = -1;    //!< NetCDF file id while open.
+    int    timeDim    = -1;    //!< Unlimited time dimension id.
+    int    timeVar    = -1;    //!< Time coordinate variable id.
+    size_t timeLevels = 0;     //!< Time levels written (counted before the write succeeds).
+    bool   open       = false; //!< Whether nc_create succeeded and nc_close has not run.
 
     //! CF vertical coordinate, when the file is a layered one.
     std::vector<double> interfaceSigma;
-    std::vector<double> depth;
-    std::vector<double> surface;
+    std::vector<double> depth;   //!< Bed depth per face, positive down.
+    std::vector<double> surface; //!< Surface elevation, faces values per time level.
 
+    /*!
+     * \brief Whether the file carries a sigma coordinate.
+     *
+     * \return True when at least two interfaces and a depth were given.
+     */
     [[nodiscard]] bool layered() const
     {
         return interfaceSigma.size() >= 2 && !depth.empty();
     }
 
     double firstTime = 0.0; //!< Time axis bounds for catalog().
-    double lastTime  = 0.0;
+    double lastTime  = 0.0; //!< Time of the last snapshot written.
 
     std::vector<double> staging; //!< Reused conversion buffer.
 
+    /*!
+     * \brief Number of mesh entities at a location.
+     *
+     * \param[in] location Node, edge or face.
+     * \return The node, edge or face count of the mesh.
+     */
     [[nodiscard]] int64_t locationCount(MeshLocation location) const noexcept
     {
         switch (location)
@@ -82,6 +106,12 @@ struct NetCDFUGRIDWriter::Impl
         return 0;
     }
 
+    /*!
+     * \brief UGRID spelling of a location, for the location attribute.
+     *
+     * \param[in] location Node, edge or face.
+     * \return "node", "edge" or "face".
+     */
     static const char *locationName(MeshLocation location) noexcept
     {
         switch (location)
@@ -95,7 +125,19 @@ struct NetCDFUGRIDWriter::Impl
 
     /*! Location-count dimension ids, created on demand. */
     int nodeDim = -1, edgeDim = -1, faceDim = -1;
+    /*!
+     * \var NetCDFUGRIDWriter::Impl::edgeDim
+     * \brief Edge-count dimension id; -1 when the mesh has no edges.
+     * \var NetCDFUGRIDWriter::Impl::faceDim
+     * \brief Face-count dimension id; -1 when the mesh has no faces.
+     */
 
+    /*!
+     * \brief Dimension id of a location's entity count.
+     *
+     * \param[in] location Node, edge or face.
+     * \return The dimension id; -1 when the mesh lacks that location.
+     */
     int locationDim(MeshLocation location) const noexcept
     {
         switch (location)

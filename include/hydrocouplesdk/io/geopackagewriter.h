@@ -24,7 +24,12 @@
  * (Db/Stmt/Transaction with rollback on error), prepared statements,
  * buffered inserts flushed in transactions (~5000 rows by default), and
  * \c PRAGMA synchronous=NORMAL. The SQLite C API is fully encapsulated
- * (pimpl); this header is installable without SQLite present.
+ * (pimpl); this header is installable without SQLite present, but the
+ * class is compiled into HydroCoupleSDK only when it is built with
+ * USE_GEOPACKAGE (macro HYDROCOUPLESDK_HAVE_GEOPACKAGE).
+ *
+ * The \c elapsed_time column holds Snapshot::time() as given (a Julian day
+ * by SDK convention), not seconds since the start.
  *
  * \threadsafety Driven exclusively by the IOThread (see IOutputWriter).
  */
@@ -49,6 +54,13 @@ namespace HydroCouple::SDK::IO {
  * description. Values of any fixed-width numeric DataKind are stored as
  * REAL; \c object_index is the element's index within its field (the mesh
  * node/face ordinal for mesh-located fields).
+ *
+ * \c variables.item_id is unique, so two items with the same id share one
+ * variable row. catalog() names the mesh \c meshName of the writer's
+ * MeshDefinition even when setMesh() was never called, so its entries then
+ * carry the default name "mesh".
+ *
+ * \threadsafety Driven exclusively by the IOThread (see IOutputWriter).
  */
 class HYDROCOUPLESDK_EXPORT GeoPackageWriter final : public IOutputWriter
 {
@@ -59,54 +71,103 @@ public:
      *                           initialize()).
      * \param[in] simulationName Row inserted into \c simulations.
      * \param[in] flushRowCount  Buffered-insert transaction size (tests may
-     *                           lower it; ≥ 1).
+     *                           lower it; ≥ 1). Values below 1 are stored
+     *                           as 1.
      */
     explicit GeoPackageWriter(std::filesystem::path path,
                               std::string simulationName = "simulation",
                               int flushRowCount = 5000);
 
+    //! Commits pending rows and closes the database (calls finalize()).
     ~GeoPackageWriter() override;
 
+    //! Deleted: the writer owns an SQLite connection.
     GeoPackageWriter(const GeoPackageWriter &)            = delete;
+    //! Deleted: the writer owns an SQLite connection.
     GeoPackageWriter &operator=(const GeoPackageWriter &) = delete;
 
     /*!
      * \brief Attaches a mesh whose nodes are written as a point feature
      *        layer (\c mesh_nodes) at initialize(). Optional.
+     *
+     * Only the node x and y coordinates are stored (srs_id -1, undefined
+     * Cartesian); faces, edges and elevations are not.
+     *
+     * \param[in] mesh Mesh, validated in initialize(); copied.
      */
     void setMesh(MeshDefinition mesh);
 
     /*!
      * \brief Pre-registers a variable with metadata (optional — unknown
      *        fields auto-register with empty metadata on first write).
+     *
+     * The \c variables row is inserted when the item first appears in a
+     * snapshot, so a field that never appears gets no row and no catalog
+     * entry. Calling it again for the same id before that replaces the
+     * metadata.
+     *
+     * \param[in] itemId      FieldSlice::itemId of the field.
+     * \param[in] units       Written to \c variables.units and the catalog.
+     * \param[in] description Written to \c variables.description and the
+     *                        catalog.
      */
     void addField(const std::string &itemId, const std::string &units = "",
                   const std::string &description = "");
 
     // ── IOutputWriter ─────────────────────────────────────────────────────
 
+    /*!
+     * \brief The writer name used in IOThread error messages.
+     *
+     * \return "geopackage".
+     */
     [[nodiscard]] std::string name() const override;
 
     /*!
      * \brief Creates the GeoPackage: conformance tables, SRS rows, result
      *        schema, simulation row, and the optional node feature layer.
-     * \return 0 on success; nonzero SQLite/validation error otherwise.
+     *
+     * An existing file at the path is deleted first. Sets the GeoPackage
+     * application id and user version 10300 (GeoPackage 1.3).
+     *
+     * \return 0 on success; nonzero SQLite/validation error otherwise: 30
+     *         the attached mesh fails MeshDefinition::validate(), 31 the
+     *         database cannot be opened, 32 the pragmas, 33 the conformance
+     *         tables, 34 the result tables, 35 the simulation row, 36 to 38
+     *         the node feature layer, 39 preparing the insert or beginning
+     *         the first transaction.
      */
     [[nodiscard]] int initialize() override;
 
     /*!
      * \brief Buffers one row per element of every field into
      *        \c result_timeseries (transactional flush by row count).
-     * \return 0 on success; nonzero on unsupported kinds or SQLite failure.
+     *
+     * \param[in] snapshot The time level to write.
+     * \return 0 on success; nonzero on unsupported kinds or SQLite failure:
+     *         40 inserting a \c variables row, 41 an unsupported kind, 42
+     *         inserting a value row, 43 committing a full transaction.
      */
     [[nodiscard]] int write(const Snapshot &snapshot) override;
 
     /*!
      * \brief Flushes pending rows, computes \c result_summary aggregates,
      *        and closes the database.
+     *
+     * \c result_summary gets one row per (simulation, variable) with the
+     * count, minimum, maximum and mean of every value written. Does nothing
+     * when no database is open.
+     *
+     * \return 0 on success; 44 when the last commit fails, 45 when the
+     *         summary fails. The database is closed in every case.
      */
     [[nodiscard]] int finalize() override;
 
+    /*!
+     * \brief Detail message of the last failure.
+     *
+     * \return The SQLite message, or a message naming the field.
+     */
     [[nodiscard]] std::string errorMessage() const override;
 
     /*!
@@ -116,11 +177,19 @@ public:
      * elapsed_time, value), so each entry records the { time, object }
      * shape observed while writing — a reader reconstructs the array from
      * it rather than inferring one from the table.
+     *
+     * \return Entries in order of first appearance with format
+     *         "geopackage", kind Float64, shape { levels, elements of the
+     *         first snapshot }, dimensions { "time", "object" }, the
+     *         addField() metadata, the mesh name (see the class
+     *         description) and the time bounds in units "julian_day".
      */
     [[nodiscard]] std::vector<ResultEntry> catalog() const override;
 
     /*!
      * \brief The destination path.
+     *
+     * \return The path given to the constructor.
      */
     [[nodiscard]] const std::filesystem::path &path() const noexcept;
 

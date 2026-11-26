@@ -14,6 +14,14 @@ namespace {
 /*!
  * Reads an optional string field; false (with a message) when present but
  * of the wrong type.
+ *
+ * \param[in]  object  JSON object holding the field.
+ * \param[in]  key     Field name.
+ * \param[in]  context Path of \p object used in the message ("metadata").
+ * \param[out] out     Receives the value; untouched when the field is
+ *                     absent or null.
+ * \param[out] message "\<context\>.\<key\> must be a string" on failure.
+ * \return False only when the field is present, not null, and not a string.
  */
 bool optionalString(const nlohmann::json &object, const char *key,
                     const std::string &context, std::string &out,
@@ -33,6 +41,14 @@ bool optionalString(const nlohmann::json &object, const char *key,
 /*!
  * Reads an optional object field into \p out; false when present but not
  * an object.
+ *
+ * \param[in]  object  JSON object holding the field.
+ * \param[in]  key     Field name.
+ * \param[in]  context Path of \p object used in the message.
+ * \param[out] out     Receives a copy of the object; untouched when the
+ *                     field is absent or null.
+ * \param[out] message "\<context\>.\<key\> must be an object" on failure.
+ * \return False only when the field is present, not null, and not an object.
  */
 bool optionalObject(const nlohmann::json &object, const char *key,
                     const std::string &context, nlohmann::json &out,
@@ -50,9 +66,20 @@ bool optionalObject(const nlohmann::json &object, const char *key,
 }
 
 /*!
- * Validates one \c @from payload. \p seen must hold every declared
+ * Validates one \@from payload. \p seen must hold every declared
  * component id — providers may be declared after their consumers, since
  * staging orders initialization, not the document.
+ *
+ * \param[in]  payload    The argument payload (an object carrying "\@from").
+ * \param[in]  context    Path used in messages
+ *                        ("components[\"id\"].arguments.\<argument\>").
+ * \param[in]  consumerId Id of the component that owns the argument.
+ * \param[in]  seen       Every component id declared in the document.
+ * \param[out] message    Names the first problem found.
+ * \return False when the payload has another key, the binding is not an
+ *         object, a key other than component, output or a null selector is
+ *         present, component or output is missing or empty, the provider is
+ *         undeclared, or the provider is the consumer.
  */
 bool validateBinding(const nlohmann::json &payload, const std::string &context,
                      const std::string &consumerId,

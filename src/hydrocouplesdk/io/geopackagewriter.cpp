@@ -23,7 +23,7 @@ namespace {
 
 /*! GeoPackage application id "GPKG" and 1.3 user version. */
 constexpr int32_t kApplicationId = 0x47504B47;
-constexpr int32_t kUserVersion   = 10300;
+constexpr int32_t kUserVersion   = 10300; //!< GeoPackage 1.3.0 as PRAGMA user_version.
 
 // ── RAII kit (engine pattern) ─────────────────────────────────────────────
 
@@ -85,6 +85,14 @@ struct Transaction
     }
 };
 
+/*!
+ * Runs one or more SQL statements.
+ *
+ * \param[in]  db    Open connection.
+ * \param[in]  sql   Statements separated by semicolons.
+ * \param[out] error The SQLite message on failure.
+ * \return False when sqlite3_exec fails.
+ */
 bool exec(sqlite3 *db, const char *sql, std::string &error)
 {
     char *sqliteError = nullptr;
@@ -122,44 +130,60 @@ std::vector<std::byte> gpkgPointBlob(int32_t srsId, double x, double y)
 
 // ── Impl ──────────────────────────────────────────────────────────────────
 
+/*!
+ * \brief Private state of a GeoPackageWriter: configuration, the SQLite
+ *        connection and statement, and what catalog() reports.
+ */
 struct GeoPackageWriter::Impl
 {
-    std::filesystem::path path;
-    std::string           simulationName;
-    int                   flushRowCount = 5000;
+    std::filesystem::path path;           //!< Destination .gpkg file.
+    std::string           simulationName; //!< Name of the simulations row.
+    int                   flushRowCount = 5000; //!< Rows per committed transaction (at least 1).
 
-    MeshDefinition mesh;
-    bool           hasMesh = false;
+    MeshDefinition mesh;          //!< Mesh for mesh_nodes; default-constructed when none was set.
+    bool           hasMesh = false; //!< Whether setMesh() was called.
 
+    /*!
+     * \brief Extent of one item, observed while writing.
+     */
     struct ObservedExtent
     {
-        int64_t timeLevels  = 0;
-        int64_t objectCount = 0;
-        DataKind kind = DataKind::Float64;
+        int64_t timeLevels  = 0; //!< Snapshots that carried the item.
+        int64_t objectCount = 0; //!< Elements in its first snapshot.
+        DataKind kind = DataKind::Float64; //!< Kind in its first snapshot (not reported; the catalog says Float64).
     };
 
+    /*!
+     * \brief Metadata and the variables row of one item.
+     */
     struct FieldMeta
     {
-        std::string units;
-        std::string description;
-        int64_t     variableId = -1;
+        std::string units;       //!< variables.units.
+        std::string description; //!< variables.description.
+        int64_t     variableId = -1; //!< variables.id; -1 until the row is inserted.
     };
-    std::map<std::string, FieldMeta> fields;
+    std::map<std::string, FieldMeta> fields; //!< Per item id, from addField() or first appearance.
 
-    std::string error;
-    DbPtr       db;
-    StmtPtr     insertStmt;
-    Transaction transaction;
-    int64_t     simulationId = -1;
-    int         pendingRows  = 0;
+    std::string error;           //!< Last failure message.
+    DbPtr       db;              //!< The connection.
+    StmtPtr     insertStmt;      //!< Prepared result_timeseries insert.
+    Transaction transaction;     //!< Open buffered-insert transaction.
+    int64_t     simulationId = -1; //!< simulations.id of this run.
+    int         pendingRows  = 0;  //!< Rows inserted since the last commit.
 
-    std::vector<std::string>                       itemOrder;
-    std::map<std::string, ObservedExtent>          extents;
-    bool   haveTimes = false;
-    double firstTime = 0.0;
-    double lastTime  = 0.0;
+    std::vector<std::string>                       itemOrder; //!< Item ids in order of first appearance.
+    std::map<std::string, ObservedExtent>          extents;   //!< Observed extent per item id.
+    bool   haveTimes = false; //!< Whether a snapshot has been written.
+    double firstTime = 0.0;   //!< Time of the first snapshot.
+    double lastTime  = 0.0;   //!< Time of the last snapshot.
 
-    /*! Returns (creating on demand) the variables row id for \p itemId. */
+    /*!
+     * Returns (creating on demand) the variables row id for \p itemId.
+     *
+     * \param[in]  itemId Item id; registered in #fields when unknown.
+     * \param[out] id     The variables row id.
+     * \return False when the insert fails (#error holds the SQLite message).
+     */
     bool variableId(const std::string &itemId, int64_t &id)
     {
         FieldMeta &meta = fields[itemId]; // auto-registers
@@ -192,7 +216,12 @@ struct GeoPackageWriter::Impl
         return true;
     }
 
-    /*! Commits the open insert transaction and begins a fresh one. */
+    /*!
+     * Commits the open insert transaction and begins a fresh one.
+     *
+     * \return False when the commit or the new BEGIN fails (#error holds the
+     *         SQLite message).
+     */
     bool rotateTransaction()
     {
         if (!transaction.commit())

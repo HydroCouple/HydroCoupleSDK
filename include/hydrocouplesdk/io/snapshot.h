@@ -13,6 +13,10 @@
  * BufferDescriptor), so the simulation may mutate its stores immediately
  * after capture. Snapshots are move-only; the deep copy at capture is the
  * only copy on the write path.
+ *
+ * Typical use, once per recorded time level on the simulation thread:
+ * construct a Snapshot with the time, capture() each recorded item, and
+ * hand it to IOThread::enqueue() by move.
  */
 
 #ifndef HYDROCOUPLESDK_IO_SNAPSHOT_H
@@ -36,13 +40,15 @@ namespace HydroCouple::SDK::IO {
  */
 struct HYDROCOUPLESDK_EXPORT FieldSlice
 {
-    std::string           itemId;  //!< IIdentity::id() of the source item.
-    DataKind              kind = DataKind::Unknown; //!< Element type.
-    std::vector<int64_t>  shape;   //!< Extent per dimension (row-major).
-    std::vector<std::byte> data;   //!< Owned contiguous value bytes.
+    std::string           itemId;  //!< IIdentity::id() of the source item; writers match fields by it.
+    DataKind              kind = DataKind::Unknown; //!< Element type (a fixed-width kind).
+    std::vector<int64_t>  shape;   //!< Extent per dimension (row-major), without a time dimension.
+    std::vector<std::byte> data;   //!< Owned contiguous value bytes: elementCount() times the kind's size.
 
     /*!
      * \brief Number of elements described by \c shape.
+     *
+     * \return The product of the extents; 1 for an empty shape (a scalar).
      */
     [[nodiscard]] int64_t elementCount() const noexcept
     {
@@ -54,7 +60,13 @@ struct HYDROCOUPLESDK_EXPORT FieldSlice
 
     /*!
      * \brief Typed read-only view of the owned bytes.
+     *
+     * No check is made that \p T matches \c kind; a mismatch reads the
+     * bytes as the wrong type.
+     *
      * \tparam T Element type; must match \c kind.
+     * \return Pointer to elementCount() values, valid while \c data is
+     *         unchanged.
      */
     template <typename T>
     [[nodiscard]] const T *values() const noexcept
@@ -77,23 +89,36 @@ public:
     /*!
      * \brief Construct an empty snapshot stamped with a time value.
      * \param[in] time Time level (Julian day by SDK convention; writers
-     *                 treat it as an opaque monotone coordinate).
+     *                 treat it as an opaque monotone coordinate). The CSV,
+     *                 GeoPackage, HDF5 and NetCDF writers store it as given;
+     *                 the HDF5 and NetCDF files label it "days since
+     *                 -4713-01-01" with the julian calendar.
      */
     explicit Snapshot(double time = 0.0);
 
+    //! Moves the time and the field slices; the source is left empty.
     Snapshot(Snapshot &&) noexcept            = default;
+    //! Move assignment. \return This snapshot.
     Snapshot &operator=(Snapshot &&) noexcept = default;
+    //! Deleted: a snapshot owns potentially large buffers and is moved, never copied.
     Snapshot(const Snapshot &)                = delete;
+    //! Deleted: see the deleted copy constructor.
     Snapshot &operator=(const Snapshot &)     = delete;
+    //! Releases the owned field buffers.
     ~Snapshot()                               = default;
 
     /*!
      * \brief The snapshot's time coordinate.
+     *
+     * \return The value given to the constructor.
      */
     [[nodiscard]] double time() const noexcept { return m_time; }
 
     /*!
      * \brief The captured field slices, in capture order.
+     *
+     * \return The slices added by capture(), captureGeometry() and
+     *         addField().
      */
     [[nodiscard]] const std::vector<FieldSlice> &fields() const noexcept
     {
@@ -108,8 +133,15 @@ public:
      * numeric/boolean DataKinds are supported (String and Opaque items
      * cannot be captured as raw bytes).
      *
-     * \param[in]  item    Source data item (host-resident values).
-     * \param[out] message Failure description when returning false.
+     * \param[in]  item    Source data item (host-resident values). Its
+     *                     id() becomes the slice's itemId; capturing two
+     *                     items with the same id in one snapshot appends
+     *                     both; the UGRID writers then use the first, the
+     *                     CSV and GeoPackage writers write both.
+     * \param[out] message Failure description when returning false
+     *                     ("Snapshot::capture: item '\<id\>' has a
+     *                     non-fixed-width DataKind ..." or the item's own
+     *                     read error); cleared on success.
      * \return true when the field was captured and appended.
      */
     bool capture(const HydroCouple::IComponentDataItem &item,
@@ -117,18 +149,56 @@ public:
 
     /*!
      * \brief Appends an already-materialized field slice (move).
+     *
+     * No validation: the caller guarantees that \c data holds
+     * elementCount() values of \c kind.
+     *
+     * \param[in] field The slice to append.
      */
     void addField(FieldSlice field);
-    //! Captures live layer interfaces once per shared vertical coordinate.
-    //! Hosts recording layered items call this at the same instant as capture().
+    /*!
+     * \brief Captures live layer interfaces once per shared vertical
+     *        coordinate.
+     *
+     * Hosts recording layered items call this at the same instant as
+     * capture(). For an item that implements Spatial::ILayering, appends a
+     * Float64 slice of shape { columns, layers + 1 } holding the vertical
+     * coordinate's interface elevations, under the reserved id
+     * verticalFieldId(). Items sharing one vertical coordinate share one
+     * slice: a second call finds it and appends nothing.
+     * RunRecorder::finishToFile() attaches that slice to each layered
+     * item's catalog entry and removes it from the result list.
+     *
+     * \param[in]  item    The item being recorded.
+     * \param[out] message Failure description when returning false
+     *                     ("layered item has no prepared vertical
+     *                     coordinate", "shared recorded vertical coordinate
+     *                     changed shape", "vertical interface shape
+     *                     mismatch", "nonfinite recorded interface
+     *                     elevation"); cleared on success.
+     * \return True when the item is not layered or its interfaces were
+     *         captured (or already were).
+     */
     bool captureGeometry(const HydroCouple::IComponentDataItem &item, std::string &message);
 
 private:
-    double                  m_time;
-    std::vector<FieldSlice> m_fields;
+    double                  m_time;   //!< Time coordinate given at construction.
+    std::vector<FieldSlice> m_fields; //!< Owned slices in capture order.
 };
 
-//! Stable reserved field identity shared by the recorder and capturing hosts.
+/*!
+ * \brief Stable reserved field identity shared by the recorder and
+ *        capturing hosts.
+ *
+ * The id is "__hc_interfaces_" followed by the lower-case hexadecimal
+ * bytes of "\<component id\>/\<output id\>", where the output is the first
+ * output of the item's component that shares the item's vertical
+ * coordinate (the item itself when it has no component).
+ *
+ * \param[in] item A recorded data item.
+ * \return The reserved id, or an empty string when \p item is not
+ *         layered or has no vertical coordinate.
+ */
 [[nodiscard]] HYDROCOUPLESDK_EXPORT std::string verticalFieldId(const HydroCouple::IComponentDataItem &item);
 } // namespace HydroCouple::SDK::IO
 

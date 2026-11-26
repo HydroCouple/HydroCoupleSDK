@@ -33,9 +33,16 @@ nlohmann::json resolvedArgument(const nlohmann::json &payload,
 
 namespace
 {
-    UriResolver *g_resolver = nullptr;
+    UriResolver *g_resolver = nullptr; //!< The installed resolver (non-owning).
 
-    //! Reads a local path whole, or says why it could not.
+    /*!
+     * \brief Reads a local path whole, or says why it could not.
+     *
+     * \param[in]  path     Local file path (binary read).
+     * \param[out] contents The file's bytes.
+     * \param[out] message  "Cannot open file: \<path\>" on failure.
+     * \return False when the file cannot be opened.
+     */
     bool readLocalFile(const std::string &path, std::string &contents,
                        std::string &message)
     {
@@ -59,6 +66,10 @@ namespace
      * Handles `file:///path`, `file://localhost/path` and the `file:/path`
      * form; a host other than localhost is somebody else's disk and is left
      * for a resolver to refuse.
+     *
+     * \param[in] uri A URI whose scheme is `file` (case-insensitive).
+     * \return The local path, or empty for another host or a `file://host`
+     *         with no path.
      */
     std::string filePathFromUri(const std::string &uri)
     {

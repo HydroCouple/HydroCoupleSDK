@@ -34,6 +34,8 @@ namespace {
  * and the reader that understands them does not care which container it is
  * reading from.
  */
+//! \return False with "result \"<item>\" names no mesh" when the entry
+//!         records no mesh; otherwise the result of readUGRIDMesh().
 bool readUGRIDMeshFor(const ResultEntry &entry,
                       const std::filesystem::path &path, MeshDefinition &mesh,
                       std::string &message)
@@ -57,6 +59,10 @@ bool readUGRIDMeshFor(const ResultEntry &entry,
  * absent: the SDK's own writer stores none, but a GeoPackage that has been
  * through another tool may carry one, and the header field exists so a
  * reader can step over what it does not need.
+ *
+ * \return False when the blob is not a GeoPackageBinary point (bad magic,
+ *         an envelope code above 4, too few bytes, or a WKB type other
+ *         than point).
  */
 bool decodeGeoPackagePoint(const void *blob, int bytes, double &x, double &y)
 {
@@ -92,6 +98,10 @@ bool decodeGeoPackagePoint(const void *blob, int bytes, double &x, double &y)
 
 /*!
  * Validates a hyperslab request against an entry and the destination.
+ *
+ * \param[out] elements Elements the selection covers.
+ * \return False for a rank mismatch, a selection outside the shape, a
+ *         destination of another kind, or a destination of another size.
  */
 bool validateRequest(const ResultEntry &entry,
                      std::span<const int64_t> start,
@@ -144,6 +154,9 @@ bool validateRequest(const ResultEntry &entry,
 /*!
  * Writes \p values (already in selection order) into a host destination,
  * converting from double to the destination's kind.
+ *
+ * \return False for a destination kind other than Float64, Float32, Int32
+ *         and Int64 (integers are truncated toward zero).
  */
 bool scatterDoubles(const std::vector<double> &values,
                     const BufferDescriptor &into, std::string &message)
@@ -236,6 +249,10 @@ void forEachSelected(const ResultEntry &entry,
  * a long-format file cannot answer a slab without a scan, so paying it
  * once beats paying it per query. CSV is the debug/interchange format;
  * HDF5 and NetCDF are the analysis formats.
+ *
+ * Rows with fewer than four fields are skipped; the \c index column is not
+ * read, so the values of an item must appear in row-major order, as
+ * CSVWriter writes them.
  */
 class CSVResultReader final : public IResultReader
 {
@@ -342,8 +359,8 @@ private:
         std::vector<double> values; //!< Row-major over the recorded shape.
     };
 
-    std::filesystem::path                 m_path;
-    std::map<std::string, ItemData>       m_items;
+    std::filesystem::path                 m_path;  //!< The opened file.
+    std::map<std::string, ItemData>       m_items; //!< Indexed rows per item id.
 };
 
 #ifdef HYDROCOUPLESDK_HAVE_HDF5
@@ -453,8 +470,8 @@ public:
         return readUGRIDMeshFor(entry, m_path, mesh, message);
     }
 private:
-    std::filesystem::path m_path;
-    hid_t                 m_file = -1;
+    std::filesystem::path m_path;      //!< The opened file.
+    hid_t                 m_file = -1; //!< HDF5 file handle, or negative.
 };
 
 #endif // HYDROCOUPLESDK_HAVE_HDF5
@@ -554,8 +571,8 @@ public:
         return readUGRIDMeshFor(entry, m_path, mesh, message);
     }
 private:
-    std::filesystem::path m_path;
-    int                   m_ncid = -1;
+    std::filesystem::path m_path;      //!< The opened file.
+    int                   m_ncid = -1; //!< NetCDF file id, or -1.
 };
 
 #endif // HYDROCOUPLESDK_HAVE_NETCDF
@@ -727,9 +744,9 @@ private:
     }
 
 
-    std::filesystem::path                     m_path;
-    sqlite3                                  *m_db = nullptr;
-    std::map<std::string, std::vector<double>> m_cache;
+    std::filesystem::path                     m_path;         //!< The opened file.
+    sqlite3                                  *m_db = nullptr; //!< Read-only connection.
+    std::map<std::string, std::vector<double>> m_cache;       //!< Whole variables already loaded, by variable name.
 };
 
 #endif // HYDROCOUPLESDK_HAVE_GEOPACKAGE

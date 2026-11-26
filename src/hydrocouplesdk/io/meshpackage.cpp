@@ -23,6 +23,13 @@ namespace HydroCouple::SDK::IO {
 namespace {
 using Json = nlohmann::json;
 
+/*!
+ * Meters per unit of a length unit spelling.
+ *
+ * \param[in] unit "m", "ft" or "us-survey-ft".
+ * \return 1, 0.3048 or 1200/3937.
+ * \throws std::invalid_argument for any other spelling.
+ */
 double scale(const std::string &unit)
 {
     if (unit == "m") return 1.0;
@@ -32,6 +39,12 @@ double scale(const std::string &unit)
                                 "'; use m, ft or us-survey-ft");
 }
 
+/*!
+ * Parses a whole token as a 64-bit integer.
+ *
+ * \throws std::invalid_argument "expected integer, got '...'" when the
+ *         token is not entirely an integer.
+ */
 int64_t integer(const std::string &text)
 {
     int64_t value = 0;
@@ -41,6 +54,13 @@ int64_t integer(const std::string &text)
     return value;
 }
 
+/*!
+ * Parses a whole token as a finite double.
+ *
+ * \throws std::invalid_argument "expected finite number, got '...'" for
+ *         trailing text or a non-finite value; std::stod's own exception
+ *         (message "stod") when the token does not start with a number.
+ */
 double number(const std::string &text)
 {
     size_t count = 0;
@@ -50,6 +70,14 @@ double number(const std::string &text)
     return value;
 }
 
+/*!
+ * Splits a source line into whitespace-separated tokens.
+ *
+ * Double quotes group a token (the quotes are dropped); ';' outside quotes
+ * ends the line.
+ *
+ * \throws std::invalid_argument "unterminated quoted token".
+ */
 std::vector<std::string> words(const std::string &line)
 {
     std::vector<std::string> result;
@@ -68,6 +96,10 @@ std::vector<std::string> words(const std::string &line)
 }
 
 // Stable content identity for reproducibility, not a security signature.
+/*!
+ * FNV-1a 64-bit hash of \p bytes, written "fnv1a64:" plus 16 hexadecimal
+ * digits.
+ */
 std::string fingerprint(const std::string &bytes)
 {
     uint64_t h = 14695981039346656037ULL;
@@ -77,6 +109,10 @@ std::string fingerprint(const std::string &bytes)
     return out.str();
 }
 
+/*!
+ * The geometry a package fingerprint covers: coordinates, elevations,
+ * face connectivity, edges and the mesh name.
+ */
 Json geometry(const MeshDefinition &mesh)
 {
     return Json{{"x", mesh.nodeX}, {"y", mesh.nodeY}, {"z", mesh.nodeZ},
@@ -84,6 +120,18 @@ Json geometry(const MeshDefinition &mesh)
                 {"edges", mesh.edgeNodes}, {"name", mesh.meshName}};
 }
 
+/*!
+ * Checks the declared references of a package.
+ *
+ * Requires a horizontal CRS, a vertical datum other than "unknown", and an
+ * elevation kind of "bed-elevation" or "terrain-elevation". A CRS other than
+ * "LOCAL" must, with GDAL, be projected and in meters; without GDAL it is
+ * refused.
+ *
+ * \param[in]  package The package to check.
+ * \param[out] message Why the declaration is refused.
+ * \return True when the references are acceptable.
+ */
 bool referenceMetadata(const MeshPackage &package, std::string &message)
 {
     if (package.horizontalCrs.empty() || package.verticalDatum.empty() ||
@@ -114,6 +162,11 @@ bool referenceMetadata(const MeshPackage &package, std::string &message)
     return true;
 }
 
+/*!
+ * One cell as read from the source, before triangles and quads are
+ * ordered: its id (SMS) and tag, its node ids, and the SWMM roughness and
+ * optional depth (in meters).
+ */
 struct Cell {
     std::string id, tag;
     std::vector<int64_t> nodes;

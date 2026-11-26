@@ -25,6 +25,10 @@ using AT = HydroCouple::IArgument::ArgumentInputType;
 
 /*!
  * Finds an element by IIdentity::id() in a component collection.
+ *
+ * \param[in] items Collection to search; null entries are skipped.
+ * \param[in] id    Identifier to match exactly.
+ * \return The first matching element, or nullptr.
  */
 template <typename T>
 T *findById(const std::vector<T *> &items, const std::string &id)
@@ -39,6 +43,13 @@ T *findById(const std::vector<T *> &items, const std::string &id)
 /*!
  * Converts a yaml-cpp node to the equivalent nlohmann::json value, so
  * argument implementations only ever see JSON.
+ *
+ * A scalar becomes the first of boolean, 64-bit integer, double or string
+ * that decodes it; sequences and maps convert recursively (map keys as
+ * strings); null and undefined nodes become JSON null.
+ *
+ * \param[in] node The YAML node.
+ * \return The equivalent JSON value.
  */
 nlohmann::json yamlToJson(const YAML::Node &node)
 {
@@ -82,11 +93,21 @@ nlohmann::json yamlToJson(const YAML::Node &node)
  * IArgument::initialize(const IComponentDataItem&) lets every argument
  * implementation resize and bulk-copy through the typed data plane —
  * sidecar payloads never touch a JSON DOM.
+ *
+ * The item has the id "sidecar", no dimensions, value definition or
+ * component; its shape and kind are the reference's.
  */
 class SidecarSourceItem final
     : public HydroCouple::SDK::AbstractComponentDataItem
 {
 public:
+    /*!
+     * \brief Wraps the bytes of one sidecar file.
+     *
+     * \param[in] ref   Parsed reference supplying kind and shape.
+     * \param[in] bytes File contents, already checked by
+     *                  readSidecarBytes() to hold kind times shape bytes.
+     */
     SidecarSourceItem(SidecarRef ref, std::vector<std::byte> bytes)
         : AbstractComponentDataItem("sidecar", {}, nullptr, nullptr),
           m_ref(std::move(ref)),
@@ -94,13 +115,21 @@ public:
     {
     }
 
+    //! The reference's row-major shape.
     [[nodiscard]] std::vector<int64_t> shape() const override
     {
         return m_ref.shape;
     }
 
+    //! The reference's element kind.
     [[nodiscard]] DataKind dataKind() const override { return m_ref.kind; }
 
+    /*!
+     * \brief Copies a hyperslab of the sidecar values into \p destination.
+     *
+     * \return False for a kind outside the fixed-width kinds or when the
+     *         hyperslab read fails (with \p message set when not null).
+     */
     [[nodiscard]] bool getValuesInto(const BufferDescriptor &destination,
                                      std::span<const int64_t> start,
                                      std::span<const int64_t> count,
@@ -132,6 +161,11 @@ public:
         }
     }
 
+    /*!
+     * \brief Refused: a sidecar source is read-only.
+     *
+     * \return Always false, with "sidecar source items are read-only".
+     */
     [[nodiscard]] bool setValuesFrom(const BufferDescriptor &,
                                      std::span<const int64_t>,
                                      std::span<const int64_t>,
@@ -142,8 +176,8 @@ public:
     }
 
 private:
-    SidecarRef             m_ref;
-    std::vector<std::byte> m_bytes;
+    SidecarRef             m_ref;   //!< Kind, shape and resolved path.
+    std::vector<std::byte> m_bytes; //!< Owned native-endian value bytes.
 };
 
 } // namespace

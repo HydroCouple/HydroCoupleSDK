@@ -1,0 +1,32 @@
+# The same composition as composition.json, in YAML. ModelInitializer
+# converts YAML to JSON before validating, so both read identically.
+# schema_version is left out: the YAML conversion turns any scalar that
+# reads as a number into a JSON number, quoted or not, and the parser
+# requires a string. Without it the document is read as 1.0, which
+# accepts the @from binding below.
+metadata:
+  caption: Chapter 12 initializer example
+components:
+  - id: profile
+    arguments:
+      scale: { values: [10.0, 20.0, 30.0] }
+  - id: upstream
+    arguments:
+      scale: { "@uri": scale.json }
+  - id: channel
+    arguments:
+      initial: { "@from": { component: profile, output: series } }
+      weights: { "@uri": "memory:weights" }
+connections:
+  - from:
+      component: upstream
+      output: series
+      adapted_outputs:
+        - factory: hydrocouple.sdk.adapters
+          id: linear_transform
+          arguments: { multiplier: { values: [0.5] } }
+    to: { component: channel, input: inflow }
+workflow: { strategy: time_stepped }
+writers:
+  - { type: csv, path: out/results.csv }
+run: { manifest: out/run.json }

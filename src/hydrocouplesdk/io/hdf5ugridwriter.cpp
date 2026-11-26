@@ -5,19 +5,28 @@
  * \file hdf5ugridwriter.cpp
  * \brief HDF5UGRIDWriter implementation over the HDF5 C API.
  *
- * File layout (CF-1.11 / UGRID-1.0):
+ * File layout (CF-1.11 / UGRID-1.0), where MESH stands for the mesh name
+ * and FIELD for a registered field's item id:
  *
- *   /                     Conventions, title, source attributes
- *   /<mesh>               int scalar dummy — cf_role=mesh_topology,
- *                         topology_dimension, node_coordinates,
- *                         face_node_connectivity, edge_node_connectivity
- *   /<mesh>_node_x|y|z    [nNodes] double
- *   /<mesh>_face_nodes    [nFaces, maxNodesPerFace] int64, _FillValue=-1,
- *                         start_index=0
- *   /<mesh>_edge_nodes    [nEdges, 2] int64, start_index=0
- *   /time                 [unlimited] double, chunked+deflate
- *   /<field>              [unlimited, count(location)] double,
- *                         chunked+deflate, mesh=<mesh>, location=...
+ * \verbatim
+   /                     Conventions, title, source attributes
+   /MESH                 int scalar dummy — cf_role=mesh_topology,
+                         topology_dimension, node_coordinates,
+                         face_node_connectivity, edge_node_connectivity
+   /MESH_node_x|y|z      [nNodes] double
+   /MESH_face_nodes      [nFaces, maxNodesPerFace] int64, _FillValue=-1,
+                         start_index=0
+   /MESH_edge_nodes      [nEdges, 2] int64, start_index=0
+   /time                 [unlimited] double, chunked+deflate
+   /FIELD                [unlimited, count(location)] double,
+                         chunked+deflate, mesh=MESH, location=...
+   \endverbatim
+ *
+ * Return codes: 10 invalid mesh, 11 file creation, 12 topology dataset,
+ * 13 coordinate dataset, 14 connectivity dataset, 15 time dataset, 16 a
+ * field on a location the mesh lacks, 17 field dataset; 20 time append,
+ * 21 missing field, 22 wrong element count, 23 unsupported kind, 24 field
+ * append. finalize() always returns 0.
  */
 
 #include "stdafx.h"
@@ -40,6 +49,12 @@ constexpr unsigned kDeflateLevel   = 4;
 
 /*!
  * Writes a string attribute on an HDF5 object.
+ *
+ * \param[in] object   File, group or dataset handle.
+ * \param[in] attrName Attribute name.
+ * \param[in] value    Value, stored as a fixed-length null-terminated
+ *                     string of at least one byte.
+ * \return False when the attribute could not be created or written.
  */
 bool writeStringAttribute(hid_t object, const char *attrName,
                           const std::string &value)
@@ -60,6 +75,11 @@ bool writeStringAttribute(hid_t object, const char *attrName,
 
 /*!
  * Writes an int32 scalar attribute on an HDF5 object.
+ *
+ * \param[in] object   File, group or dataset handle.
+ * \param[in] attrName Attribute name.
+ * \param[in] value    Value to store.
+ * \return False when the attribute could not be created or written.
  */
 bool writeIntAttribute(hid_t object, const char *attrName, int32_t value)
 {
@@ -74,6 +94,12 @@ bool writeIntAttribute(hid_t object, const char *attrName, int32_t value)
 
 /*!
  * Creates and fully writes a fixed 1-D double dataset.
+ *
+ * \param[in] file        File handle.
+ * \param[in] datasetName Dataset path.
+ * \param[in] values      Values to write; the dataset length.
+ * \return The open dataset (the caller closes it), or a negative handle
+ *         when creation failed. A failed write is not reported.
  */
 hid_t writeStaticDouble1D(hid_t file, const std::string &datasetName,
                           const std::vector<double> &values)
@@ -92,34 +118,47 @@ hid_t writeStaticDouble1D(hid_t file, const std::string &datasetName,
 
 } // namespace
 
+/*!
+ * \brief Private state of an HDF5UGRIDWriter: the mesh, the registered
+ *        fields and the open HDF5 handles.
+ */
 struct HDF5UGRIDWriter::Impl
 {
+    /*!
+     * \brief One registered time-varying field.
+     */
     struct Field
     {
-        std::string  itemId;
-        MeshLocation location = MeshLocation::Node;
-        std::string  units;
-        std::string  standardName;
-        hid_t        dataset = -1;
+        std::string  itemId;       //!< FieldSlice::itemId to match; also the dataset name.
+        MeshLocation location = MeshLocation::Node; //!< Mesh location of the values.
+        std::string  units;        //!< CF units attribute ("" writes none).
+        std::string  standardName; //!< CF standard_name attribute ("" writes none).
+        hid_t        dataset = -1; //!< Open dataset between initialize() and finalize().
         int64_t      count   = 0; //!< Values per time level.
     };
 
-    std::filesystem::path path;
-    MeshDefinition        mesh;
-    std::vector<Field>    fields;
-    std::string           error;
+    std::filesystem::path path;   //!< Destination file.
+    MeshDefinition        mesh;   //!< Mesh written at initialize().
+    std::vector<Field>    fields; //!< Registered fields, in registration order.
+    std::string           error;  //!< Last failure message.
 
-    hid_t file        = -1;
-    hid_t timeDataset = -1;
-    hsize_t timeLevels = 0;
+    hid_t file        = -1;   //!< Open file handle, or negative.
+    hid_t timeDataset = -1;   //!< Open /time dataset, or negative.
+    hsize_t timeLevels = 0;   //!< Time levels written (counted before the append succeeds).
 
     double firstTime = 0.0; //!< Time axis bounds for catalog().
-    double lastTime  = 0.0;
+    double lastTime  = 0.0; //!< Time of the last snapshot written.
 
     std::vector<double> staging; //!< Reused conversion buffer.
 
     // ── helpers ──────────────────────────────────────────────────────────
 
+    /*!
+     * \brief Number of mesh entities at a location.
+     *
+     * \param[in] location Node, edge or face.
+     * \return The node, edge or face count of the mesh.
+     */
     [[nodiscard]] int64_t locationCount(MeshLocation location) const noexcept
     {
         switch (location)
@@ -131,6 +170,12 @@ struct HDF5UGRIDWriter::Impl
         return 0;
     }
 
+    /*!
+     * \brief UGRID spelling of a location, for the location attribute.
+     *
+     * \param[in] location Node, edge or face.
+     * \return "node", "edge" or "face".
+     */
     static const char *locationName(MeshLocation location) noexcept
     {
         switch (location)
@@ -145,6 +190,13 @@ struct HDF5UGRIDWriter::Impl
     /*!
      * Creates an unlimited [time, count] double dataset with chunking and
      * deflate compression.
+     *
+     * Chunks are 256 time levels by \p count values; deflate level 4.
+     *
+     * \param[in] datasetName Dataset path.
+     * \param[in] count       Values per time level; 0 creates a rank-1
+     *                        [time] dataset.
+     * \return The open dataset, or a negative handle on failure.
      */
     hid_t createTimeVaryingDataset(const std::string &datasetName,
                                    int64_t count)
@@ -171,6 +223,12 @@ struct HDF5UGRIDWriter::Impl
     /*!
      * Extends a time-varying dataset to \p levels rows and writes \p row
      * into the last row (the engine's extend-and-write hyperslab append).
+     *
+     * \param[in] dataset Dataset created by createTimeVaryingDataset().
+     * \param[in] levels  New number of time levels (at least 1).
+     * \param[in] row     \p count values (one value for the rank-1 /time).
+     * \param[in] count   Values per level; 0 for the rank-1 /time dataset.
+     * \return False when the extent or the write failed.
      */
     bool extendAndWrite(hid_t dataset, hsize_t levels, const double *row,
                         int64_t count)

@@ -10,10 +10,11 @@ namespace HydroCouple::SDK::IO {
 
 namespace {
 
+//! One DataKind and its manifest spelling.
 struct KindName
 {
-    DataKind    kind;
-    const char *name;
+    DataKind    kind; //!< The kind.
+    const char *name; //!< Its spelling in a manifest's "kind" field.
 };
 
 // Fixed-width kinds a results catalog can describe. String and Opaque are

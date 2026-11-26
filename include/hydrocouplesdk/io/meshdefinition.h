@@ -7,6 +7,10 @@
  * \version 2.0.0-alpha.1
  * \brief  MeshDefinition and MeshLocation — the UGRID-congruent mesh
  *         vocabulary shared by the HDF5, NetCDF, and GeoPackage writers.
+ *
+ * Also the form in which the UGRID reader (readUGRIDMesh()), the result
+ * readers (IResultReader::readMesh()) and mesh packages (MeshPackage) hand
+ * a mesh over. Indexes are zero-based.
  */
 
 #ifndef HYDROCOUPLESDK_IO_MESHDEFINITION_H
@@ -30,11 +34,15 @@ namespace HydroCouple::SDK::IO {
  * transformation. Faces and edges are optional: a node-only "mesh" (point
  * cloud / 1-D network nodes) is valid.
  *
+ * Coordinates carry no units of their own; a MeshPackage holds them in
+ * meters. Face node order is kept as given: validate() does not check
+ * orientation, convexity or a minimum node count per face.
+ *
  * \threadsafety Immutable after construction by convention.
  */
 struct HYDROCOUPLESDK_EXPORT MeshDefinition
 {
-    std::string meshName = "mesh";  //!< UGRID mesh variable name.
+    std::string meshName = "mesh";  //!< UGRID mesh variable name; prefixes every variable a UGRID writer creates.
 
     std::vector<double> nodeX;      //!< Node x coordinates (required).
     std::vector<double> nodeY;      //!< Node y coordinates (required, same length).
@@ -48,18 +56,34 @@ struct HYDROCOUPLESDK_EXPORT MeshDefinition
     std::vector<int64_t> faceNodeOffsets; //!< Size faceCount()+1 when non-empty.
     std::vector<int64_t> faceNodes;       //!< Concatenated node indexes.
 
-    std::vector<std::array<int64_t, 2>> edgeNodes; //!< Optional edge endpoints.
+    std::vector<std::array<int64_t, 2>> edgeNodes; //!< Optional edge endpoints (two node indexes per edge).
 
+    /*!
+     * \brief Number of nodes.
+     *
+     * \return The length of nodeX.
+     */
     [[nodiscard]] int64_t nodeCount() const noexcept
     {
         return static_cast<int64_t>(nodeX.size());
     }
+    /*!
+     * \brief Number of faces.
+     *
+     * \return faceNodeOffsets.size() - 1, or 0 when faceNodeOffsets is
+     *         empty.
+     */
     [[nodiscard]] int64_t faceCount() const noexcept
     {
         return faceNodeOffsets.empty()
                    ? 0
                    : static_cast<int64_t>(faceNodeOffsets.size()) - 1;
     }
+    /*!
+     * \brief Number of edges.
+     *
+     * \return The length of edgeNodes.
+     */
     [[nodiscard]] int64_t edgeCount() const noexcept
     {
         return static_cast<int64_t>(edgeNodes.size());
@@ -67,6 +91,8 @@ struct HYDROCOUPLESDK_EXPORT MeshDefinition
 
     /*!
      * \brief Widest face (columns of the padded connectivity matrix).
+     *
+     * \return The largest node count of any face; 0 when there are no faces.
      */
     [[nodiscard]] int64_t maxNodesPerFace() const noexcept
     {
@@ -80,7 +106,15 @@ struct HYDROCOUPLESDK_EXPORT MeshDefinition
     /*!
      * \brief Structural validation (coordinate lengths, CSR monotonicity,
      *        index bounds).
-     * \param[out] message Failure description when returning false.
+     *
+     * Requires non-empty nodeX and nodeY of equal length, nodeZ empty or of
+     * the same length, faceNodeOffsets (when present) starting at 0, ending
+     * at faceNodes.size() and non-decreasing, and every face and edge node
+     * index in [0, nodeCount()).
+     *
+     * \param[out] message Failure description when returning false (each
+     *                     begins "MeshDefinition: "); cleared on success.
+     * \return True when the mesh is structurally valid.
      */
     [[nodiscard]] bool validate(std::string &message) const;
 };
