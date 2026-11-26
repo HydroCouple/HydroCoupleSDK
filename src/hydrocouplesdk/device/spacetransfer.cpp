@@ -12,6 +12,8 @@ namespace HydroCouple::SDK::Device {
 
 namespace {
 
+//! Whether the descriptor's bytes are host-accessible (Host, HostPinned,
+//! Unified).
 bool hostAccessible(const BufferDescriptor &descriptor)
 {
     return descriptor.space == MemorySpace::Host ||
@@ -19,6 +21,7 @@ bool hostAccessible(const BufferDescriptor &descriptor)
            descriptor.space == MemorySpace::Unified;
 }
 
+//! Product of the descriptor's extents (1 for rank 0).
 int64_t elementCount(const BufferDescriptor &descriptor)
 {
     int64_t count = 1;

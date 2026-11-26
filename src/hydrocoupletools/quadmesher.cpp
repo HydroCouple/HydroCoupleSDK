@@ -12,14 +12,17 @@ namespace HydroCouple::SDK::Tools {
 
 namespace {
 
+//! One pair of adjacent triangles that could merge into a quad.
 struct MergeCandidate
 {
-    double  quality;
-    int64_t face1;
-    int64_t face2;
+    double  quality; //!< QuadMesher::quadQuality() of the merged quad.
+    int64_t face1;   //!< First triangle.
+    int64_t face2;   //!< Second triangle (across the shared edge).
     int64_t quad[4]; //!< Counter-clockwise node indexes.
 };
 
+//! An undirected edge's key: the larger node index in the high 32 bits, the
+//! smaller in the low 32 (indexes must be below 2^32).
 uint64_t edgeKey(int64_t a, int64_t b)
 {
     const uint64_t lo = static_cast<uint64_t>(std::min(a, b));

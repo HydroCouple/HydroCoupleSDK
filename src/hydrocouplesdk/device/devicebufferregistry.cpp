@@ -9,6 +9,8 @@ namespace HydroCouple::SDK::Device {
 
 namespace {
 
+//! Product of \p shape's extents (1 for an empty shape), or -1 when an
+//! extent is negative.
 int64_t elementCount(const std::vector<int64_t> &shape)
 {
     int64_t count = 1;

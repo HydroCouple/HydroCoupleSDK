@@ -15,6 +15,8 @@
  * natural-neighbor interpolation is a planned refinement on top of the
  * Triangulator.
  *
+ * Part of the HydroCoupleTools library (BUILD_TOOLS=ON).
+ *
  * \threadsafety Stateless static function.
  */
 
@@ -31,12 +33,21 @@ namespace HydroCouple::SDK::Tools {
 
 /*!
  * \brief Scattered-point elevation interpolator.
+ *
+ * Every query visits every sample (no spatial index), so the cost is
+ * queries × samples.
  */
 class HYDROCOUPLETOOLS_EXPORT TerrainSampler
 {
 public:
     /*!
      * \brief Inverse-distance-weighted interpolation.
+     *
+     * \f[ z(q) = \frac{\sum_i w_i z_i}{\sum_i w_i}, \qquad
+     *     w_i = d(q, p_i)^{-\mathrm{power}}, \f]
+     * over the samples within \p searchRadius. A query exactly on a sample
+     * takes that sample's z (the first such sample in order).
+     *
      * \param[in]  samples      Scattered (x, y, z) samples (≥ 1).
      * \param[in]  power        IDW exponent (> 0; 2 is customary).
      * \param[in]  queryX       Query x coordinates.
@@ -45,7 +56,13 @@ public:
      * \param[in]  searchRadius Only samples within this distance
      *                          contribute; 0 uses every sample. Queries
      *                          with no sample in radius fail.
-     * \param[out] message      Failure description on false.
+     * \param[out] message      Failure description on false: "no samples",
+     *                          "IDW power must be positive", "query and
+     *                          output extents differ", or "query Q has no
+     *                          sample within the search radius" (earlier
+     *                          queries are already written). Cleared on
+     *                          success.
+     * \return True when every query was interpolated.
      */
     [[nodiscard]] static bool idw(std::span<const Spatial::Point> samples,
                                   double power,

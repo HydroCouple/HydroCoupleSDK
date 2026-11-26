@@ -14,7 +14,8 @@ namespace {
 
 using Endpoint = HydroCouple::Distributed::ITransport::Endpoint;
 
-/*! Descriptor over an Envelope's raw bytes. */
+/*! Descriptor over an Envelope's raw bytes: rank-1 UInt8, host;
+ *  \p shapeStorage holds sizeof(Envelope) and must outlive the result. */
 BufferDescriptor envelopeBuffer(Envelope &envelope,
                                 const int64_t &shapeStorage)
 {
@@ -27,7 +28,8 @@ BufferDescriptor envelopeBuffer(Envelope &envelope,
     return descriptor;
 }
 
-/*! Descriptor over a byte vector. */
+/*! Descriptor over a byte vector: rank-1 UInt8, host; \p shapeStorage
+ *  holds the byte count and must outlive the result. */
 BufferDescriptor bytesBuffer(std::vector<std::byte> &bytes,
                              const int64_t &shapeStorage)
 {
@@ -40,7 +42,8 @@ BufferDescriptor bytesBuffer(std::vector<std::byte> &bytes,
     return descriptor;
 }
 
-/*! Finds a data item by id among a component's inputs and outputs. */
+/*! Finds a data item by id among a component's outputs, then its inputs;
+ *  nullptr when neither has it. */
 HydroCouple::IComponentDataItem *findItem(
     HydroCouple::IModelComponent &component, const std::string &itemId)
 {

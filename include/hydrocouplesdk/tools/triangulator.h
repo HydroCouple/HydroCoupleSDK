@@ -17,6 +17,16 @@
  * consumable by the IO writers, the mesh data items, and the quad-dominant
  * mesher.
  *
+ * Output node order: the distinct input points in first-occurrence order
+ * (boundary ring with its densification points, holes, constraint
+ * segments, interior points), then any constraint crossing points. The
+ * mesh is named "triangulation" and has no nodeZ; sample elevations with
+ * TerrainSampler. The densification never adds interior points: control
+ * interior size with \c interiorPoints.
+ *
+ * Part of the HydroCoupleTools library (BUILD_TOOLS=ON). MeshKit is linked
+ * privately into it, so consumers do not need MeshKit.
+ *
  * \threadsafety Stateless static function; outputs are caller-owned.
  */
 
@@ -41,7 +51,8 @@ struct HYDROCOUPLETOOLS_EXPORT TriangulationInput
 {
     /*!
      * Outer boundary ring, counter-clockwise, without repeating the first
-     * point. Required.
+     * point. Required (at least 3 points). Triangles are kept when their
+     * centroid is inside the ring by the crossing-number rule.
      */
     std::vector<Spatial::Point> boundary;
 
@@ -65,13 +76,19 @@ struct HYDROCOUPLETOOLS_EXPORT TriangulationInput
 
     /*!
      * When > 0, boundary/hole/constraint edges longer than this are split
-     * before triangulation.
+     * before triangulation (into ceil(length / maxEdgeLength) equal parts),
+     * in the coordinates' length unit.
      */
     double maxEdgeLength = 0.0;
 };
 
 /*!
  * \brief Constrained Delaunay triangulator (MeshKit-backed).
+ *
+ * Failure messages: "boundary ring needs at least 3 points", "hole ring
+ * needs at least 3 points", "triangulation failed: ..." (MeshKit's reason,
+ * or a constraint that could not be recovered), "triangulation produced no
+ * triangles", and "cancelled" when a MeshProgress callback stops the run.
  */
 class HYDROCOUPLETOOLS_EXPORT Triangulator
 {
@@ -80,7 +97,8 @@ public:
      * \brief Triangulates \p input into counter-clockwise triangles.
      * \param[in]  input   Domain description (boundary required).
      * \param[out] out     Triangle mesh (3-node CSR faces).
-     * \param[out] message Failure description on false.
+     * \param[out] message Failure description on false; cleared on success.
+     * \return True when \p out holds at least one triangle.
      */
     [[nodiscard]] static bool triangulate(const TriangulationInput &input,
                                           IO::MeshDefinition &out,
@@ -100,7 +118,11 @@ public:
      * \param[in]  progress Called at each phase and through the loops this
      *                      library runs itself; returning false abandons
      *                      the run. See MeshProgress for what can and
-     *                      cannot be interrupted.
+     *                      cannot be interrupted. The final call, (1.0,
+     *                      "done"), is a report: its return value is
+     *                      ignored and the mesh is kept.
+     * \return True when \p out holds at least one triangle; false on
+     *         failure or cancellation.
      */
     [[nodiscard]] static bool triangulate(const TriangulationInput &input,
                                           IO::MeshDefinition &out,

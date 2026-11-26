@@ -52,7 +52,16 @@ namespace HydroCouple::SDK::Distributed {
  * hold the mirrors in virtualGlobalIndexes order. The v2 data plane spans
  * the whole local array; shape() = { ownedCount + virtualCount }.
  *
- * \tparam T Element type (double, int, …).
+ * The item is constructed with no dimensions and no value definition, so
+ * dimensions() is empty and valueDefinition() is null; it is a building
+ * block for a component's decomposed field rather than an exchange item a
+ * workflow connects. All values start as T{}. The read-only policy for
+ * mirrors is not enforced: setValuesFrom() and the data plane can write
+ * any position, and the next synchronization overwrites the mirrors.
+ *
+ * \tparam T Element type; DataKindOf<T> must name a fixed-width kind. The
+ *           library instantiates double and int32_t (the aliases
+ *           PartitionedDataItemDouble and PartitionedDataItemInt).
  */
 template <typename T>
 class PartitionedDataItem
@@ -62,13 +71,24 @@ class PartitionedDataItem
 public:
     /*!
      * \brief Construct from decomposition metadata.
+     *
+     * Builds the embedded HaloExchanger (copying the index lists) but sends
+     * nothing: the exchange pattern is negotiated by
+     * exchanger().buildPattern() or by the first synchronizeAsync().
+     * \p globalCount is reported by globalCount() and not checked against
+     * the index lists.
+     *
      * \param[in] id                   Item identifier.
      * \param[in] globalCount          Entities across all ranks.
      * \param[in] ownedGlobalIndexes   Globals this rank owns.
      * \param[in] virtualGlobalIndexes Globals this rank mirrors.
      * \param[in] virtualOwners        Owner rank per virtual entry.
-     * \param[in] transport            Transport endpoint (borrowed).
-     * \param[in] baseTag              Distinct tag base per item.
+     * \param[in] transport            Transport endpoint (borrowed; not null;
+     *                                 must outlive the item).
+     * \param[in] baseTag              Distinct tag base per item: the item
+     *                                 uses tags baseTag to baseTag + 1025, so
+     *                                 items on one transport need bases at
+     *                                 least 1026 apart.
      */
     PartitionedDataItem(std::string_view id, int64_t globalCount,
                         std::vector<int64_t> ownedGlobalIndexes,
@@ -88,37 +108,61 @@ public:
     {
     }
 
+    //! Destroys the values and the exchanger; an exchange still pending is
+    //! abandoned.
     ~PartitionedDataItem() override = default;
 
     // ── IPartitionedComponentDataItem ────────────────────────────────────
 
     //! This item has a single (entity) dimension, so axis 0 is the decomposed one.
+    //! \return 0.
     [[nodiscard]] int32_t partitionedDimension() const override
     {
         return 0;
     }
 
+    /*!
+     * \brief The global entity count given to the constructor.
+     * \return Entities across all ranks.
+     */
     [[nodiscard]] int64_t globalCount() const override
     {
         return m_globalCount;
     }
 
+    /*!
+     * \brief Global indexes of the owned entities, in local order.
+     * \return A view valid for the item's lifetime.
+     */
     [[nodiscard]] std::span<const int64_t> ownedGlobalIndexes() const override
     {
         return {m_ownedGlobals.data(), m_ownedGlobals.size()};
     }
 
+    /*!
+     * \brief Global indexes of the mirrored entities, in local order.
+     * \return A view valid for the item's lifetime.
+     */
     [[nodiscard]] std::span<const int64_t> virtualGlobalIndexes()
         const override
     {
         return {m_virtualGlobals.data(), m_virtualGlobals.size()};
     }
 
+    /*!
+     * \brief Owner rank of each mirrored entity.
+     * \return A view parallel to virtualGlobalIndexes(), valid for the
+     *         item's lifetime.
+     */
     [[nodiscard]] std::span<const int32_t> virtualOwners() const override
     {
         return {m_virtualOwners.data(), m_virtualOwners.size()};
     }
 
+    /*!
+     * \brief Completed halo synchronizations.
+     * \return HaloExchanger::epoch(): 0 before the first exchange completes.
+     */
     [[nodiscard]] uint64_t synchronizationEpoch() const override
     {
         return m_exchanger->epoch();
@@ -128,6 +172,22 @@ public:
      * \brief Starts an epoch exchange; the returned request completes it
      *        (wait() = scatter halos; test() polls). Overlap computation on
      *        owned values between this call and completion.
+     *
+     * Collective: every rank of the transport must call it for the same
+     * epoch. The first call also builds the exchange pattern, which blocks
+     * until every peer has sent its needs. Owned values are copied out
+     * before this returns, so they may change during the overlap; mirrors
+     * are defined only after the request completes, and the epoch then
+     * advances. A second call before the previous request completed fails
+     * with "HaloExchanger::begin: previous epoch not ended".
+     *
+     * The request's waitFor() polls test() every 50 microseconds; cancel()
+     * does not cancel and returns test(); destroying an incomplete request
+     * does not wait, leaving the exchanger's epoch open.
+     *
+     * \return A request (never null). A pattern or begin failure returns a
+     *         request that is already complete with failed() true and the
+     *         HaloExchanger message.
      */
     [[nodiscard]] std::unique_ptr<HydroCouple::Distributed::IExchangeRequest>
     synchronizeAsync() override
@@ -207,16 +267,36 @@ public:
 
     // ── v2 typed hyperslab data plane ────────────────────────────────────
 
+    /*!
+     * \brief The local extent: owned plus mirrored entities.
+     * \return { ownedCount + virtualCount }.
+     */
     [[nodiscard]] std::vector<int64_t> shape() const override
     {
         return {static_cast<int64_t>(m_values.size())};
     }
 
+    /*!
+     * \brief The element kind of T.
+     * \return Helpers::DataKindOf<T>::kind.
+     */
     [[nodiscard]] DataKind dataKind() const override
     {
         return Helpers::DataKindOf<T>::kind;
     }
 
+    /*!
+     * \brief Copies a hyperslab of the local array (owned then mirrored)
+     *        into \p destination.
+     * \param[in]  destination Host buffer of kind dataKind() whose element
+     *                         count equals the product of \p count.
+     * \param[in]  start       One start index (0 ≤ start ≤ extent).
+     * \param[in]  count       One count (start + count ≤ extent).
+     * \param[out] message     Optional; the hyperslab engine's reason on
+     *                         failure ("kind mismatch", "selection out of
+     *                         bounds", ...).
+     * \return True on success.
+     */
     [[nodiscard]] bool getValuesInto(const BufferDescriptor &destination,
                                      std::span<const int64_t> start,
                                      std::span<const int64_t> count,
@@ -229,6 +309,20 @@ public:
             m_values.data(), localShape, destination, start, count, message);
     }
 
+    /*!
+     * \brief Writes a hyperslab of the local array from \p source and
+     *        emits the value-changed event for that selection.
+     *
+     * Writing mirrored positions is allowed but against the item's policy:
+     * the next synchronization overwrites them.
+     *
+     * \param[in]  source  Host buffer of kind dataKind() whose element count
+     *                     equals the product of \p count.
+     * \param[in]  start   One start index.
+     * \param[in]  count   One count.
+     * \param[out] message Optional; the hyperslab engine's reason on failure.
+     * \return True on success.
+     */
     [[nodiscard]] bool setValuesFrom(const BufferDescriptor &source,
                                      std::span<const int64_t> start,
                                      std::span<const int64_t> count,
@@ -248,6 +342,9 @@ public:
 
     /*!
      * \brief Owned values (solver-writable region).
+     * \return A writable view of the first ownedGlobalIndexes().size()
+     *         values; valid for the item's lifetime. Writes do not emit the
+     *         value-changed event.
      */
     [[nodiscard]] std::span<T> ownedValues() noexcept
     {
@@ -256,6 +353,8 @@ public:
 
     /*!
      * \brief Virtual mirrors (reconstructed each epoch — read-only policy).
+     * \return A view of the last virtualGlobalIndexes().size() values;
+     *         defined after the first synchronization completes (T{} before).
      */
     [[nodiscard]] std::span<const T> virtualValues() const noexcept
     {
@@ -265,23 +364,30 @@ public:
 
     /*!
      * \brief The embedded exchanger (pattern building at prepare() time).
+     * \return The exchanger owned by this item; call buildPattern() on it
+     *         from every rank at prepare() time to keep the first
+     *         synchronizeAsync() from negotiating.
      */
     [[nodiscard]] HaloExchanger &exchanger() noexcept { return *m_exchanger; }
 
 private:
-    int64_t              m_globalCount;
-    std::vector<int64_t> m_ownedGlobals;
-    std::vector<int64_t> m_virtualGlobals;
-    std::vector<int32_t> m_virtualOwners;
+    int64_t              m_globalCount;    //!< Entities across all ranks.
+    std::vector<int64_t> m_ownedGlobals;   //!< Global index of each owned position.
+    std::vector<int64_t> m_virtualGlobals; //!< Global index of each mirrored position.
+    std::vector<int32_t> m_virtualOwners;  //!< Owner rank of each mirrored position.
     std::vector<T>       m_values; //!< Owned-then-virtual contiguous storage.
-    std::unique_ptr<HaloExchanger> m_exchanger;
+    std::unique_ptr<HaloExchanger> m_exchanger; //!< Pattern and epoch engine over \c m_values.
 };
 
+//! A partitioned Float64 field (instantiated in the library).
 using PartitionedDataItemDouble = PartitionedDataItem<double>;
+//! A partitioned Int32 field (instantiated in the library).
 using PartitionedDataItemInt    = PartitionedDataItem<int32_t>;
 
+//! \cond EXPLICIT_INSTANTIATIONS
 extern template class HYDROCOUPLESDK_EXPORT PartitionedDataItem<double>;
 extern template class HYDROCOUPLESDK_EXPORT PartitionedDataItem<int32_t>;
+//! \endcond
 
 } // namespace HydroCouple::SDK::Distributed
 

@@ -10,13 +10,18 @@ namespace HydroCouple::SDK::Device {
 
 namespace {
 
+//! The memory space MemorySpace::Device allocations come from.
 using DeviceMemorySpace =
     Kokkos::DefaultExecutionSpace::memory_space;
 
+//! An unmanaged byte view over caller memory in \p Space (deep_copy's
+//! operand type).
 template <typename Space>
 using ByteView =
     Kokkos::View<std::byte *, Space, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
+//! Whether \p space is served from Kokkos::HostSpace (Host, HostPinned,
+//! Unified).
 bool isHostSide(MemorySpace space)
 {
     return space == MemorySpace::Host || space == MemorySpace::HostPinned ||

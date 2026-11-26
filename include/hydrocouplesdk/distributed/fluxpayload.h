@@ -43,42 +43,76 @@ namespace HydroCouple::SDK::Distributed {
 
 /*!
  * \brief Owned flux+derivative pair block with the {2, N} shape convention.
+ *
+ * Units are the caller's: the flux row carries whatever the exchanged flux
+ * is (m³/s, say) and the derivative row its derivative with respect to the
+ * coupling state (m³/s per meter of head, that is m²/s, for dQ/dh). The block is copyable;
+ * a copy owns its own values.
  */
 class HYDROCOUPLESDK_EXPORT FluxDerivativePayload final
 {
 public:
     /*!
      * \brief Construct with \p count entities (all values zero).
+     * \param[in] count Entities N; a negative value is treated as 0.
      */
     explicit FluxDerivativePayload(int64_t count);
 
     /*!
      * \brief Number of entities (N).
+     * \return N as fixed at construction (never negative).
      */
     [[nodiscard]] int64_t count() const noexcept;
 
     /*!
      * \brief Mutable flux row (row 0).
+     * \return A view of N values, valid while the payload lives.
      */
     [[nodiscard]] std::span<double> flux() noexcept;
+    /*!
+     * \brief Read-only flux row (row 0).
+     * \return A view of N values, valid while the payload lives.
+     */
     [[nodiscard]] std::span<const double> flux() const noexcept;
 
     /*!
      * \brief Mutable derivative row (row 1): ∂flux/∂state per entity.
+     * \return A view of N values, valid while the payload lives.
      */
     [[nodiscard]] std::span<double> derivative() noexcept;
+    /*!
+     * \brief Read-only derivative row (row 1).
+     * \return A view of N values, valid while the payload lives.
+     */
     [[nodiscard]] std::span<const double> derivative() const noexcept;
 
     /*!
      * \brief Descriptor over the whole block — Float64, rank 2, shape
      *        {2, N}, host, contiguous — ready for any ITransport or data
      *        item setValuesFrom()/getValuesInto().
+     *
+     * The descriptor points into this object (values and shape), so it is
+     * valid only while the payload lives. It may be used as a receive
+     * destination although the function is const.
+     *
+     * \return The descriptor.
      */
     [[nodiscard]] BufferDescriptor descriptor() const noexcept;
 
     /*!
      * \brief Evaluates the linearized boundary flux for entity \p index:
      *        flux[index] + derivative[index] * (state - referenceState).
+     *
+     * That is \f$ q(h) \approx q_0 + \frac{\partial q}{\partial h}\,(h - h_0) \f$
+     * with \f$ q_0 \f$ the flux row, \f$ \partial q / \partial h \f$ the
+     * derivative row, \f$ h \f$ = \p state and \f$ h_0 \f$ = \p referenceState.
+     *
+     * \param[in] index          Entity, 0 ≤ index < count().
+     * \param[in] state          Current coupling state (same units as the
+     *                           state the derivative was taken against).
+     * \param[in] referenceState State at which the flux was computed.
+     * \return The linearized flux.
+     * \exception std::out_of_range \p index is outside [0, count()).
      */
     [[nodiscard]] double linearizedFlux(int64_t index, double state,
                                         double referenceState) const;
@@ -89,14 +123,22 @@ public:
      *        is negative).
      * \param[in]  descriptor The received descriptor to check.
      * \param[in]  count      Required N, or -1 to accept any.
-     * \param[out] message    Failure description when returning false.
+     * \param[out] message    Failure description when returning false:
+     *                        "flux+derivative payload must be Float64",
+     *                        "flux+derivative payload must have rank 2
+     *                        (shape {2, N})", "... row dimension must be 2
+     *                        (flux row then derivative row), got R", or
+     *                        "flux+derivative payload carries M entities;
+     *                        expected N". Cleared on success.
+     * \return True when the descriptor follows the convention. Strides,
+     *         memory space and data pointer are not checked.
      */
     [[nodiscard]] static bool conformsToConvention(
         const BufferDescriptor &descriptor, int64_t count,
         std::string &message);
 
 private:
-    int64_t              m_count;
+    int64_t              m_count;   //!< Entities N (≥ 0).
     std::vector<double>  m_values;  //!< Row-major {2, N}: flux then derivative.
     std::vector<int64_t> m_shape;   //!< {2, N} backing the descriptor.
 };

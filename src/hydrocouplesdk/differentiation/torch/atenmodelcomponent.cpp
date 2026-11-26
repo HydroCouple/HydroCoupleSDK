@@ -23,6 +23,7 @@ using CStatus = HydroCouple::IModelComponent::ComponentStatus;
 
 namespace {
 
+//! Sets \p message (when given) to \p text and returns false.
 bool fail(std::string *message, const std::string &text)
 {
     if (message)
@@ -30,6 +31,8 @@ bool fail(std::string *message, const std::string &text)
     return false;
 }
 
+//! A host Float64 descriptor over contiguous tensor \p t, shaped \p shape
+//! (both must outlive it).
 BufferDescriptor describe(torch::Tensor &t, const std::vector<int64_t> &shape)
 {
     BufferDescriptor d;
@@ -68,6 +71,7 @@ bool writeEntry(const DifferentialEntry &entry, const std::vector<int64_t> &shap
     return writeDifferential(entry, shape, values, message);
 }
 
+//! Position of \p item in \p items by IComponentDataItem identity, or -1.
 template <typename T>
 int indexOf(const std::vector<T *> &items, const IComponentDataItem *item)
 {
@@ -77,11 +81,13 @@ int indexOf(const std::vector<T *> &items, const IComponentDataItem *item)
     return -1;
 }
 
+//! The tensor's sizes as a shape vector.
 std::vector<int64_t> shapeOf(const torch::Tensor &t)
 {
     return t.sizes().vec();
 }
 
+//! A shape printed as "[a, b, ...]" for messages.
 std::string shapeString(const std::vector<int64_t> &shape)
 {
     std::string s = "[";
@@ -374,6 +380,7 @@ int resultIndex(const Component &c, const DifferentialEntry &e, size_t nStates)
     }
 }
 
+//! The entry's item id in quotes, or "(null item)", for messages.
 std::string entryName(const DifferentialEntry &e)
 {
     return e.item ? "\"" + e.item->id() + "\"" : std::string("(null item)");

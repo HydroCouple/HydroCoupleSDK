@@ -21,12 +21,15 @@ using HydroCouple::DifferentialSet;
 
 namespace {
 
+//! Whether a component in \p status is skipped by a step (Done, Finished).
 bool finishedStatus(ComponentStatus status)
 {
     return status == ComponentStatus::Done ||
            status == ComponentStatus::Finished;
 }
 
+//! The component as a checkpointable one, when it advertises
+//! Capability::Checkpointing; nullptr otherwise.
 HydroCouple::ICheckpointableModelComponent *
 checkpointable(HydroCouple::IModelComponent *component)
 {
@@ -35,6 +38,8 @@ checkpointable(HydroCouple::IModelComponent *component)
     return dynamic_cast<HydroCouple::ICheckpointableModelComponent *>(component);
 }
 
+//! The component as a differentiable one, when it advertises
+//! Capability::Differentiable; nullptr otherwise.
 HydroCouple::IDifferentiableModelComponent *
 differentiable(HydroCouple::IModelComponent *component)
 {
@@ -43,12 +48,15 @@ differentiable(HydroCouple::IModelComponent *component)
     return dynamic_cast<HydroCouple::IDifferentiableModelComponent *>(component);
 }
 
+//! The adapter as a differentiable one (adapters have no capability set,
+//! so this is a cast); nullptr otherwise.
 HydroCouple::IDifferentiableAdaptedOutput *
 differentiable(HydroCouple::IAdaptedOutput *adapted)
 {
     return dynamic_cast<HydroCouple::IDifferentiableAdaptedOutput *>(adapted);
 }
 
+//! The adapter as a checkpointable one; nullptr otherwise.
 HydroCouple::ICheckpointableAdaptedOutput *
 checkpointable(HydroCouple::IAdaptedOutput *adapted)
 {
@@ -64,16 +72,20 @@ bool carriesState(HydroCouple::IAdaptedOutput *adapted)
     return d && !d->differentiableStates().empty();
 }
 
+//! The identity a component's gradients are keyed by.
 const HydroCouple::IIdentity *ownerOf(const HydroCouple::IModelComponent *component)
 {
     return component;
 }
 
+//! The identity an adapter's gradients are keyed by.
 const HydroCouple::IIdentity *ownerOf(const HydroCouple::IAdaptedOutput *adapted)
 {
     return adapted;
 }
 
+//! Adds \p value into \p into element-wise (sizing an empty \p into to
+//! match); extra elements of either are ignored.
 std::vector<double> &accumulate(std::vector<double> &into,
                                 const std::vector<double> &value)
 {
@@ -690,10 +702,10 @@ using StateCarry =
 //! The working state of one reverse pass.
 struct DifferentiableWorkflow::Pass
 {
-    const SeedFunction *seedFunction = nullptr;
-    std::vector<HydroCouple::IModelComponent *> order;
-    std::vector<HydroCouple::IAdaptedOutput *> adapters;
-    ArgumentSums argumentSums;
+    const SeedFunction *seedFunction = nullptr;           //!< The caller's seed function.
+    std::vector<HydroCouple::IModelComponent *> order;    //!< Components in schedule order.
+    std::vector<HydroCouple::IAdaptedOutput *> adapters;  //!< Managed adapters, parents first.
+    ArgumentSums argumentSums;                            //!< Argument gradients summed over steps.
     //! State cotangents carried from the step after the one being swept.
     StateCarry stateCarry;
     //! The next step that must be swept: steps are visited strictly

@@ -11,14 +11,17 @@ namespace HydroCouple::SDK::Tools {
 
 namespace {
 
+//! Largest coordinate difference at which two boundary curve ends meet.
 constexpr double kCornerTolerance = 1e-9;
 
+//! Whether two points agree within kCornerTolerance in x and y.
 bool cornersMatch(const Spatial::Point &a, const Spatial::Point &b)
 {
     return std::abs(a.x - b.x) <= kCornerTolerance &&
            std::abs(a.y - b.y) <= kCornerTolerance;
 }
 
+//! The z component of the 2-D cross product a × b.
 double cross(double ax, double ay, double bx, double by)
 {
     return ax * by - ay * bx;

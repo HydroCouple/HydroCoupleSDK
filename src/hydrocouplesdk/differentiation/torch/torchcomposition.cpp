@@ -25,6 +25,14 @@ using torch::autograd::variable_list;
  */
 struct CompositionFunction : public torch::autograd::Function<CompositionFunction>
 {
+    /*!
+     * \brief Runs the composition and remembers which run built the graph.
+     * \param[in,out] ctx        Autograd context; saves the composition
+     *                           pointer and the run number.
+     * \param[in]     self       The composition (not a tensor: no gradient).
+     * \param[in]     parameters The parameter tensors.
+     * \return The trajectories.
+     */
     static variable_list forward(AutogradContext *ctx, TorchComposition *self,
                                  at::TensorList parameters)
     {
@@ -34,6 +42,13 @@ struct CompositionFunction : public torch::autograd::Function<CompositionFunctio
         return trajectories;
     }
 
+    /*!
+     * \brief Hands the trajectories' gradients to the SDK reverse engine.
+     * \param[in] ctx         Autograd context saved by forward().
+     * \param[in] gradOutputs Gradients of the trajectories.
+     * \return An undefined gradient for the composition pointer, then one
+     *         per parameter.
+     */
     static variable_list backward(AutogradContext *ctx, variable_list gradOutputs)
     {
         auto *self = reinterpret_cast<TorchComposition *>(ctx->saved_data["self"].toInt());

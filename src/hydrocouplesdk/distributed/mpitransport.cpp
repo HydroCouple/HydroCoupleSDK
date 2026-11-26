@@ -54,6 +54,7 @@ class CompletedRequest final
     : public HydroCouple::Distributed::IExchangeRequest
 {
 public:
+    //! \p failureMessage is the failure to report, or empty for success.
     explicit CompletedRequest(std::string failureMessage = {})
         : m_failure(std::move(failureMessage))
     {
@@ -71,7 +72,7 @@ public:
     }
 
 private:
-    std::string m_failure;
+    std::string m_failure; //!< Empty on success.
 };
 
 /*!
@@ -81,6 +82,8 @@ class MpiSendRequest final
     : public HydroCouple::Distributed::IExchangeRequest
 {
 public:
+    //! Posts MPI_Isend of \p wire (moved in) to \p target on \p tag; a
+    //! failing post completes the request as failed.
     MpiSendRequest(std::vector<std::byte> wire, MPI_Comm comm, int target,
                    int tag)
         : m_wire(std::move(wire))
@@ -142,10 +145,10 @@ public:
     }
 
 private:
-    std::vector<std::byte> m_wire;
-    MPI_Request            m_request = MPI_REQUEST_NULL;
-    bool                   m_complete = false;
-    std::string            m_failure;
+    std::vector<std::byte> m_wire;     //!< Packed block; must outlive the send.
+    MPI_Request            m_request = MPI_REQUEST_NULL; //!< The MPI_Isend handle.
+    bool                   m_complete = false; //!< MPI reported completion (or failure).
+    std::string            m_failure;  //!< Empty on success.
 };
 
 /*!
@@ -157,6 +160,7 @@ class MpiReceiveRequest final
     : public HydroCouple::Distributed::IExchangeRequest
 {
 public:
+    //! Records what to match; posts nothing until test() or wait().
     MpiReceiveRequest(MPI_Comm comm, int source, int tag,
                       BufferDescriptor into)
         : m_comm(comm), m_source(source), m_tag(tag), m_into(into)
@@ -266,6 +270,7 @@ private:
         return true;
     }
 
+    //! Unpacks the staged block into the destination and completes.
     void finish()
     {
         std::string unpackMessage;
@@ -274,21 +279,22 @@ private:
         m_complete = true;
     }
 
+    //! Completes the request with \p message as its failure.
     void fail(std::string message)
     {
         m_failure  = std::move(message);
         m_complete = true;
     }
 
-    MPI_Comm               m_comm;
-    int                    m_source;
-    int                    m_tag;
-    BufferDescriptor       m_into;
-    std::vector<std::byte> m_staging;
-    MPI_Request            m_request = MPI_REQUEST_NULL;
-    bool                   m_started  = false;
-    bool                   m_complete = false;
-    std::string            m_failure;
+    MPI_Comm               m_comm;     //!< The transport's duplicated communicator.
+    int                    m_source;   //!< MPI source rank (MPI_ANY_SOURCE allowed).
+    int                    m_tag;      //!< MPI tag to match.
+    BufferDescriptor       m_into;     //!< Caller's destination buffer.
+    std::vector<std::byte> m_staging;  //!< Received wire block, sized by the probe.
+    MPI_Request            m_request = MPI_REQUEST_NULL; //!< The MPI_Imrecv handle.
+    bool                   m_started  = false; //!< A message was matched and MPI_Imrecv posted.
+    bool                   m_complete = false; //!< Completed (successfully or not).
+    std::string            m_failure;  //!< Empty on success.
 };
 
 } // namespace
@@ -334,11 +340,14 @@ MpiEnvironment::~MpiEnvironment()
 
 // ── MpiTransport ──────────────────────────────────────────────────────────
 
+/*!
+ * \brief The MPI state behind an MpiTransport.
+ */
 struct MpiTransport::Impl
 {
-    MPI_Comm comm = MPI_COMM_NULL;
-    int      rank = -1;
-    int      size = 0;
+    MPI_Comm comm = MPI_COMM_NULL; //!< Duplicate of MPI_COMM_WORLD owned by the transport.
+    int      rank = -1;            //!< This process's rank in \c comm.
+    int      size = 0;             //!< Number of processes in \c comm.
 };
 
 MpiTransport::MpiTransport()

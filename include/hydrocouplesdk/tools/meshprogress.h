@@ -35,9 +35,11 @@ namespace HydroCouple::SDK::Tools {
  *        ("inserting edges"). Never null, and valid only for the duration
  *        of the call.
  * \returns True to carry on. **Returning false abandons the run**: the tool
- *          returns false, sets its message to say it was canceled, and
- *          leaves its output empty — a canceled run hands back nothing
- *          rather than half a mesh.
+ *          returns false, sets its message to say it was canceled (the
+ *          message text is "cancelled"), and leaves its output empty — a
+ *          canceled run hands back nothing rather than half a mesh. The
+ *          last call of a successful run, (1.0, "done"), is a report
+ *          rather than a question: its return value is ignored.
  *
  * \par What can be canceled
  * Every phase: densification, candidate scoring, merging and extraction are

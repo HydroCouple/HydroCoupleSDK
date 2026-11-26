@@ -17,6 +17,8 @@ namespace {
 /*! Poll period while waiting for a reply. */
 constexpr auto kPollInterval = std::chrono::microseconds(200);
 
+/*! Descriptor over \p data as rank-1 UInt8, host; \p shapeStorage holds
+ *  the byte count and must outlive the result. */
 BufferDescriptor byteBuffer(void *data, const int64_t &shapeStorage)
 {
     BufferDescriptor descriptor;

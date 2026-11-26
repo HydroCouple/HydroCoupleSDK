@@ -20,6 +20,8 @@ constexpr int32_t kListTagOffset  = 1;
 constexpr int32_t kDataTagOffset  = 2;
 constexpr int32_t kEpochTagSpan   = 1024;
 
+/*! Rank-1 Int64 host descriptor over \p data; \p shapeStorage must
+ *  outlive it. */
 BufferDescriptor int64Buffer(void *data, const int64_t &shapeStorage)
 {
     BufferDescriptor descriptor;
@@ -31,6 +33,8 @@ BufferDescriptor int64Buffer(void *data, const int64_t &shapeStorage)
     return descriptor;
 }
 
+/*! Rank-1 UInt8 host descriptor over \p data; \p shapeStorage must
+ *  outlive it. */
 BufferDescriptor byteBuffer(void *data, const int64_t &shapeStorage)
 {
     BufferDescriptor descriptor;
@@ -44,20 +48,23 @@ BufferDescriptor byteBuffer(void *data, const int64_t &shapeStorage)
 
 } // namespace
 
+/*!
+ * \brief The exchanger's pattern, staging and epoch state.
+ */
 struct HaloExchanger::Impl
 {
-    HydroCouple::Distributed::ITransport *transport = nullptr;
-    int32_t                               myRank    = -1;
-    int32_t                               baseTag   = 2000;
+    HydroCouple::Distributed::ITransport *transport = nullptr; //!< Borrowed transport.
+    int32_t                               myRank    = -1;      //!< This rank on the transport.
+    int32_t                               baseTag   = 2000;    //!< First of the 1026 tags this exchanger uses.
 
-    std::vector<int64_t> ownedGlobals;
-    std::vector<int64_t> virtualGlobals;
-    std::vector<int32_t> virtualOwners;
+    std::vector<int64_t> ownedGlobals;   //!< Global index of each owned local position.
+    std::vector<int64_t> virtualGlobals; //!< Global index of each mirrored entity.
+    std::vector<int32_t> virtualOwners;  //!< Owner rank of each mirrored entity.
 
-    std::unordered_map<int64_t, int64_t> ownedGlobalToLocal;
+    std::unordered_map<int64_t, int64_t> ownedGlobalToLocal; //!< Owned global index → local position.
 
-    bool     patternBuilt = false;
-    uint64_t epoch        = 0;
+    bool     patternBuilt = false; //!< Set by a successful buildPattern().
+    uint64_t epoch        = 0;     //!< Completed epochs.
 
     /*! Per-peer gather list: local owned positions to send, in the
      *  requester's order. */
@@ -68,30 +75,40 @@ struct HaloExchanger::Impl
 
     /*! Reused staging (no steady-state allocation). */
     std::map<int32_t, std::vector<std::byte>> sendStage;
-    std::map<int32_t, std::vector<std::byte>> recvStage;
+    std::map<int32_t, std::vector<std::byte>> recvStage; //!< Per-owner receive staging, reused every epoch.
     /*! Shape storage for in-flight descriptors (stable addresses). */
     std::map<int32_t, int64_t> sendShapes;
-    std::map<int32_t, int64_t> recvShapes;
+    std::map<int32_t, int64_t> recvShapes; //!< Byte count of each owner's receive staging (stable address).
 
+    /*!
+     * \brief One posted halo receive of the open epoch.
+     */
     struct PendingReceive
     {
-        int32_t peer = -1;
-        std::unique_ptr<HydroCouple::Distributed::IExchangeRequest> request;
-        bool scattered = false;
+        int32_t peer = -1; //!< Owner rank the halo comes from.
+        std::unique_ptr<HydroCouple::Distributed::IExchangeRequest> request; //!< The transport's receive.
+        bool scattered = false; //!< The halo has been copied into the virtual slots.
     };
-    std::vector<PendingReceive> pending;
+    std::vector<PendingReceive> pending; //!< Receives of the open epoch, one per owner peer.
 
     void   *exchangeValues     = nullptr; //!< Array given to begin().
-    int64_t exchangeElementSize = 0;
-    bool    exchangeActive      = false;
+    int64_t exchangeElementSize = 0;      //!< Element size given to begin(), in bytes.
+    bool    exchangeActive      = false;  //!< An epoch is open (begin() succeeded, not yet ended).
 
+    /*!
+     * \brief The tag the current epoch's halos travel on.
+     * \return baseTag + 2 + (epoch mod 1024).
+     */
     [[nodiscard]] int32_t dataTag() const noexcept
     {
         return baseTag + kDataTagOffset +
                static_cast<int32_t>(epoch % kEpochTagSpan);
     }
 
-    /*! Scatters one peer's received halo block into the virtual slots. */
+    /*!
+     * \brief Scatters one peer's received halo block into the virtual slots.
+     * \param[in] receive A completed receive whose staging holds the halo.
+     */
     void scatter(const PendingReceive &receive)
     {
         const std::vector<int64_t> &locals = recvLists[receive.peer];

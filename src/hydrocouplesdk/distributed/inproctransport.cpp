@@ -15,25 +15,41 @@ namespace HydroCouple::SDK::Distributed {
 
 // ── Hub internals ─────────────────────────────────────────────────────────
 
+/*!
+ * \brief The hub's state: one mailbox per rank.
+ *
+ * Every mailbox has its own lock, so ranks that exchange with different
+ * peers do not contend. Messages are matched oldest first.
+ */
 struct InProcHub::Impl
 {
+    /*!
+     * \brief One queued message.
+     */
     struct Message
     {
-        int32_t                sourceRank = -1;
-        int32_t                tag        = 0;
+        int32_t                sourceRank = -1; //!< Rank of the transport that sent it.
+        int32_t                tag        = 0;  //!< Tag it was sent under.
         std::vector<std::byte> wire; //!< ValuePacker block.
     };
 
+    /*!
+     * \brief The queue of messages addressed to one rank.
+     */
     struct Mailbox
     {
-        std::mutex              mutex;
-        std::condition_variable arrived;
-        std::deque<Message>     messages;
+        std::mutex              mutex;    //!< Guards \c messages.
+        std::condition_variable arrived;  //!< Notified (all waiters) on every delivery.
+        std::deque<Message>     messages; //!< Undelivered messages, oldest first.
     };
 
-    int32_t                                participantCount;
-    std::vector<std::unique_ptr<Mailbox>>  mailboxes;
+    int32_t                                participantCount; //!< Ranks the hub connects.
+    std::vector<std::unique_ptr<Mailbox>>  mailboxes;        //!< One per rank, indexed by rank.
 
+    /*!
+     * \brief Creates \p count empty mailboxes.
+     * \param[in] count Number of ranks (at least 1).
+     */
     explicit Impl(int32_t count) : participantCount(count)
     {
         mailboxes.reserve(static_cast<size_t>(count));
@@ -41,14 +57,24 @@ struct InProcHub::Impl
             mailboxes.push_back(std::make_unique<Mailbox>());
     }
 
+    /*!
+     * \brief Checks a rank against the hub's size.
+     * \param[in] rank Rank to check.
+     * \return True when 0 ≤ \p rank < participantCount.
+     */
     [[nodiscard]] bool validRank(int32_t rank) const noexcept
     {
         return rank >= 0 && rank < participantCount;
     }
 
     /*!
-     * Non-blocking match: removes and returns the first message in \p rank's
-     * mailbox matching (sourceRank or any, tag).
+     * \brief Non-blocking match: removes and returns the first message in
+     *        \p rank's mailbox matching (sourceRank or any, tag).
+     * \param[in]  rank       Mailbox to search (must be valid).
+     * \param[in]  sourceRank Sender to match; negative matches any sender.
+     * \param[in]  tag        Tag to match.
+     * \param[out] out        The removed message when the return is true.
+     * \return True when a message matched and was removed.
      */
     bool tryMatch(int32_t rank, int32_t sourceRank, int32_t tag,
                   Message &out)
@@ -70,7 +96,14 @@ struct InProcHub::Impl
     }
 
     /*!
-     * Blocking match with the same criteria.
+     * \brief Blocking match with the same criteria as tryMatch().
+     *
+     * Waits on the mailbox's condition variable with no timeout.
+     *
+     * \param[in] rank       Mailbox to search (must be valid).
+     * \param[in] sourceRank Sender to match; negative matches any sender.
+     * \param[in] tag        Tag to match.
+     * \return The removed message.
      */
     Message waitMatch(int32_t rank, int32_t sourceRank, int32_t tag)
     {
@@ -94,8 +127,14 @@ struct InProcHub::Impl
     }
 
     /*!
-     * Blocking match bounded by \p timeoutSeconds; false when it elapses
-     * before a matching message arrives.
+     * \brief Blocking match bounded by \p timeoutSeconds; false when it
+     *        elapses before a matching message arrives.
+     * \param[in]  rank           Mailbox to search (must be valid).
+     * \param[in]  sourceRank     Sender to match; negative matches any sender.
+     * \param[in]  tag            Tag to match.
+     * \param[in]  timeoutSeconds Longest wait, in seconds.
+     * \param[out] out            The removed message when the return is true.
+     * \return True when a message matched within the timeout.
      */
     bool waitMatchFor(int32_t rank, int32_t sourceRank, int32_t tag,
                       double timeoutSeconds, Message &out)
@@ -123,6 +162,11 @@ struct InProcHub::Impl
         }
     }
 
+    /*!
+     * \brief Appends \p message to \p rank's mailbox and wakes its waiters.
+     * \param[in] rank    Destination mailbox (must be valid).
+     * \param[in] message The packed message (moved in).
+     */
     void deliver(int32_t rank, Message message)
     {
         Mailbox &mailbox = *mailboxes[static_cast<size_t>(rank)];
@@ -166,11 +210,14 @@ namespace {
 
 /*!
  * Already-completed request (used for sendAsync, which delivers eagerly).
+ * test(), wait() and waitFor() return at once; failed() reports the
+ * message it was made with (empty: success).
  */
 class CompletedRequest final
     : public HydroCouple::Distributed::IExchangeRequest
 {
 public:
+    //! \p failureMessage is the send failure, or empty for success.
     explicit CompletedRequest(std::string failureMessage = {})
         : m_failure(std::move(failureMessage))
     {
@@ -188,16 +235,19 @@ public:
     }
 
 private:
-    std::string m_failure;
+    std::string m_failure; //!< Empty on success.
 };
 
 /*!
  * Nonblocking receive request: matches lazily against the hub mailbox.
+ * Nothing is removed from the mailbox until test(), wait() or waitFor()
+ * finds a match; the destructor does not wait.
  */
 class InProcReceiveRequest final
     : public HydroCouple::Distributed::IExchangeRequest
 {
 public:
+    //! Records what to match and where to unpack; matches nothing yet.
     InProcReceiveRequest(std::shared_ptr<InProcHub> hub,
                          InProcHub::Impl &impl, int32_t rank,
                          int32_t sourceRank, int32_t tag,
@@ -251,6 +301,8 @@ public:
     }
 
 private:
+    //! Unpacks the matched message into the destination, records an unpack
+    //! failure, and marks the request complete.
     void finish(InProcHub::Impl::Message message)
     {
         std::string unpackMessage;
@@ -260,13 +312,13 @@ private:
     }
 
     std::shared_ptr<InProcHub> m_hub; //!< Keeps the hub alive.
-    InProcHub::Impl           &m_impl;
-    int32_t                    m_rank;
-    int32_t                    m_sourceRank;
-    int32_t                    m_tag;
-    BufferDescriptor           m_into;
-    bool                       m_complete = false;
-    std::string                m_failure;
+    InProcHub::Impl           &m_impl;       //!< The hub's mailboxes.
+    int32_t                    m_rank;       //!< The receiving rank's mailbox.
+    int32_t                    m_sourceRank; //!< Sender to match (negative: any).
+    int32_t                    m_tag;        //!< Tag to match.
+    BufferDescriptor           m_into;       //!< Caller's destination buffer.
+    bool                       m_complete = false; //!< A message was matched and unpacked (or failed to).
+    std::string                m_failure;    //!< Unpack failure; empty on success.
 };
 
 } // namespace

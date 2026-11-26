@@ -17,15 +17,16 @@ namespace HydroCouple::SDK::Tools {
 
 namespace {
 
-using Point = meshkit::Point2;
-using Delaunay = meshkit::ConstrainedDelaunay;
+using Point = meshkit::Point2;               //!< MeshKit's 2-D point.
+using Delaunay = meshkit::ConstrainedDelaunay; //!< MeshKit's constrained Delaunay kernel.
 
 //! A constraint edge between two entries of the point list.
 struct Edge
 {
-    size_t a, b;
+    size_t a, b; //!< Indexes into the point list.
 };
 
+//! Euclidean distance between two points in the plane.
 double distance(const Spatial::Point &a, const Spatial::Point &b)
 {
     return std::hypot(b.x - a.x, b.y - a.y);

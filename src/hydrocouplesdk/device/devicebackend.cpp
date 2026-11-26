@@ -11,6 +11,8 @@ namespace HydroCouple::SDK::Device {
 
 namespace {
 
+//! Whether \p space is served from ordinary host memory (Host, HostPinned,
+//! Unified).
 bool hostServable(MemorySpace space)
 {
     return space == MemorySpace::Host || space == MemorySpace::HostPinned ||
