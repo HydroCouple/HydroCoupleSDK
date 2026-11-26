@@ -144,6 +144,59 @@
               "type": "string",
               "default": "julian_day",
               "description": "SDK convention is julian_day."
+            },
+            "epoch_julian_day": {
+              "type": "number",
+              "description": "Julian day of elapsed time zero, for a clock in elapsed seconds."
+            }
+          },
+          "additionalProperties": false
+        },
+
+        "quantity": {
+          "type": "object",
+          "description": "The unit's conversion to SI and its dimensions, so readers need not parse the units caption.",
+          "required": ["scale", "offset", "powers", "value_kind"],
+          "properties": {
+            "scale":      { "type": "number", "description": "Factor that converts a stored value to SI." },
+            "offset":     { "type": "number", "description": "Offset added after scaling (temperatures)." },
+            "powers": {
+              "type": "array",
+              "items": { "type": "number" },
+              "description": "Power of each fundamental dimension, in IUnitDimensions order."
+            },
+            "value_kind": { "type": "integer", "description": "IQuantity::valueKind() as an integer." }
+          },
+          "additionalProperties": false
+        },
+
+        "geometry": {
+          "type": "object",
+          "description": "The mesh the values live on, recorded once per surface in an hc.recorded-mesh/1.0 file.",
+          "required": ["artifact", "entity_axis"],
+          "properties": {
+            "artifact": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Recorded mesh file, relative to the manifest."
+            },
+            "entity_axis": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Position of the mesh entity dimension in shape (0 is the time dimension)."
+            },
+            "layer_axis": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Position of the layer dimension in shape, for layered items."
+            },
+            "vertical": {
+              "$ref": "#/$defs/resultEntry",
+              "description": "The recorded layer interface elevations, for layered items."
+            },
+            "vertical_kind": {
+              "type": "integer",
+              "description": "IVerticalCoordinate::kind() of the layers, as an integer."
             }
           },
           "additionalProperties": false
