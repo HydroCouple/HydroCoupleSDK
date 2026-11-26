@@ -559,6 +559,7 @@ endif()
 # ── Examples ──────────────────────────────────────────────────────────────
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
+    add_subdirectory(docs/examples)
 endif()
 
 # ── Documentation ─────────────────────────────────────────────────────────

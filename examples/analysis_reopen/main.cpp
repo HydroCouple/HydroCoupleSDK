@@ -47,6 +47,7 @@ using namespace HydroCouple::SDK;
 
 namespace {
 
+//! [read_all]
 /*!
  * \brief Reads a whole recorded variable into a flat host vector.
  */
@@ -72,6 +73,7 @@ bool readAll(IComponentDataItem &item, std::vector<double> &values,
     return item.getValuesInto(destination, start, shape, &message);
 }
 
+//! [read_all]
 } // namespace
 
 int main(int argc, char **argv)
@@ -79,6 +81,7 @@ int main(int argc, char **argv)
     const std::filesystem::path manifestPath =
         argc > 1 ? argv[1] : "output/run.json";
 
+    //! [read_manifest]
     // ── 1. The manifest is the only input ────────────────────────────────
     IO::RunManifest manifest;
     std::string     message;
@@ -96,6 +99,8 @@ int main(int argc, char **argv)
               << "components : " << manifest.components.size()
               << ", recorded items: " << manifest.results.size() << "\n\n";
 
+    //! [read_manifest]
+    //! [reopen]
     // ── 2. Reopen every recorded component ───────────────────────────────
     // No resolver: this program has no model components to offer, which is
     // exactly the point.
@@ -110,6 +115,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    //! [reopen]
+    //! [browse]
     // ── 3. Browse and summarize ──────────────────────────────────────────
     std::cout << std::fixed << std::setprecision(4);
     for (const IO::ComponentSpec &block : analysis.components)
@@ -184,5 +191,6 @@ int main(int argc, char **argv)
 
     std::cout << "summarized " << manifest.results.size()
               << " recorded item(s) with no model component linked.\n";
+    //! [browse]
     return 0;
 }

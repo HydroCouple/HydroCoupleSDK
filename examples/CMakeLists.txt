@@ -30,3 +30,28 @@ if(USE_MPI)
         PRIVATE HydroCoupleSDK MPI::MPI_CXX)
     hydrocouplesdk_colocate_runtime_dlls(distributed_coupling)
 endif()
+
+# The developer guide's coupling tutorial (chapter 4) runs these two in
+# sequence; as tests they keep its commands and output current. The run is
+# written to build/docs-examples/serial_coupling/ and stays for review.
+if(BUILD_TESTS)
+    set(serial_coupling_output "${CMAKE_BINARY_DIR}/docs-examples/serial_coupling")
+    add_test(NAME examples.serial_coupling
+             COMMAND serial_coupling composition.json "${serial_coupling_output}"
+             WORKING_DIRECTORY $<TARGET_FILE_DIR:serial_coupling>)
+    set_tests_properties(examples.serial_coupling PROPERTIES
+        FIXTURES_SETUP serial_coupling_run LABELS docs-example)
+    add_test(NAME examples.analysis_reopen
+             COMMAND analysis_reopen "${serial_coupling_output}/run.json")
+    set_tests_properties(examples.analysis_reopen PROPERTIES
+        FIXTURES_REQUIRED serial_coupling_run LABELS docs-example)
+    # The YAML document initializes the same composition (yaml-cpp builds only).
+    if(HYDROCOUPLESDK_HAVE_YAML_CPP)
+        add_test(NAME examples.serial_coupling_yaml
+                 COMMAND serial_coupling composition.yaml
+                         "${CMAKE_BINARY_DIR}/docs-examples/serial_coupling_yaml"
+                 WORKING_DIRECTORY $<TARGET_FILE_DIR:serial_coupling>)
+        set_tests_properties(examples.serial_coupling_yaml PROPERTIES
+            LABELS docs-example)
+    endif()
+endif()

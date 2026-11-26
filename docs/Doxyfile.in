@@ -29,6 +29,18 @@ INPUT                 += @CMAKE_SOURCE_DIR@/docs/guide
 RECURSIVE              = YES
 USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/docs/mainpage.md
 FILE_PATTERNS          = *.h *.cpp *.c *.md
+# The guide's code comes from compiled, tested programs (docs/examples), the
+# runnable examples and the JSON schemas; pages show them with @include/@snippet.
+EXAMPLE_PATH           = @CMAKE_SOURCE_DIR@/docs/examples \
+                         @CMAKE_SOURCE_DIR@/examples \
+                         @CMAKE_SOURCE_DIR@/share/schema
+# Formulas (\f$ ... \f$, \f[ ... \f]) render in the browser with MathJax 3, as in the
+# OpenSWMM Engine manual, so the docs build needs no LaTeX.
+USE_MATHJAX            = YES
+MATHJAX_VERSION        = MathJax_3
+MATHJAX_FORMAT         = chtml
+MATHJAX_RELPATH        = https://cdn.jsdelivr.net/npm/mathjax@3/es5/
+MATHJAX_EXTENSIONS     = ams
 
 IGNORE_PREFIX          = I Abstract
 

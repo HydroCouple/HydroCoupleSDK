@@ -68,6 +68,7 @@ namespace {
 constexpr int kReachCount = 3;
 constexpr int kTimeSteps  = 24;
 
+//! [catchment]
 /*!
  * \brief Rainfall-runoff component: one argument (per-reach runoff
  *        coefficient), one output (runoff per reach).
@@ -155,6 +156,8 @@ private:
     int                       m_step = 0;
 };
 
+//! [catchment]
+//! [channel]
 /*!
  * \brief Channel routing component: consumes lateral inflow, produces
  *        routed flow with a simple Muskingum-style lag.
@@ -252,6 +255,7 @@ private:
     int                       m_step = 0;
 };
 
+//! [channel]
 /*!
  * \brief Three reach centroids used for the GeoPackage feature layer and
  *        the UGRID mesh (a 1-D chain of nodes).
@@ -277,6 +281,7 @@ int main(int argc, char **argv)
         argc > 2 ? argv[2] : "output";
     std::filesystem::create_directories(outputDirectory);
 
+    //! [initializer]
     // ── 1. Components and composition document ───────────────────────────
     CatchmentComponent catchment("catchment");
     ChannelComponent   channel("channel");
@@ -305,6 +310,8 @@ int main(int argc, char **argv)
     }
     std::cout << "initialized composition from " << documentPath << '\n';
 
+    //! [initializer]
+    //! [writers]
     // ── 2. Output writers behind the IO thread ───────────────────────────
     IO::IOThread ioThread(/*capacity=*/32);
     IO::RunRecorder recorder;
@@ -345,6 +352,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    //! [writers]
+    //! [workflow]
     // ── 3. Workflow orchestration ────────────────────────────────────────
     TimeSteppedWorkflow workflow("serial-coupling");
     recorder.addComponent(&catchment);
@@ -377,6 +386,8 @@ int main(int argc, char **argv)
     }
     std::cout << '\n';
 
+    //! [workflow]
+    //! [run]
     // ── 4. Run, snapshotting each step to the writers ────────────────────
     int guard = 0;
     while (workflow.status() !=
@@ -416,6 +427,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    //! [run]
+    //! [manifest]
     // ── 5. Record the run so it can be reopened for analysis ─────────────
     // Writer catalogs are only valid after the IO thread has finalized.
     if (!recorder.finishToFile(outputDirectory / "run.json", message,
@@ -429,6 +442,8 @@ int main(int argc, char **argv)
               << std::filesystem::absolute(outputDirectory) << '\n';
     std::cout << "run manifest written to run.json\n";
 
+    //! [manifest]
+    //! [roundtrip]
     // ── 5. Round-trip the composition back out ───────────────────────────
     if (!initializer.serializeToFile({"catchment", "channel"},
                                      outputDirectory / "composition.out.json",
@@ -438,5 +453,6 @@ int main(int argc, char **argv)
         return 1;
     }
     std::cout << "composition round-tripped to composition.out.json\n";
+    //! [roundtrip]
     return 0;
 }
