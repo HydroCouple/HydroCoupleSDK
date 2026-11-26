@@ -683,7 +683,7 @@ Messages the `data` module produces, in addition to the data-plane refusals list
 | `Expected JSON array of row arrays`, `Rows must be arrays of equal length` | `Argument2D::initialize()` | Not a rectangular array of rows | Give every row the same length |
 | `Expected JSON object`, `identifiers/values must be arrays of equal length` | `IdBasedArgument::initialize()` | Not an object, or arrays of different lengths | Use one of the two documented forms |
 | `Cannot open file: PATH` | any typed argument, File | The path does not exist or is unreadable | Check the path (relative paths resolve against the process's working directory) |
-| `No resolver is installed for 'SCHEME' URIs, so this argument cannot read URI` | any typed argument, URL | A remote URI and no `IO::UriResolver` for its scheme | Install a resolver in the host |
+| ``No resolver is installed for 'SCHEME' URIs, so this argument cannot read URI`` | any typed argument, URL | A remote URI and no `IO::UriResolver` for its scheme | Install a resolver in the host |
 | `Not a local file URI: URI` | any typed argument, URL | A `file:` URI naming another host | Use a local path |
 | `Source data item is not one-dimensional` / `two-dimensional` / `id-based`, `Source data kind mismatch` | `initialize(item)` | The source does not fit the argument | Bind an item of the right rank and kind |
 | `unsupported serialization format for this argument` | `serialize()` | A type other than String or JSON | Serialize as JSON |

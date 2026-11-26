@@ -479,7 +479,7 @@ factory test `test_adaptedoutputs.cpp` (its `ShadowFactory`) is a complete small
 | `seed names an item or role this adapter does not differentiate`, `result names ...` | `vjp()`, `jvp()` | A seed or result for another item or role | Use the roles listed above |
 | `not a relaxation token`, `the token holds N values but the adaptee has a different shape`, `truncated or malformed token`, `trailing data in token` | `RelaxationAdaptedOutput::restoreState()` | A token from elsewhere, or the adaptee changed length | Restore tokens of this adapter at the same shape |
 | `Adapted output "ID" cannot be consumed by input "INPUT": REASON` (`std::invalid_argument`) | `addConsumer()` | The consumer refused the adapter | See the reason |
-| `adapted output "ID" requested but the provider's component exposes no adapter factories and no standalone adapter factories are installed` | `ModelInitializer` | No factory at all | Install `SdkAdaptedOutputFactory::instance()` as a standalone factory |
+| ``adapted output "ID" requested but the provider's component exposes no adapter factories and no standalone adapter factories are installed`` | `ModelInitializer` | No factory at all | Install `SdkAdaptedOutputFactory::instance()` as a standalone factory |
 | `no adapted output "ID" is offered for output "OUTPUT" (searched ...)` | `ModelInitializer` | No candidate offers the step for this output | Check the offering id and the output's kind and shape |
 | `factory "F" returned no adapted output for "ID"` | `ModelInitializer` | The factory offered the step and then created nothing | Fix the factory |
 | `adapted output "ID" has no argument "A"` | `ModelInitializer` | A step argument the adapter does not have | Use the argument ids above |

@@ -249,16 +249,16 @@ cases: the same tests run over every backend.
 | `HostBackend: null copy endpoint` | A null source or destination. |
 | `KokkosBackend: unsupported space/device`, `KokkosBackend: zero-byte allocation`, `KokkosBackend: allocation of N bytes failed`, `KokkosBackend: copy involves an unsupported space`, `KokkosBackend: null copy endpoint` | As for the host backend, with ordinal 0 the only device. |
 | `KokkosBackend: ` followed by the exception text | Kokkos threw during an allocation or copy. |
-| `DeviceBufferRegistry: 'KEY' has no fixed-width element size` | `acquire()` with String, Opaque or Unknown. |
-| `DeviceBufferRegistry: 'KEY' has a negative extent` | A negative extent in the shape. |
-| `DeviceBufferRegistry: 'KEY' already registered with a different signature (release() it first)` | The key exists with another kind, shape, space or device. |
-| `DeviceBufferRegistry: backend 'NAME' does not support the requested space/device` | The backend's `supportsSpace()` is false. |
-| `DeviceBufferRegistry: unknown key 'KEY'` | `upload()`, `download()` or `descriptor()` for a key never acquired, or released. |
-| `DeviceBufferRegistry: upload of N bytes into 'KEY' (M bytes)`, `... download of N bytes from 'KEY' (M bytes)` | The byte count differs from the mirror's. |
+| ``DeviceBufferRegistry: 'KEY' has no fixed-width element size`` | `acquire()` with String, Opaque or Unknown. |
+| ``DeviceBufferRegistry: 'KEY' has a negative extent`` | A negative extent in the shape. |
+| ``DeviceBufferRegistry: 'KEY' already registered with a different signature (release() it first)`` | The key exists with another kind, shape, space or device. |
+| ``DeviceBufferRegistry: backend 'NAME' does not support the requested space/device`` | The backend's `supportsSpace()` is false. |
+| ``DeviceBufferRegistry: unknown key 'KEY'`` | `upload()`, `download()` or `descriptor()` for a key never acquired, or released. |
+| ``DeviceBufferRegistry: upload of N bytes into 'KEY' (M bytes)``, ``... download of N bytes from 'KEY' (M bytes)`` | The byte count differs from the mirror's. |
 | `space transfer: element kinds differ` | Source and destination kinds differ. |
 | `space transfer: kind has no fixed width` | String, Opaque or Unknown. |
 | `space transfer: element counts differ` | The two shapes hold different numbers of elements. |
-| `space transfer: backend 'NAME' does not support the source space`, or the same for the destination | A `Device` side the backend cannot serve. |
+| ``space transfer: backend 'NAME' does not support the source space``, or the same for the destination | A `Device` side the backend cannot serve. |
 | `space transfer: strided device source is not supported`, or the same for the destination | A device descriptor with non-packed strides. |
 | `unsupported memory space` | An SDK data item was given a non-host descriptor. |
 

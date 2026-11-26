@@ -56,7 +56,7 @@ struct ConnectionFinding
         HydroCouple::ErrorEntry::Severity::Warning;
     //! A Diagnostic connection code, 1101 to 1113.
     int32_t     code = 0;
-    //! What was found, prefixed with `link 'P' -> 'C': `, where P is the
+    //! What was found, prefixed with ``link 'P' -> 'C': ``, where P is the
     //! provider's id and C the consumer's.
     std::string message;
 };

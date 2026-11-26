@@ -514,8 +514,8 @@ lines show. The wire sizes:
 | `request timed out after S s (op N)` | The worker did not answer within the request timeout. | Check that the worker runs on the proxy's `remoteRank`; raise the timeout for slow steps. |
 | `remote initialize failed: ...` (and prepare, update, finish, validate) | A lifecycle round trip failed; the proxy is `Failed`. | Read the rest of the message: a timeout or the worker's error. |
 | `remote initialize() did not reach Initialized`, `remote prepare() failed`, `remote update() failed` | The real component did not reach the expected status. | Read the remote component's own errors on its rank. |
-| `remote component has no data item 'ID'` | `getRemoteValues`/`setRemoteValues` named an item the component lacks. | Use an input or output id of the remote component. |
-| `item 'ID' has a non-fixed-width DataKind` | GetValues on a String or Opaque item. | |
+| ``remote component has no data item 'ID'`` | `getRemoteValues`/`setRemoteValues` named an item the component lacks. | Use an input or output id of the remote component. |
+| ``item 'ID' has a non-fixed-width DataKind`` | GetValues on a String or Opaque item. | |
 | `SetValues value block rejected: ...` | The pushed block's kind or count differs from the item's. | Send the item's kind and element count. |
 | `worker failed to receive the request payload: ...` | The payload announced by an envelope did not arrive intact. | |
 | `unsupported op code N` | An op code the worker does not serve (`Status`, or an unknown byte). | |

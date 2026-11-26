@@ -21,7 +21,7 @@ namespace Spatial  = HydroCouple::Spatial;
 namespace Temporal = HydroCouple::Temporal;
 
 //! Collects the findings of one link, prefixing each message with
-//! `link 'P' -> 'C': `, where P and C are the provider and consumer ids.
+//! ``link 'P' -> 'C': ``, where P and C are the provider and consumer ids.
 class Findings
 {
 public:

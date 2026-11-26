@@ -342,7 +342,7 @@ axis time -> nodes
   Error 1112: link 'out' -> 'in': axis 0 is Time on the provider and Entity on the consumer
 ```
 
-Every message starts with `link 'P' -> 'C': `, naming the provider and consumer ids. Only the
+Every message starts with ``link 'P' -> 'C': ``, naming the provider and consumer ids. Only the
 consumer's immediate provider is compared. When an adapted output sits between two components, the
 adapter is what is compared, which is correct: it exists to change units, grids or time bases. A
 ft³/s output feeding an m³/s input is fixed by inserting a linear-transform adapted output with
@@ -454,14 +454,14 @@ The value-definition checks of `validateConnection()`, with their fixes:
 | 1101 Error | `element types differ (the data plane converts nothing)` | Use items of the same data kind on both ends |
 | 1102 Warning | `provider declares no value definition; units and value kind cannot be checked` (or `consumer`) | Give the item a quantity or quality |
 | 1102 Error | `provider is a quality, consumer a quantity` (or the reverse) | Connect categorical values only to categorical values |
-| 1102 Error | `the qualities' category lists differ, so category index k names different things on the two ends` | Use one category list, in one order, or a mapping adapter |
+| 1102 Error | ``the qualities' category lists differ, so category index k names different things on the two ends`` | Use one category list, in one order, or a mapping adapter |
 | 1103 Error | `provider values are A, consumer expects B` | Correct the kind on one end, or adapt between them |
 | 1103 Warning | `provider declares no ValueKind (the other says K); ...` or `neither end declares a ValueKind` | Call `setValueKind()` on the value definitions |
 | 1104 Error | `units differ in dimension (P vs Q)` | Connect matching quantities |
-| 1104 Error | `units share a dimension but not a scale ('U' vs 'V'); wire a unit-conversion adapter between them` | Insert a linear-transform adapted output (@ref sdk_guide_adapted_outputs) |
+| 1104 Error | ``units share a dimension but not a scale ('U' vs 'V'); wire a unit-conversion adapter between them`` | Insert a linear-transform adapted output (@ref sdk_guide_adapted_outputs) |
 | 1104 Warning | `units differ in dimension (dimensionless vs Q); one side may simply not have declared its unit` | Give the placeholder its real unit |
 | 1104 Warning | `provider quantity declares no unit` (or `consumer`), `a unit declares no dimensions` | Construct the quantity with a unit, and the unit with a caption |
 | 1112 Error | `axis N is R on the provider and S on the consumer` | Use matching axis ids, or set the roles with `setRole()` |
-| 1113 Warning | `provider measures URI, consumer expects URI` or `provider measures 'NAME', consumer expects 'NAME'` | Nothing, when the difference is intended (outflow to inflow); otherwise correct the names |
+| 1113 Warning | `provider measures URI, consumer expects URI` or ``provider measures 'NAME', consumer expects 'NAME'`` | Nothing, when the difference is intended (outflow to inflow); otherwise correct the names |
 
 @ref sdk_ref_diagnostics lists every code the SDK uses.

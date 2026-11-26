@@ -379,16 +379,16 @@ appears once a second step is recorded.
 
 | Problem | Message |
 | --- | --- |
-| Components in a feedback loop (a schedule group of two or more) | `feedback loop between 'A', 'B': iterative coupling is not differentiable yet` |
-| A component without `Capability::Differentiable` | `component 'X' is not differentiable` |
-| More than one step and a component without `Capability::Checkpointing` | `component 'X' lacks Capability::Checkpointing, so only a single recorded step can be differentiated` |
-| A differentiable multi-input | `input 'I' of 'X' is a multi-input, not yet supported` |
-| A non-differentiable adapter on a differentiable connection | `adapted output 'A' on the connection into 'X.I' is not differentiable` |
-| A component reading its own output (a lagged self-coupling) | `'X.I' reads 'X''s own output 'O': a lagged self-coupling is not differentiable yet` |
-| A stateful adapter on a connection from a component outside the workflow | `adapted output 'A' carries state but adapts 'O', whose component is outside the workflow, so its refreshes cannot be replayed` |
-| An input reading an output its provider does not differentiate | `'X.I' consumes 'P.O', which 'P' does not differentiate` |
-| More than one step and a stateful adapter that cannot checkpoint | `adapted output 'A' carries state but is not an ICheckpointableAdaptedOutput, so only a single recorded step can be differentiated` |
-| A component that finished before the last recorded step | `component 'X' had finished by step N, so that step is not the same function for every component` |
+| Components in a feedback loop (a schedule group of two or more) | ``feedback loop between 'A', 'B': iterative coupling is not differentiable yet`` |
+| A component without `Capability::Differentiable` | ``component 'X' is not differentiable`` |
+| More than one step and a component without `Capability::Checkpointing` | ``component 'X' lacks Capability::Checkpointing, so only a single recorded step can be differentiated`` |
+| A differentiable multi-input | ``input 'I' of 'X' is a multi-input, not yet supported`` |
+| A non-differentiable adapter on a differentiable connection | ``adapted output 'A' on the connection into 'X.I' is not differentiable`` |
+| A component reading its own output (a lagged self-coupling) | ``'X.I' reads 'X''s own output 'O': a lagged self-coupling is not differentiable yet`` |
+| A stateful adapter on a connection from a component outside the workflow | ``adapted output 'A' carries state but adapts 'O', whose component is outside the workflow, so its refreshes cannot be replayed`` |
+| An input reading an output its provider does not differentiate | ``'X.I' consumes 'P.O', which 'P' does not differentiate`` |
+| More than one step and a stateful adapter that cannot checkpoint | ``adapted output 'A' carries state but is not an ICheckpointableAdaptedOutput, so only a single recorded step can be differentiated`` |
+| A component that finished before the last recorded step | ``component 'X' had finished by step N, so that step is not the same function for every component`` |
 
 An input whose provider belongs to no component in the workflow is a constant; a stateless adapter
 on such a connection is differentiated at its latest refresh, as a function of its arguments only.
@@ -398,15 +398,15 @@ Failures during the pass:
 | Message | Cause |
 | --- | --- |
 | `nothing to differentiate: no step has been recorded` | `backward()` before any `update()`, or after `clearRecording()`. |
-| `checkpoint of 'X' failed: ...`, `checkpoint of adapted output 'A' failed: ...` | A `saveState()` refused. |
-| `component 'X' lacks Capability::Checkpointing, so an earlier step cannot be replayed` | A restore was needed and a component cannot. |
-| `adapted output 'A', checkpointed earlier, has left the composition, so an earlier step cannot be replayed` | An adapter was removed after it was checkpointed. |
-| `adapted output 'A' carries state but joined the composition after the checkpoint, so an earlier step cannot be replayed` (or `... is not an ICheckpointableAdaptedOutput, ...`) | A stateful adapter has no token in the checkpoint. |
-| `restore of 'X' failed: ...`, `restore of adapted output 'A' failed: ...` | A `restoreState()` refused. |
-| `restoreState left 'X' finished, so replaying step N would skip it` | A component's restore did not return it to `Updated`. |
-| `component 'X' failed during update` | A replayed step failed. |
-| `'X'.vjp at step N refused: ...`, `adapted output 'A'.vjp at step N refused: ...` | A product call returned false. |
-| `a cotangent reached adapted output 'A' at step N (seeded on it or on an adapter it feeds), but it is not differentiable` | A seed on a non-differentiable adapter or a child of one. |
+| ``checkpoint of 'X' failed: ...``, ``checkpoint of adapted output 'A' failed: ...`` | A `saveState()` refused. |
+| ``component 'X' lacks Capability::Checkpointing, so an earlier step cannot be replayed`` | A restore was needed and a component cannot. |
+| ``adapted output 'A', checkpointed earlier, has left the composition, so an earlier step cannot be replayed`` | An adapter was removed after it was checkpointed. |
+| ``adapted output 'A' carries state but joined the composition after the checkpoint, so an earlier step cannot be replayed`` (or `... is not an ICheckpointableAdaptedOutput, ...`) | A stateful adapter has no token in the checkpoint. |
+| ``restore of 'X' failed: ...``, ``restore of adapted output 'A' failed: ...`` | A `restoreState()` refused. |
+| ``restoreState left 'X' finished, so replaying step N would skip it`` | A component's restore did not return it to `Updated`. |
+| ``component 'X' failed during update`` | A replayed step failed. |
+| ``'X'.vjp at step N refused: ...``, ``adapted output 'A'.vjp at step N refused: ...`` | A product call returned false. |
+| ``a cotangent reached adapted output 'A' at step N (seeded on it or on an adapter it feeds), but it is not differentiable`` | A seed on a non-differentiable adapter or a child of one. |
 | `nothing to rewind: no step has been recorded` | `rewind()` with an empty record. |
 
 `Seeds::add()` returns false, rather than failing the pass, for a null output or a cotangent whose

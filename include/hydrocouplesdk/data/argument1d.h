@@ -137,7 +137,7 @@ public:
      * \brief Parses \p value according to \p argType and stores the result.
      * \details See the class table for the accepted forms. On failure the
      *          message is the reader's (`Cannot open file: PATH`, or
-     *          `No resolver is installed for 'SCHEME' URIs, so this argument cannot read URI`),
+     *          ``No resolver is installed for 'SCHEME' URIs, so this argument cannot read URI``),
      *          the JSON parser's, or "Expected JSON array of values"; the
      *          previous values are kept unless the failure came from an
      *          element conversion part way through.

@@ -140,8 +140,8 @@ decides the order inside a feedback loop and, reversed, the order of components 
 on each other.
 
 It returns `false`, with the message set, when the component is null (`component is null`),
-already managed (`component 'ID' is already managed`), or the role is unknown (`unknown role 'R'`)
-or already filled (`role 'R' is already filled by 'ID'`). *Roles* are named slots a workflow
+already managed (``component 'ID' is already managed``), or the role is unknown (``unknown role 'R'``)
+or already filled (``role 'R' is already filled by 'ID'``). *Roles* are named slots a workflow
 subclass declares with `addModelComponentLabel(label, required)`; `validate()` fails while a
 required slot is empty, `modelComponentLabels()` lists them, `isRequiredModelComponent()` and
 `componentForRole()` look them up. The SDK's two strategies declare no roles, so they take
@@ -158,7 +158,7 @@ declares the workflow after its components for this reason.
 components in insertion order. A component that is `Created` or `Failed` is initialized; a
 component in any other status is left as it is, so a host may initialize components itself first
 (as @ref HydroCouple::SDK::IO::ModelInitializer does). If a component is `Failed` afterwards, the
-workflow fails with `component 'ID' failed to initialize`; read the component's own `errors()` for
+workflow fails with ``component 'ID' failed to initialize``; read the component's own `errors()` for
 the reason. Then `onInitialize()` runs (a subclass hook; `false` fails the workflow with its
 message) and the status becomes `Initialized`.
 
@@ -170,9 +170,9 @@ Components create their inputs and outputs in `initialize()`, so connections are
 
 `validate()` checks the composition as a whole. It sets `Validating` and collects problems:
 
-1. every required role filled (`required role 'R' is not filled`);
+1. every required role filled (``required role 'R' is not filled``);
 2. every component's own `validate()`, called whatever the component's status, each problem
-   prefixed with `component 'ID': `;
+   prefixed with ``component 'ID': ``;
 3. every connection, through `validateConnections()` (next section);
 4. the strategy's own checks, through `validateComposition()`: the pull-driven workflow requires a
    trigger.
@@ -188,15 +188,15 @@ roles, components, strategy, connection errors.
 
 `prepare()` requires `Validated`. It sets `Preparing` and calls `prepare()` on every component in
 insertion order, whatever the component's status; a component that is `Failed` afterwards fails
-the workflow with `component 'ID' failed to prepare`. Then `onPrepare()` runs; the time-stepped
+the workflow with ``component 'ID' failed to prepare``. Then `onPrepare()` runs; the time-stepped
 workflow builds its schedule there. The status becomes `Prepared`.
 
 ### update()
 
 `update()` is one *synchronization point*: one step of the whole composition. It requires
 `Prepared` or `Updated`, sets `Updating` and calls the strategy's `performStep()`. When the step
-fails, the workflow fails with the step's message, for example `component 'ID' failed during
-update`. After a successful step it decides, in this order:
+fails, the workflow fails with the step's message, for example
+``component 'ID' failed during update``. After a successful step it decides, in this order:
 
 1. a stop was requested: `Done`, with the message `stopped on request`;
 2. `isCompositionDone()` is true, by default when every component is `Done` or `Finished` (or
@@ -356,7 +356,7 @@ A pull-driven workflow is driven from one input, the *trigger*, declared with `s
 `validate()`. The trigger is usually a probe the host owns (an `Input1DDouble` with no component)
 connected to the most downstream output of interest. `validate()` fails with
 `no trigger input declared (see setTrigger())` when no trigger is set, and with
-`trigger input 'ID' has no connected provider` when it is not connected.
+``trigger input 'ID' has no connected provider`` when it is not connected.
 
 One `update()` services one request chain:
 
@@ -423,7 +423,7 @@ nonzero and its authority name is not empty.
 
 ### Every finding
 
-Each message begins with `link 'P' -> 'C': `, where P and C are the provider and consumer ids. In
+Each message begins with ``link 'P' -> 'C': ``, where P and C are the provider and consumer ids. In
 the table, *side* is `provider` or `consumer`, whichever end lacks the declaration.
 
 | Code | Severity | Message | Cause |
@@ -431,13 +431,13 @@ the table, *side* is `provider` or `consumer`, whichever end lacks the declarati
 | 1101 | Error | `element types differ (the data plane converts nothing)` | Different `dataKind()` |
 | 1102 | Warning | `side declares no value definition; units and value kind cannot be checked` | `valueDefinition()` is null on one end |
 | 1102 | Error | `provider is a quantity, consumer a quality` (or the reverse) | A quantity meets a quality |
-| 1102 | Error | `the qualities' category lists differ, so category index k names different things on the two ends` | Different categories, or a different order |
+| 1102 | Error | ``the qualities' category lists differ, so category index k names different things on the two ends`` | Different categories, or a different order |
 | 1103 | Error | `provider values are A, consumer expects B` | Different declared `ValueKind` |
 | 1103 | Warning | `side declares no ValueKind (the other says K); an adapter could not choose between averaging and summing` | One end leaves it `Unknown` |
 | 1103 | Warning | `neither end declares a ValueKind` | Both leave it `Unknown` |
 | 1104 | Error | `units differ in dimension (P vs Q)` | Different powers, both dimensioned |
 | 1104 | Warning | `units differ in dimension (dimensionless vs Q); one side may simply not have declared its unit` | One unit dimensionless |
-| 1104 | Error | `units share a dimension but not a scale ('U' vs 'V'); wire a unit-conversion adapter between them` | Same powers, different factor or offset |
+| 1104 | Error | ``units share a dimension but not a scale ('U' vs 'V'); wire a unit-conversion adapter between them`` | Same powers, different factor or offset |
 | 1104 | Warning | `side quantity declares no unit` | A quantity without a unit |
 | 1104 | Warning | `a unit declares no dimensions` | `dimensions()` is null |
 | 1105 | Error | `provider timestamps are A, consumer expects B` | Different `TimeKind` |
@@ -461,7 +461,7 @@ the table, *side* is `provider` or `consumer`, whichever end lacks the declarati
 | 1111 | Error | `layer counts differ (a vs b)` | Different numbers of layers |
 | 1111 | Warning | `side declares no vertical coordinate kind` | One kind `Unknown` |
 | 1112 | Error | `axis N is A on the provider and B on the consumer` | Different roles on the same axis; `Unknown` and `Other` are skipped |
-| 1113 | Warning | `provider measures URI, consumer expects URI` or `provider measures 'NAME', consumer expects 'NAME'` | Different concept URIs, or, when either lacks one, different CF standard names |
+| 1113 | Warning | `provider measures URI, consumer expects URI` or ``provider measures 'NAME', consumer expects 'NAME'`` | Different concept URIs, or, when either lacks one, different CF standard names |
 
 ### In the workflow
 
@@ -539,7 +539,7 @@ both of its signals.
 `errors()` returns the workflow's own queue: the problems and connection findings of `validate()`,
 the `Fatal` entry of every failure, the `Warning` of an ignored `initialize()`, and illegal
 transitions. It does not include the components' queues; when the workflow reports
-`component 'ID' failed ...`, read that component's `errors()` for the cause.
+``component 'ID' failed ...``, read that component's `errors()` for the cause.
 
 ## Execution modes and where workflows come from
 
@@ -597,19 +597,19 @@ Both end with `all checks passed`.
 
 | Message | Status after | Cause | Fix |
 | --- | --- | --- | --- |
-| `component is null`, `component 'ID' is already managed`, `unknown role 'R'`, `role 'R' is already filled by 'ID'` | unchanged (`addModelComponent()` returns `false`) | Adding a component | Add each component once; use a declared role |
+| `component is null`, ``component 'ID' is already managed``, ``unknown role 'R'``, ``role 'R' is already filled by 'ID'`` | unchanged (`addModelComponent()` returns `false`) | Adding a component | Add each component once; use a declared role |
 | `initialize() ignored in state S` (`Warning`) | unchanged | `initialize()` outside `Created` and `Failed` | Create a new workflow to run again |
-| `component 'ID' failed to initialize` | `Failed` | A component's `initialize()` failed | Read that component's `errors()` |
+| ``component 'ID' failed to initialize`` | `Failed` | A component's `initialize()` failed | Read that component's `errors()` |
 | `validate() requires the Initialized, Validated or Invalid state (current: S)` | unchanged | `validate()` too early or too late | Call it after `initialize()` and before `prepare()` |
-| `required role 'R' is not filled` | `Invalid` | A required role is empty | Add a component into the role |
-| `component 'ID': MESSAGE` | `Invalid` | A component's `validate()` returned a problem | See the component's message |
-| `no trigger input declared (see setTrigger())`, `trigger input 'ID' has no connected provider` | `Invalid` | Pull-driven workflow without a usable trigger | Call `setTrigger()` with a connected input |
-| `link 'P' -> 'C': ...` | `Invalid` for an error | A connection finding (table above) | Fix the declaration or insert an adapted output |
+| ``required role 'R' is not filled`` | `Invalid` | A required role is empty | Add a component into the role |
+| ``component 'ID': MESSAGE`` | `Invalid` | A component's `validate()` returned a problem | See the component's message |
+| `no trigger input declared (see setTrigger())`, ``trigger input 'ID' has no connected provider`` | `Invalid` | Pull-driven workflow without a usable trigger | Call `setTrigger()` with a connected input |
+| ``link 'P' -> 'C': ...`` | `Invalid` for an error | A connection finding (table above) | Fix the declaration or insert an adapted output |
 | `composition validation found N problem(s)` (event message) | `Invalid` | Summary of the problems returned by `validate()` | Fix them and validate again |
 | `prepare() requires the Validated state (current: S)` | `Failed` | `prepare()` before a successful `validate()` | Validate first |
-| `component 'ID' failed to prepare` | `Failed` | A component's `prepare()` failed | Read that component's `errors()` |
+| ``component 'ID' failed to prepare`` | `Failed` | A component's `prepare()` failed | Read that component's `errors()` |
 | `update() requires the Prepared or Updated state (current: S)` | `Failed` | `update()` after `Done`, while `Paused`, or before `prepare()` | Stop at `Done`; `resume()` first |
-| `component 'ID' failed during update` | `Failed` | A component ended its `update()` `Failed` | Read that component's `errors()` |
+| ``component 'ID' failed during update`` | `Failed` | A component ended its `update()` `Failed` | Read that component's `errors()` |
 | `illegal workflow status transition A -> B (...)` (`Error`, 1001) | performed | A transition the table rejects, such as `finish()` on a `Created` workflow | Follow the lifecycle |
 | `workflow failed` | `Failed` | A failure without a message (subclass) | Give the failure a message |
 
