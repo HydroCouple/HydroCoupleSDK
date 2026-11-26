@@ -15,11 +15,22 @@ namespace HydroCouple::SDK::Spatial {
 
 namespace {
 
+//! Short name for the argument input type the IArgument overloads switch on.
 using AT = HydroCouple::IArgument::ArgumentInputType;
 
 /*!
  * The coordinate arrays a MeshDefinition must agree on before anything
  * downstream trusts its counts.
+ *
+ * Checks that nodeY has as many values as nodeX, that nodeZ is empty or as
+ * long, and that the face offsets, when present, end at the length of
+ * faceNodes. It does not check offset monotonicity or index bounds
+ * (MeshDefinition::validate() does).
+ *
+ * \param[in]  mesh    The mesh to check.
+ * \param[out] message Receives which arrays disagree, with their lengths,
+ *                     when the check fails; unchanged otherwise.
+ * \returns True when the three conditions hold.
  */
 bool meshIsCoherent(const HydroCouple::SDK::IO::MeshDefinition &mesh,
                     std::string &message)
@@ -129,6 +140,11 @@ std::string PolyhedralSurfaceArgument::toString() const
            ", faces=" + std::to_string(m_mesh.faceCount()) + ")";
 }
 
+// The definition below spells its parameter type with the local alias AT,
+// which Doxygen cannot match to the declaration (it reports "no uniquely
+// matching class member"); the contract is documented on the declaration in
+// polyhedralsurfaceargument.h, so the definition is kept out of Doxygen.
+//! \cond
 bool PolyhedralSurfaceArgument::initialize(const std::string &value,
                                            AT argType, std::string &message)
 {
@@ -149,7 +165,7 @@ bool PolyhedralSurfaceArgument::initialize(const std::string &value,
         }
         HydroCouple::SDK::IO::MeshDefinition mesh;
         // The reader's own suite owns coherence for what it produces; a
-        // second check here would be a defence nothing can falsify.
+        // second check here would be a defense nothing can falsify.
         if (!HydroCouple::SDK::IO::readUGRIDMesh(value, std::string(), mesh,
                                                  message))
             return false;
@@ -184,6 +200,7 @@ bool PolyhedralSurfaceArgument::initialize(const std::string &value,
         return false;
     }
 }
+//! \endcond
 
 bool PolyhedralSurfaceArgument::initialize(
     const HydroCouple::IComponentDataItem &componentDataItem,

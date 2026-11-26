@@ -22,9 +22,16 @@ constexpr unsigned char kLittleEndian = 1;
 
 //! WKB geometry type codes (OGC simple features, 2-D).
 constexpr uint32_t kWkbPoint = 1;
-constexpr uint32_t kWkbLineString = 2;
-constexpr uint32_t kWkbPolygon = 3;
+constexpr uint32_t kWkbLineString = 2; //!< WKB type code of a line string.
+constexpr uint32_t kWkbPolygon = 3;    //!< WKB type code of a polygon.
 
+/*!
+ * \brief Appends raw bytes to a WKB buffer.
+ * \param[in,out] bytes The buffer; grows by \p size bytes.
+ * \param[in]     data  The bytes to copy, in memory order (host byte order
+ *                      for numbers); must not be null when \p size > 0.
+ * \param[in]     size  Number of bytes.
+ */
 void appendBytes(std::vector<unsigned char> &bytes, const void *data,
                  size_t size)
 {
@@ -32,16 +39,35 @@ void appendBytes(std::vector<unsigned char> &bytes, const void *data,
     bytes.insert(bytes.end(), first, first + size);
 }
 
+/*!
+ * \brief Appends a 32-bit unsigned integer in host byte order.
+ *
+ * The WKB header written by appendHeader() declares little-endian, which
+ * matches the host on every platform the SDK supports.
+ *
+ * \param[in,out] bytes The buffer; grows by four bytes.
+ * \param[in]     value The integer (a type code or a count).
+ */
 void appendUInt32(std::vector<unsigned char> &bytes, uint32_t value)
 {
     appendBytes(bytes, &value, sizeof(value));
 }
 
+/*!
+ * \brief Appends a double in host byte order.
+ * \param[in,out] bytes The buffer; grows by eight bytes.
+ * \param[in]     value The coordinate.
+ */
 void appendDouble(std::vector<unsigned char> &bytes, double value)
 {
     appendBytes(bytes, &value, sizeof(value));
 }
 
+/*!
+ * \brief Appends a WKB record header: the byte-order marker, then the type.
+ * \param[in,out] bytes The buffer; grows by five bytes.
+ * \param[in]     type  The WKB type code (kWkbPoint, kWkbLineString, ...).
+ */
 void appendHeader(std::vector<unsigned char> &bytes, uint32_t type)
 {
     bytes.push_back(kLittleEndian);
@@ -49,6 +75,12 @@ void appendHeader(std::vector<unsigned char> &bytes, uint32_t type)
 }
 
 //! Writes a ring or line body: a point count followed by the coordinates.
+/*!
+ * Only x and y are written, matching the two-dimensional type codes.
+ *
+ * \param[in,out] bytes The buffer; grows by 4 + 16 per point.
+ * \param[in]     line  The line or ring.
+ */
 void appendLineBody(std::vector<unsigned char> &bytes, const LineString &line)
 {
     appendUInt32(bytes, static_cast<uint32_t>(line.pointCount()));
@@ -61,6 +93,15 @@ void appendLineBody(std::vector<unsigned char> &bytes, const LineString &line)
     }
 }
 
+/*!
+ * \brief Writes a WKT coordinate list, "(x y, x y, ...)", for a line or ring.
+ *
+ * Uses the stream's current formatting; GeometryAdapter::getWKT() leaves the
+ * default, six significant digits.
+ *
+ * \param[in,out] text The stream receiving the text.
+ * \param[in]     line The line or ring; x and y only.
+ */
 void appendCoordinateText(std::ostringstream &text, const LineString &line)
 {
     text << '(';
