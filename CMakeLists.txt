@@ -539,9 +539,13 @@ endif()
 # the DLL sits next to it (or on PATH). Tests and examples live in their own
 # build subdirectories, so copy the DLLs they link against alongside them.
 # vcpkg app-local deployment handles its own ports; HydroCoupleSDK is ours.
+# The copy runs before the link: vcpkg's deployment runs after it and reaches
+# the ports HydroCoupleSDK.dll needs (z.dll for hdf5.dll) only through a
+# HydroCoupleSDK.dll already beside the executable. Copied after the link,
+# the result depended on whether a sibling target had copied it first.
 function(hydrocouplesdk_colocate_runtime_dlls target)
     if(WIN32 AND NOT CMAKE_VERSION VERSION_LESS "3.21")
-        add_custom_command(TARGET ${target} POST_BUILD
+        add_custom_command(TARGET ${target} PRE_LINK
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     $<TARGET_RUNTIME_DLLS:${target}> $<TARGET_FILE_DIR:${target}>
             COMMAND_EXPAND_LISTS
