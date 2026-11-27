@@ -39,7 +39,7 @@ EXAMPLE_PATH           = @CMAKE_SOURCE_DIR@/docs/examples \
 USE_MATHJAX            = YES
 MATHJAX_VERSION        = MathJax_3
 MATHJAX_FORMAT         = chtml
-MATHJAX_RELPATH        = https://cdn.jsdelivr.net/npm/mathjax@3/es5/
+MATHJAX_RELPATH        = https://cdn.jsdelivr.net/npm/mathjax@3
 MATHJAX_EXTENSIONS     = ams
 
 IGNORE_PREFIX          = I Abstract
