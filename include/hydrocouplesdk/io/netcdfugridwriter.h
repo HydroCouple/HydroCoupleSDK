@@ -42,6 +42,8 @@
  * fields.
  *
  * \threadsafety Driven exclusively by the IOThread (see IOutputWriter).
+ * Each library call also holds ioLibraryMutex(), so writers on other
+ * IOThreads and readers elsewhere in the process may run at the same time.
  */
 
 #ifndef HYDROCOUPLESDK_IO_NETCDFUGRIDWRITER_H
@@ -66,6 +68,8 @@ namespace HydroCouple::SDK::IO {
  * a snapshot that were not registered are ignored.
  *
  * \threadsafety Driven exclusively by the IOThread (see IOutputWriter).
+ * Each library call also holds ioLibraryMutex(), so writers on other
+ * IOThreads and readers elsewhere in the process may run at the same time.
  */
 class HYDROCOUPLESDK_EXPORT NetCDFUGRIDWriter final : public IOutputWriter
 {

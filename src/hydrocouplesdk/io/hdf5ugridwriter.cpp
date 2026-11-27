@@ -31,6 +31,7 @@
 
 #include "stdafx.h"
 #include "hydrocouplesdk/io/hdf5ugridwriter.h"
+#include "hydrocouplesdk/io/iolibrarylock.h"
 
 #include <hdf5.h>
 
@@ -300,6 +301,7 @@ std::string HDF5UGRIDWriter::errorMessage() const
 
 int HDF5UGRIDWriter::initialize()
 {
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     Impl &impl = *m_impl;
     const MeshDefinition &mesh = impl.mesh;
 
@@ -498,6 +500,7 @@ int HDF5UGRIDWriter::initialize()
 
 int HDF5UGRIDWriter::write(const Snapshot &snapshot)
 {
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     Impl &impl = *m_impl;
     ++impl.timeLevels;
 
@@ -577,6 +580,7 @@ int HDF5UGRIDWriter::write(const Snapshot &snapshot)
 
 int HDF5UGRIDWriter::finalize()
 {
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     Impl &impl = *m_impl;
     for (Impl::Field &field : impl.fields)
         if (field.dataset >= 0)

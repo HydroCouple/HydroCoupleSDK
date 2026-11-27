@@ -59,6 +59,8 @@ namespace HydroCouple::SDK::IO {
  * \threadsafety enqueue() may be called from one or more producer threads;
  * start()/finish() are owner-thread operations. Writers are only ever
  * touched from the internal worker thread (and finalize() during finish()).
+ * Writers that call HDF5 or NetCDF also hold ioLibraryMutex() per call,
+ * which is what makes several IOThreads in one process safe.
  */
 class HYDROCOUPLESDK_EXPORT IOThread
 {

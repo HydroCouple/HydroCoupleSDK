@@ -20,7 +20,8 @@
  * rather than failing to link.
  *
  * \threadsafety One reader instance belongs to one thread. Distinct
- * readers over distinct artifacts may run concurrently.
+ * readers may run concurrently: the HDF5 and NetCDF readers hold
+ * ioLibraryMutex() for each call, including their destructors.
  */
 
 #ifndef HYDROCOUPLESDK_IO_RESULTREADER_H

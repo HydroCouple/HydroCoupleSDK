@@ -5,7 +5,7 @@
  * \file   hdf5ugridwriter.h
  * \author Caleb Buahin
  * \version 2.0.0-alpha.1
- * \brief  HDF5UGRIDWriter — CF-1.11 / UGRID-1.0 output on thread-safe HDF5.
+ * \brief  HDF5UGRIDWriter — CF-1.11 / UGRID-1.0 output over HDF5.
  *
  * Ports the proven openswmm.engine Default2DOutputPlugin pattern to the SDK
  * IO layer: a mesh-topology dummy dataset with \c cf_role, node-coordinate
@@ -15,8 +15,10 @@
  * \c mesh and \c location (node|edge|face) attributes so UGRID-aware tools
  * (xarray + xugrid, QGIS/MDAL, ugrid-checks) load the file directly.
  *
- * Thread safety comes from the single-writer IOThread — the writer itself
- * performs no locking and must only be driven from one thread. The HDF5 C
+ * One writer is driven from one thread, the single-writer IOThread, and
+ * every HDF5 call it makes also holds ioLibraryMutex(): HDF5 is built
+ * without its own thread-safe mode, and several writers and readers can
+ * be active in one process. The HDF5 C
  * API is fully encapsulated (pimpl); this header is installable without
  * HDF5 present, but the class is compiled into HydroCoupleSDK only when it
  * is built with USE_HDF5 (macro HYDROCOUPLESDK_HAVE_HDF5).
@@ -55,6 +57,8 @@ namespace HydroCouple::SDK::IO {
  * not registered are ignored.
  *
  * \threadsafety Driven exclusively by the IOThread (see IOutputWriter).
+ * Each library call also holds ioLibraryMutex(), so writers on other
+ * IOThreads and readers elsewhere in the process may run at the same time.
  */
 class HYDROCOUPLESDK_EXPORT HDF5UGRIDWriter final : public IOutputWriter
 {

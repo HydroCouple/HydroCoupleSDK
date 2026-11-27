@@ -10,6 +10,8 @@
 #include "hydrocouplesdk/io/ugridreader.h"
 
 #ifdef HYDROCOUPLESDK_HAVE_NETCDF
+#include "hydrocouplesdk/io/iolibrarylock.h"
+
 #include <netcdf.h>
 #endif
 
@@ -282,6 +284,8 @@ bool readConnectivity(int ncid, const std::string &name,
 std::vector<std::string> ugridMeshNames(const std::filesystem::path &path,
                                         std::string &message)
 {
+    // First, so it is released only after the FileHandle below closes.
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     int ncid = -1;
 
     if (nc_open(path.string().c_str(), NC_NOWRITE, &ncid) != NC_NOERR)
@@ -311,6 +315,8 @@ bool readUGRIDMesh(const std::filesystem::path &path,
                    const std::string &meshName, MeshDefinition &mesh,
                    std::string &message)
 {
+    // First, so it is released only after the FileHandle below closes.
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     int ncid = -1;
 
     if (nc_open(path.string().c_str(), NC_NOWRITE, &ncid) != NC_NOERR)
@@ -716,6 +722,8 @@ bool readVerticalCoordinate(const std::filesystem::path &path,
                             VerticalCoordinate &vertical,
                             std::string &message)
 {
+    // First, so it is released only after the FileHandle below closes.
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     vertical = {};
 
     int ncid = -1;

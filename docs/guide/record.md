@@ -108,9 +108,9 @@ move-only and is handed to `IOThread::enqueue()` by move.
 ### The IO thread
 
 @ref HydroCouple::SDK::IO::IOThread runs every writer on one worker thread, so writers need no
-locking and never block the simulation, except by design: the queue holds at most `capacity`
-snapshots (default 64, at least 1), and `enqueue()` blocks while it is full. A slow disk therefore
-throttles the model instead of exhausting memory.
+locking against each other and never block the simulation, except by design: the queue holds at
+most `capacity` snapshots (default 64, at least 1), and `enqueue()` blocks while it is full. A slow
+disk therefore throttles the model instead of exhausting memory.
 
 <pre class="mermaid">
 sequenceDiagram
@@ -150,6 +150,27 @@ sequenceDiagram
 
 Check `errorCode()` after `finish()`, as the example does: a writer error during the run is not
 reported anywhere else.
+
+### Several pumps in one process
+
+One IOThread keeps its own writers off each other, but a process often runs more than one: a host
+reads results on its UI thread while a run records, or two components each record their own
+files. HDF5 and NetCDF are built without thread-safe modes, and both keep process-wide state, so
+two threads calling them at once race even on different files.
+
+Every SDK function that calls either library therefore holds
+@ref HydroCouple::SDK::IO::ioLibraryMutex() for that one call: the HDF5 and NetCDF writers'
+`initialize()`, `write()` and `finalize()`, the UGRID reader's functions, and the HDF5 and NetCDF
+result readers. The mutex lives in the SDK library, so every component that links the SDK shares
+it, and it is recursive, so an SDK call that makes another cannot deadlock. It is held per call,
+never for a file's lifetime, so a long recording does not block reads of other files.
+
+- Code that calls `nc_*` or `H5*` through the SDK's copy of the libraries must hold the same mutex
+  for each call.
+- A component that links its own copy must keep it private to its binary and must never open a
+  file that another copy has open.
+- Give each file one writer. To show a file while it is being written, read the snapshots in
+  memory rather than reopening the file.
 
 ## The writers
 
@@ -240,8 +261,8 @@ count, 23 an unsupported kind, 24 a field append. `finalize()` always returns 0.
 named dimensions (`time` unlimited, `MESH_nNodes`, `MESH_nFaces`, `MESH_maxFaceNodes`,
 `MESH_nEdges`, `Two`), all three node coordinates listed in `node_coordinates`, and fields shuffled
 and deflated at level 4. Fields are registered and matched exactly as for HDF5. It supersedes the
-legacy `threadsafenetcdf` module, whose critical sections the single-writer IO thread makes
-unnecessary.
+legacy `threadsafenetcdf` module, whose critical sections the single-writer IO thread and the
+process-wide library lock now provide.
 
 `setVerticalCoordinate(interfaceSigma, depth, surface)`, called before `initialize()`, turns the
 file into a layered one: the topology stays two-dimensional and a CF `ocean_sigma_coordinate`

@@ -8,6 +8,7 @@
 
 #include "stdafx.h"
 #include "hydrocouplesdk/io/netcdfugridwriter.h"
+#include "hydrocouplesdk/io/iolibrarylock.h"
 
 #include <netcdf.h>
 
@@ -206,6 +207,7 @@ void NetCDFUGRIDWriter::setVerticalCoordinate(
 
 int NetCDFUGRIDWriter::initialize()
 {
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     Impl &impl = *m_impl;
     const MeshDefinition &mesh = impl.mesh;
 
@@ -569,6 +571,7 @@ int NetCDFUGRIDWriter::initialize()
 
 int NetCDFUGRIDWriter::write(const Snapshot &snapshot)
 {
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     Impl &impl = *m_impl;
     const size_t level = impl.timeLevels++;
 
@@ -648,6 +651,7 @@ int NetCDFUGRIDWriter::write(const Snapshot &snapshot)
 
 int NetCDFUGRIDWriter::finalize()
 {
+    const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
     Impl &impl = *m_impl;
     if (!impl.open)
         return 0;

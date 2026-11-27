@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "hydrocouplesdk/io/resultreader.h"
 #include "hydrocouplesdk/data/bufferio.h"
+#include "hydrocouplesdk/io/iolibrarylock.h"
 #include "hydrocouplesdk/io/ugridreader.h"
 #include "hydrocouplehelpers.h"
 
@@ -373,6 +374,7 @@ class HDF5ResultReader final : public IResultReader
 public:
     ~HDF5ResultReader() override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         if (m_file >= 0)
             H5Fclose(m_file);
     }
@@ -382,6 +384,7 @@ public:
     [[nodiscard]] bool open(const std::filesystem::path &path,
                             std::string &message) override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         m_file = H5Fopen(path.string().c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         if (m_file < 0)
         {
@@ -400,6 +403,7 @@ public:
                             const BufferDescriptor &into,
                             std::string &message) override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         int64_t elements = 0;
         if (!validateRequest(entry, start, count, into, elements, message))
             return false;
@@ -441,6 +445,7 @@ public:
                                  std::vector<double> &times,
                                  std::string &message) override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         const hid_t dataset = H5Dopen2(m_file, "/time", H5P_DEFAULT);
         if (dataset < 0)
             return IResultReader::readTimes(entry, times, message);
@@ -486,6 +491,7 @@ class NetCDFResultReader final : public IResultReader
 public:
     ~NetCDFResultReader() override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         if (m_ncid >= 0)
             nc_close(m_ncid);
     }
@@ -498,6 +504,7 @@ public:
     [[nodiscard]] bool open(const std::filesystem::path &path,
                             std::string &message) override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         if (nc_open(path.string().c_str(), NC_NOWRITE, &m_ncid) != NC_NOERR)
         {
             message = "cannot open NetCDF result artifact \"" +
@@ -515,6 +522,7 @@ public:
                             const BufferDescriptor &into,
                             std::string &message) override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         int64_t elements = 0;
         if (!validateRequest(entry, start, count, into, elements, message))
             return false;
@@ -544,6 +552,7 @@ public:
                                  std::vector<double> &times,
                                  std::string &message) override
     {
+        const std::lock_guard<std::recursive_mutex> lock(ioLibraryMutex());
         int variable = -1;
         if (nc_inq_varid(m_ncid, "time", &variable) != NC_NOERR)
             return IResultReader::readTimes(entry, times, message);

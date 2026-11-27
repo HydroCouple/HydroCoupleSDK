@@ -21,8 +21,9 @@
  * (hasVerticalCoordinate() answers false); ugridReadSupported() says which
  * build this is.
  *
- * \threadsafety Each call opens and closes the file itself. Concurrent
- * calls are as safe as the NetCDF library build in use.
+ * \threadsafety Each call opens and closes the file itself and holds
+ * ioLibraryMutex() throughout, so concurrent calls from any threads are
+ * safe.
  */
 
 #ifndef HYDROCOUPLESDK_IO_UGRIDREADER_H

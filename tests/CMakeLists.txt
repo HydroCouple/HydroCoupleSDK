@@ -82,6 +82,10 @@ if(USE_HDF5)
     endforeach()
 endif()
 
+if(USE_NETCDF OR USE_HDF5)
+    target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_iolibrarylock.cpp)
+endif()
+
 if(USE_GEOPACKAGE)
     target_sources(HydroCoupleSDKTests PRIVATE hydrocouplesdk/test_geopackage.cpp)
     target_link_libraries(HydroCoupleSDKTests PRIVATE ${HYDROCOUPLESDK_SQLITE_TARGET})

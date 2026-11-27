@@ -49,7 +49,7 @@
       ]
     },
     "hdf5": {
-      "description": "HDF5/UGRID output persistence (USE_HDF5=ON). Concurrency is guaranteed by the SDK's single-writer IOThread, not by HDF5's global-lock threadsafe mode \u2014 which the port declares incompatible with the high-level library that netcdf-c requires.",
+      "description": "HDF5/UGRID output persistence (USE_HDF5=ON). Concurrency is guaranteed by the SDK's process-wide ioLibraryMutex(), held for every HDF5 and NetCDF call, not by HDF5's global-lock threadsafe mode \u2014 which the port declares incompatible with the high-level library that netcdf-c requires.",
       "dependencies": [
         {
           "name": "hdf5",
