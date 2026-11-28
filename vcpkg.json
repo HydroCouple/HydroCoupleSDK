@@ -1,0 +1,97 @@
+{
+  "name": "hydrocouplesdk",
+  "version-semver": "2.0.0-beta.1",
+  "description": "HydroCouple SDK \u2014 concrete base implementations of the HydroCouple v2 component-based modeling interfaces (typed hyperslab data plane, JSON/YAML argument IO, temporal and spatial data items).",
+  "license": "MIT",
+  "homepage": "https://www.hydrocouple.org",
+  "builtin-baseline": "9e593bb18ea69cc5095e012465dcd675a822ed0d",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "nlohmann-json",
+    "yaml-cpp"
+  ],
+  "default-features": [],
+  "features": {
+    "tests": {
+      "description": "Unit test harness (Google Test)",
+      "dependencies": [
+        {
+          "name": "gtest"
+        }
+      ]
+    },
+    "gdal": {
+      "description": "GDAL-backed raster data items (USE_GDAL=ON)",
+      "dependencies": [
+        {
+          "name": "gdal",
+          "default-features": false
+        }
+      ]
+    },
+    "netcdf": {
+      "description": "NetCDF-4/UGRID output persistence (USE_NETCDF=ON)",
+      "dependencies": [
+        {
+          "name": "netcdf-c",
+          "default-features": false,
+          "features": [
+            "netcdf-4"
+          ]
+        }
+      ]
+    },
+    "hdf5": {
+      "description": "HDF5/UGRID output persistence (USE_HDF5=ON). Concurrency is guaranteed by the SDK's process-wide ioLibraryMutex(), held for every HDF5 and NetCDF call, not by HDF5's global-lock threadsafe mode \u2014 which the port declares incompatible with the high-level library that netcdf-c requires.",
+      "dependencies": [
+        {
+          "name": "hdf5",
+          "default-features": false,
+          "features": [
+            "zlib"
+          ]
+        }
+      ]
+    },
+    "mpi": {
+      "description": "MPI transport for distributed coupling (USE_MPI=ON)",
+      "dependencies": [
+        "mpi"
+      ]
+    },
+    "tools": {
+      "description": "Mesh generation tools: constrained Delaunay triangulation (MeshKit, fetched by CMake), quad-dominant meshing, curvilinear and terrain-following sigma grids (BUILD_TOOLS=ON)",
+      "dependencies": []
+    },
+    "geopackage": {
+      "description": "GeoPackage result persistence (USE_GEOPACKAGE=ON)",
+      "dependencies": [
+        {
+          "name": "sqlite3",
+          "features": [
+            "rtree"
+          ]
+        }
+      ]
+    },
+    "gpu": {
+      "description": "Kokkos device backend (USE_KOKKOS=ON); pair with kokkos platform features for CUDA/HIP/SYCL",
+      "dependencies": [
+        "kokkos"
+      ]
+    }
+  },
+  "overrides": [
+    {
+      "name": "gtest",
+      "version": "1.15.2"
+    }
+  ]
+}

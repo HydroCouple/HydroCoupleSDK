@@ -1,0 +1,27 @@
+;; UNITS: m
+;; SOURCE_CRS: LOCAL
+[2D_VERTICES]
+;; x  y   z (node numbers are the row positions 0, 1, 2, ...)
+0   0   -2.0
+10  0   -2.0
+20  0   -2.2
+0   10  -1.8
+10  10  -1.9
+20  10  -2.1
+
+[2D_TRIANGLES]
+;; n0 n1 n2 roughness depth tag
+1  2  5  0.030  0.50  channel
+1  5  4  0.030  0.50  channel
+
+[2D_QUADS]
+;; n0 n1 n2 n3 roughness depth tag
+0  1  4  3  0.045  0.20  floodplain
+
+[2D_BOUNDARY_CONDITIONS]
+;; cell edge type p1 p2 group
+2  2  WALL  *    *  west_bank
+0  0  FLOW  1.5  *  east
+
+[2D_OPTIONS]
+SOLVER  FV

@@ -1,0 +1,93 @@
+name: Documentation
+
+# The Doxygen site includes the manual and the C++ API.
+
+on:
+  push:
+    branches: [ "master", "dev", "removing_qt" ]
+    tags: [ "v*.*.*" ]
+    paths:
+      - 'docs/**'
+      - 'include/**'
+      - 'src/**'
+      - '**/*.md'
+      - 'CMakeLists.txt'
+      - '.github/workflows/build_docs.yml'
+  pull_request:
+    branches: [ "master", "dev", "removing_qt" ]
+    paths:
+      - 'docs/**'
+      - 'include/**'
+      - 'src/**'
+      - '**/*.md'
+      - 'CMakeLists.txt'
+      - '.github/workflows/build_docs.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build_docs:
+    name: Build C++ API and user guide
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz wget tar
+
+      - name: Install Doxygen 1.17.0
+        # Pinned to the same release as the interface repo's pipeline.
+        run: |
+          wget -q https://github.com/doxygen/doxygen/releases/download/Release_1_17_0/doxygen-1.17.0.linux.bin.tar.gz
+          echo "75419ef4f446fc1c24ef12514b574e66e898ee6f527c6ae2ad84f91a905823c2  doxygen-1.17.0.linux.bin.tar.gz" | sha256sum --check
+          tar -xzf doxygen-1.17.0.linux.bin.tar.gz
+          sudo cp doxygen-1.17.0/bin/doxygen /usr/local/bin/
+          doxygen --version
+
+      - name: Configure documentation
+        run: cmake -S . -B build/manual -DHYDROCOUPLE_DOCS_ONLY=ON
+
+      - name: Build and check both manuals
+        run: |
+          cmake --build build/manual --target docs
+          test -s build/manual/docs/doxygen/html/annotated.html
+          test -s build/manual/docs/doxygen/html/guide/index.html
+
+      - name: Package the generated site for Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/manual/docs/doxygen/html/
+
+  deploy:
+    name: Deploy to GitHub Pages
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    needs: build_docs
+    # The Pages environment also restricts which PR merge refs may publish.
+    if: >-
+      ((github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+       && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master'))
+      || (github.event_name == 'pull_request' && github.base_ref == 'dev'
+          && github.head_ref == 'removing_qt'
+          && github.event.pull_request.head.repo.full_name == github.repository)
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

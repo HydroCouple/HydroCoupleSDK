@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.1",
+  "metadata": {
+    "id": "lower-creek",
+    "caption": "Lower Creek coupled model",
+    "description": "Catchment runoff routed through a channel whose bed comes from a terrain component.",
+    "author": "HydroCouple SDK manual",
+    "created": "2026-11-26T00:00:00Z",
+    "sdk_version": "2.1.0",
+    "interface_version": "2.1.0"
+  },
+  "components": [
+    {
+      "id": "terrain",
+      "caption": "Terrain profile",
+      "info": {
+        "library": "libterrain_component.dylib",
+        "component_info_id": "org.example.terrain"
+      },
+      "arguments": {
+        "elevations": { "values": [12.0, 10.5, 9.0] }
+      }
+    },
+    {
+      "id": "catchment",
+      "arguments": {
+        "coefficients": { "values": [0.35, 0.20, 0.55] }
+      }
+    },
+    {
+      "id": "channel",
+      "arguments": {
+        "bed_levels": { "@from": { "component": "terrain", "output": "levels" } },
+        "roughness": { "@uri": "roughness.json" }
+      }
+    },
+    {
+      "id": "gauge",
+      "execution": { "mode": "open", "results": "prior/run.json" }
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "component": "catchment",
+        "output": "runoff",
+        "adapted_outputs": [
+          {
+            "factory": "hydrocouple.sdk.adapters",
+            "id": "linear_transform",
+            "arguments": { "multiplier": { "values": [1000.0] } }
+          }
+        ]
+      },
+      "to": { "component": "channel", "input": "lateral_inflow" }
+    },
+    {
+      "from": { "component": "gauge", "output": "flow" },
+      "to": { "component": "channel", "input": "boundary_flow" }
+    }
+  ],
+  "workflow": {
+    "strategy": "time_stepped",
+    "id": "lower-creek-workflow",
+    "iterations_per_group": 2,
+    "max_steps": 48
+  },
+  "writers": [
+    { "type": "csv", "path": "out/results.csv" },
+    {
+      "type": "geopackage",
+      "path": "out/results.gpkg",
+      "simulation": "lower-creek",
+      "fields": [ { "item": "flow", "units": "m3/s", "description": "Routed flow" } ]
+    }
+  ],
+  "run": { "manifest": "out/run.json" }
+}

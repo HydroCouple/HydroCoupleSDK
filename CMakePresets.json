@@ -1,0 +1,89 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "default",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_MANIFEST_FEATURES": "tests"
+      }
+    },
+    {
+      "name": "windows",
+      "inherits": "default",
+      "description": "Windows x64 build using Visual Studio 2022",
+      "generator": "Visual Studio 17 2022",
+      "architecture": {
+        "value": "x64"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "linux",
+      "inherits": "default",
+      "description": "Linux build using Unix Makefiles",
+      "generator": "Unix Makefiles",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "macos",
+      "inherits": "default",
+      "description": "macOS (Apple silicon) build using Unix Makefiles; dynamic vcpkg linkage so the SDK library and its consumers share one hdf5/netcdf instance",
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-osx-dynamic"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "macos-full",
+      "inherits": "macos",
+      "description": "macOS with the features a consumer needs. The plain 'macos' preset builds a minimal SDK: no NetCDF, so no UGRID reading, and no tools library. HydroCoupleComposer links HydroCoupleSDK::HydroCoupleTools and reads UGRID meshes, so it cannot be built against an SDK configured by that preset \u2014 which is a slow thing to discover, because the SDK itself builds and its own tests pass.",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_FEATURES": "tests;netcdf;hdf5;gdal;tools;geopackage",
+        "USE_NETCDF": "ON",
+        "USE_HDF5": "ON",
+        "USE_GDAL": "ON",
+        "USE_GEOPACKAGE": "ON",
+        "BUILD_TOOLS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "hidden": true,
+      "configurePreset": "default"
+    },
+    {
+      "name": "windows",
+      "configurePreset": "windows"
+    },
+    {
+      "name": "linux",
+      "configurePreset": "linux"
+    },
+    {
+      "name": "macos",
+      "configurePreset": "macos"
+    },
+    {
+      "name": "macos-full",
+      "configurePreset": "macos-full"
+    }
+  ]
+}
